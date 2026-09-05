@@ -1,3 +1,124 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+@theme {
+  /* Brand */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+
+  /* Surfaces */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+
+  /* Borders */
+  --color-border: var(--border);
+
+  /* Typography */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  /* Typography semantic aliases */
+  --color-foreground: var(--text-primary);
+  --color-foreground-secondary: var(--text-secondary);
+  --color-foreground-muted: var(--text-muted);
+
+  /* Semantic */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+}
+
+
+/* =========================================
+   LIGHT MODE (Default)
+   ========================================= */
+
+:root {
+  --primary: #d92d4f;
+  --primary-hover: #b91f3d;
+
+  --secondary: #7c3aed;
+  --accent: #f59e0b;
+
+  --background: #f8f8fa;
+  --surface: #ffffff;
+  --surface-elevated: #f1f1f4;
+  --surface-hover: #eaeaee;
+
+  --border: #e2e2e7;
+
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-muted: #a1a1aa;
+
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+}
+
+
+/* =========================================
+   SYSTEM PREFERENCE DARK MODE
+   ========================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --primary: #ff4d6d;
+    --primary-hover: #ff6b85;
+
+    --secondary: #a78bfa;
+    --accent: #fbbf24;
+
+    --background: #0d0d0f;
+    --surface: #151518;
+    --surface-elevated: #1d1d21;
+    --surface-hover: #25252a;
+
+    --border: #2a2a30;
+
+    --text-primary: #f5f5f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --error: #f87171;
+  }
+}
+
+
+/* =========================================
+   CLASS-BASED DARK MODE (.dark)
+   ========================================= */
+
+.dark {
+  --primary: #ff4d6d;
+  --primary-hover: #ff6b85;
+
+  --secondary: #a78bfa;
+  --accent: #fbbf24;
+
+  --background: #0d0d0f;
+  --surface: #151518;
+  --surface-elevated: #1d1d21;
+  --surface-hover: #25252a;
+
+  --border: #2a2a30;
+
+  --text-primary: #f5f5f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --error: #f87171;
+}

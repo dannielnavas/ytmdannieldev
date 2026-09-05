@@ -1,15 +1,22 @@
 {
-  "name": "ytmdannieldev",
+  "name": "Sonara",
   "version": "0.0.0",
+  "main": "dist-electron/main.js",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "electron-forge start",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "ng:serve": "ng serve",
+    "electron:build-ts": "tsc -p tsconfig.electron.json",
+    "electron:start": "npm run electron:build-ts && wait-on http://localhost:4200 && electron .",
+    "dev": "concurrently \"npm run ng:serve\" \"npm run electron:start\""
   },
   "private": true,
-  "packageManager": "npm@11.17.0",
+  "packageManager": "pnpm@11.24.0",
   "dependencies": {
     "@angular/common": "^22.1.0",
     "@angular/compiler": "^22.1.0",
@@ -17,6 +24,8 @@
     "@angular/forms": "^22.1.0",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "@lucide/angular": "^1.40.0",
+    "electron": "^44.1.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -25,11 +34,36 @@
     "@angular/cli": "^22.1.4",
     "@angular/compiler-cli": "^22.1.0",
     "@tailwindcss/postcss": "^4.1.12",
+    "concurrently": "^10.0.5",
     "jsdom": "^28.0.0",
     "postcss": "^8.5.3",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.12",
     "typescript": "~6.0.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "dev.dannieldev.sonara",
+    "productName": "Sonara",
+    "mac": {
+      "icon": "icons/macos/icon.icns",
+      "category": "public.app-category.music"
+    },
+    "win": {
+      "icon": "icons/windows/icon.ico"
+    },
+    "linux": {
+      "icon": "icons/linux/icons/512x512.png",
+      "category": "Audio"
+    }
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {
+        "name": "Sonara",
+        "icon": "icons/icon"
+      }
+    }
   }
 }
