@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { NgOptimizedImage } from '@angular/common';
 import { Router } from '@angular/router';
 import {
@@ -9,6 +9,7 @@ import {
   LucideStar,
   LucideSun,
 } from '@lucide/angular';
+import { Auth } from '../../../core/services/auth/auth';
 
 @Component({
   selector: 'app-auth-view',
@@ -204,13 +205,18 @@ import {
   styles: [``],
 })
 export class AuthViewComponent implements OnInit {
+  private readonly _auth = inject(Auth);
+  private readonly _router = inject(Router);
+
   public $isLoading = signal(false);
   public $errorMessage = signal('');
   public $isDark = signal(false);
 
-  constructor(private router: Router) {}
-
   ngOnInit(): void {
+    this.loadModes();
+  }
+
+  public loadModes(): void {
     if (typeof window !== 'undefined') {
       const savedTheme = typeof localStorage !== 'undefined' ? localStorage.getItem('theme') : null;
       const prefersDark =
@@ -235,7 +241,7 @@ export class AuthViewComponent implements OnInit {
     }
   }
 
-  toggleTheme(): void {
+  public toggleTheme(): void {
     const next = !this.$isDark();
     this.$isDark.set(next);
 
@@ -258,21 +264,29 @@ export class AuthViewComponent implements OnInit {
       if (!window.electronAPI?.loginWithGoogle) {
         throw new Error('La API de Electron no está disponible en este entorno.');
       }
-
-      // Llamamos a la API de Electron que abrirá la ventana de Google
       const cookies = await window.electronAPI.loginWithGoogle();
-
-      console.log('Cookies obtenidas exitosamente:', cookies);
-
-      // TODO: Aquí enviarías estas cookies a tu backend en NestJS para guardarlas en sesión
-
-      // Una vez guardadas, redirigimos al usuario a la pantalla principal
-      this.router.navigate(['/home']);
+      this.loginWithGoogle(cookies);
     } catch (error) {
       console.error(error);
       this.$errorMessage.set('No se pudo completar el inicio de sesión. Inténtalo de nuevo.');
     } finally {
       this.$isLoading.set(false);
     }
+  }
+
+  private loginWithGoogle(cookies: string): void {
+    console.log(cookies);
+    this._auth.login(cookies).subscribe({
+      next: (res) => {
+        this._router.navigate(['/home']);
+      },
+      error: (err) => {
+        console.error(err);
+        this.$errorMessage.set('No se pudo completar el inicio de sesión. Inténtalo de nuevo.');
+      },
+      complete: () => {
+        this.$isLoading.set(false);
+      },
+    });
   }
 }

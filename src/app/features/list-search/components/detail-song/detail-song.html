@@ -1,0 +1,160 @@
+<article
+  class="group relative flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2.5 rounded-xl transition-all duration-200 cursor-pointer select-none border"
+  [class.bg-purple-950/30]="$isPlaying()"
+  [class.border-purple-500/40]="$isPlaying()"
+  [class.shadow-lg]="$isPlaying()"
+  [class.shadow-purple-950/30]="$isPlaying()"
+  [class.bg-white/[0.02]]="!$isPlaying()"
+  [class.border-white/5]="!$isPlaying()"
+  [class.hover:bg-white/[0.06]]="!$isPlaying()"
+  [class.hover:border-purple-500/20]="!$isPlaying()"
+  (click)="playSong()"
+  tabindex="0"
+  role="button"
+  (keydown.enter)="playSong()"
+  (keydown.space)="playSong(); $event.preventDefault()"
+  [attr.aria-label]="'Reproducir ' + ($song()?.name || 'canción')"
+>
+  <!-- Index / Play indicator column -->
+  <div class="w-6 shrink-0 flex items-center justify-center text-xs font-mono">
+    @if ($isLoading()) {
+      <svg lucideLoader2 class="w-4 h-4 text-purple-400 animate-spin"></svg>
+    } @else if ($isPlaying()) {
+      <!-- Animated Equalizer waves -->
+      <div class="flex items-end gap-0.5 h-4" title="Reproduciendo">
+        <span class="w-0.5 bg-purple-400 rounded-full animate-wave-1"></span>
+        <span class="w-0.5 bg-purple-300 rounded-full animate-wave-2"></span>
+        <span class="w-0.5 bg-purple-400 rounded-full animate-wave-3"></span>
+      </div>
+    } @else {
+      <span class="text-neutral-500 group-hover:hidden font-medium">
+        @if ($index()) {
+          {{ $index() }}
+        } @else {
+          <svg lucideMusic class="w-3.5 h-3.5 text-neutral-500"></svg>
+        }
+      </span>
+      <!-- Play icon on hover -->
+      <svg
+        lucidePlay
+        class="w-3.5 h-3.5 text-purple-300 fill-purple-300 hidden group-hover:block transition-transform hover:scale-110"
+      ></svg>
+    }
+  </div>
+
+  <!-- Song Thumbnail -->
+  <div
+    class="relative w-11 h-11 md:w-12 md:h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-900 border border-white/10 shadow-sm"
+  >
+    @if (thumbnailUrl()) {
+      <img
+        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        [src]="thumbnailUrl()"
+        [alt]="$song()?.name || 'Carátula'"
+        loading="lazy"
+        decoding="async"
+        (error)="onImageError()"
+      />
+    } @else {
+      <div
+        class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-900/50 to-neutral-900 text-purple-400 border border-purple-500/20"
+        title="Canción (sin carátula)"
+      >
+        <svg lucideMusic class="w-5 h-5 text-purple-400"></svg>
+      </div>
+    }
+
+    <!-- Overlay badge if playing -->
+    @if ($isPlaying()) {
+      <div
+        class="absolute inset-0 bg-purple-950/60 backdrop-blur-[1px] flex items-center justify-center"
+      >
+        <svg lucidePause class="w-4 h-4 text-white fill-white"></svg>
+      </div>
+    }
+  </div>
+
+  <!-- Song Title & Artist -->
+  <div class="flex flex-col min-w-0 flex-1 justify-center">
+    <div class="flex items-center gap-2">
+      <span
+        class="font-semibold text-sm md:text-[15px] truncate transition-colors"
+        [class.text-purple-300]="$isPlaying()"
+        [class.text-neutral-100]="!$isPlaying()"
+        [class.group-hover:text-purple-200]="!$isPlaying()"
+        [title]="$song()?.name || ''"
+      >
+        {{ $song()?.name }}
+      </span>
+
+      @if ($isPlaying()) {
+        <span
+          class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-purple-500/20 text-purple-300 border border-purple-500/30 uppercase"
+        >
+          Sonando
+        </span>
+      }
+    </div>
+
+    <div class="flex items-center gap-1.5 text-xs text-neutral-400 truncate mt-0.5">
+      <span class="truncate hover:text-neutral-300" [title]="$song()?.artist?.name || ''">
+        {{ $song()?.artist?.name || 'Artista desconocido' }}
+      </span>
+      @if ($song()?.album?.name) {
+        <span class="text-neutral-600 font-bold">•</span>
+        <span
+          class="truncate text-neutral-400 hover:text-neutral-300 sm:hidden"
+          [title]="$song()?.album?.name || ''"
+        >
+          {{ $song()?.album?.name }}
+        </span>
+      }
+    </div>
+  </div>
+
+  <!-- Album column (visible on tablet/desktop) -->
+  @if ($song()?.album?.name) {
+    <div class="hidden sm:flex flex-1 min-w-0 items-center">
+      <span
+        class="text-xs text-neutral-400 hover:text-neutral-300 truncate max-w-[220px]"
+        [title]="$song()?.album?.name || ''"
+      >
+        {{ $song()?.album?.name }}
+      </span>
+    </div>
+  }
+
+  <!-- Duration & Actions column -->
+  <div class="shrink-0 flex items-center gap-3">
+    @if (formattedDuration()) {
+      <span
+        class="text-xs font-mono text-neutral-400 group-hover:text-neutral-300 transition-colors"
+      >
+        {{ formattedDuration() }}
+      </span>
+    }
+
+    <!-- Quick play circle button -->
+    <div
+      class="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+      [class.bg-purple-600]="$isPlaying()"
+      [class.text-white]="$isPlaying()"
+      [class.shadow-md]="$isPlaying()"
+      [class.shadow-purple-900/50]="$isPlaying()"
+      [class.bg-white/5]="!$isPlaying()"
+      [class.text-neutral-400]="!$isPlaying()"
+      [class.group-hover:bg-purple-600]="!$isPlaying()"
+      [class.group-hover:text-white]="!$isPlaying()"
+      [class.group-hover:shadow-md]="!$isPlaying()"
+      [class.group-hover:shadow-purple-900/40]="!$isPlaying()"
+    >
+      @if ($isLoading()) {
+        <svg lucideLoader2 class="w-3.5 h-3.5 animate-spin"></svg>
+      } @else if ($isPlaying()) {
+        <svg lucidePause class="w-3.5 h-3.5 fill-current"></svg>
+      } @else {
+        <svg lucidePlay class="w-3.5 h-3.5 fill-current translate-x-0.5"></svg>
+      }
+    </div>
+  </div>
+</article>

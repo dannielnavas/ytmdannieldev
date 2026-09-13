@@ -1,0 +1,84 @@
+name: Multiplatform Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12.3.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Angular and Electron
+        run: pnpm build:all
+
+      - name: Build packages (macOS)
+        if: matrix.os == 'macos-latest'
+        run: pnpm electron-builder --mac
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build packages (Windows)
+        if: matrix.os == 'windows-latest'
+        run: pnpm electron-builder --win
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build packages (Linux / CachyOS)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm electron-builder --linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonara-build-${{ matrix.os }}
+          path: |
+            dist-release/*.dmg
+            dist-release/*.zip
+            dist-release/*.exe
+            dist-release/*.AppImage
+            dist-release/*.pacman
+            dist-release/*.deb
+          if-no-files-found: warn
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-release/*.dmg
+            dist-release/*.zip
+            dist-release/*.exe
+            dist-release/*.AppImage
+            dist-release/*.pacman
+            dist-release/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

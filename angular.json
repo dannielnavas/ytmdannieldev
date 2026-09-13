@@ -26,10 +26,14 @@
             ],
             "styles": [
               "src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "quantize"
             ]
           },
           "configurations": {
             "production": {
+              "baseHref": "./",
               "budgets": [
                 {
                   "type": "initial",

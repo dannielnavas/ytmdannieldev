@@ -1,0 +1,513 @@
+<section class="h-full flex flex-col justify-between overflow-hidden bg-[#0c0a15] text-neutral-100">
+  <!-- Header: Search bar & Back Navigation -->
+  <header
+    class="shrink-0 px-6 pt-3 pb-3 flex flex-col gap-3 border-b border-white/5 bg-[#0c0a15]/90 backdrop-blur-md z-20"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 w-full max-w-xl">
+        <button
+          type="button"
+          (click)="goBack()"
+          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors border border-white/5 shrink-0 flex items-center justify-center cursor-pointer"
+          title="Volver atrás"
+        >
+          <svg lucideArrowLeft class="w-4 h-4"></svg>
+        </button>
+        <app-search class="w-full" />
+      </div>
+
+      <!-- User avatar / profile button -->
+      <div class="flex items-center gap-3 shrink-0">
+        <button
+          type="button"
+          class="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-200 flex items-center justify-center text-xs font-semibold hover:bg-purple-600/40 transition-colors shadow-sm cursor-pointer"
+          title="Perfil de Usuario"
+        >
+          DN
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Scrollable Content Area -->
+  <main class="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-5 pb-32 custom-scrollbar">
+    @let artistList = artists();
+    @let albumList = albums();
+    @let playlistList = playlists();
+    @let songList = songs();
+    @let artist = currentArtist();
+
+    @if (
+      artistList.length > 0 ||
+      albumList.length > 0 ||
+      playlistList.length > 0 ||
+      songList.length > 0
+    ) {
+      <div class="flex flex-col lg:flex-row gap-6 xl:gap-8 items-start">
+        <!-- Panel lateral: Información del Cantante / Artista -->
+        @if (artist) {
+          <aside
+            class="w-full lg:w-80 xl:w-88 shrink-0 lg:sticky lg:top-2 flex flex-col gap-4 lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto custom-scrollbar pr-1"
+          >
+            <!-- Card destacada del artista con ColorThief y fallback de imagen -->
+            <div
+              class="relative overflow-hidden rounded-3xl bg-gradient-to-b from-purple-950/40 via-neutral-900/70 to-neutral-950/90 border border-purple-500/25 p-6 backdrop-blur-xl shadow-2xl transition-all duration-500"
+              [style]="artistCardBgStyle()"
+            >
+              <!-- Glow decorativo superior con ColorThief -->
+              <div
+                class="absolute -top-16 -right-16 w-44 h-44 rounded-full blur-3xl pointer-events-none transition-all duration-500"
+                [style.background]="artistGlowStyle()"
+              ></div>
+
+              <!-- Avatar circular del artista con fallback interactivo -->
+              <div
+                class="relative mx-auto w-36 h-36 sm:w-40 sm:h-40 rounded-full overflow-hidden border-2 border-purple-400/40 shadow-2xl ring-4 ring-purple-500/10 group transition-all duration-500 bg-neutral-900"
+                [style]="artistRingStyle()"
+              >
+                @if (artistThumbnailUrl()) {
+                  <img
+                    #artistImg
+                    [src]="artistThumbnailUrl()"
+                    [alt]="artist.name"
+                    crossorigin="anonymous"
+                    decoding="async"
+                    (load)="onImageLoad(artistImg)"
+                    (error)="onArtistImageError()"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                } @else {
+                  <!-- Placeholder identificable para el artista cuando fallan las imágenes -->
+                  <div
+                    class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-900/80 via-neutral-900 to-purple-950 text-purple-200 p-4 text-center select-none"
+                    title="Artista"
+                  >
+                    <svg lucideUser class="w-14 h-14 text-purple-300 mb-1"></svg>
+                    <span
+                      class="text-[10px] font-bold uppercase tracking-widest text-purple-300/80"
+                    >
+                      Artista
+                    </span>
+                  </div>
+                }
+              </div>
+
+              <!-- Nombre y etiqueta de Artista -->
+              <div class="text-center mt-4 space-y-1.5">
+                <div
+                  class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[11px] font-semibold tracking-wider uppercase transition-colors duration-300"
+                  [style]="artistBadgeStyle()"
+                >
+                  <svg lucideSparkles class="w-3 h-3"></svg>
+                  Artista
+                </div>
+                <h1
+                  class="text-xl sm:text-2xl font-bold text-white tracking-tight break-words"
+                  [title]="artist.name"
+                >
+                  {{ artist.name }}
+                </h1>
+              </div>
+
+              <!-- Estadísticas / Datos del artista en la búsqueda -->
+              <div class="grid grid-cols-3 gap-1.5 mt-5 pt-4 border-t border-white/5 text-center">
+                <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span class="block text-base sm:text-lg font-bold text-neutral-100">
+                    {{ albumList.length }}
+                  </span>
+                  <span class="text-[10px] sm:text-[11px] text-neutral-400">Álbumes</span>
+                </div>
+                <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span class="block text-base sm:text-lg font-bold text-neutral-100">
+                    {{ songList.length }}
+                  </span>
+                  <span class="text-[10px] sm:text-[11px] text-neutral-400">Canciones</span>
+                </div>
+                <div class="p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span class="block text-base sm:text-lg font-bold text-neutral-100">
+                    {{ playlistList.length }}
+                  </span>
+                  <span class="text-[10px] sm:text-[11px] text-neutral-400">Playlists</span>
+                </div>
+              </div>
+
+              <!-- Botones de acción rápida -->
+              @if (songList.length > 0) {
+                <div class="flex items-center gap-2 mt-5">
+                  <button
+                    type="button"
+                    (click)="playAllSongs()"
+                    class="flex-1 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer hover:scale-[1.02]"
+                    [style]="actionButtonStyle()"
+                  >
+                    <svg lucidePlay class="w-3.5 h-3.5 fill-current"></svg>
+                    Reproducir
+                  </button>
+                  <button
+                    type="button"
+                    (click)="shuffleAllSongs()"
+                    class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+                    title="Reproducción aleatoria"
+                  >
+                    <svg lucideShuffle class="w-4 h-4"></svg>
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- Otros artistas coincidentes con fallback de miniatura -->
+            @if (artistList.length > 1) {
+              <div class="rounded-2xl bg-white/[0.02] border border-white/5 p-4 space-y-2.5">
+                <h3 class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                  Otros artistas coincidentes
+                </h3>
+                <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  @for (other of artistList; track other.artistId || $index) {
+                    <button
+                      type="button"
+                      (click)="selectArtist($index)"
+                      class="flex items-center gap-3 p-2 rounded-xl text-left transition-colors cursor-pointer"
+                      [class.bg-purple-950/40]="selectedArtistIndex() === $index"
+                      [class.border]="selectedArtistIndex() === $index"
+                      [class.border-purple-500/30]="selectedArtistIndex() === $index"
+                      [class.hover:bg-white/5]="selectedArtistIndex() !== $index"
+                    >
+                      <div
+                        class="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-neutral-900 border border-white/10 flex items-center justify-center"
+                      >
+                        @if (getOtherArtistThumbnail(other)) {
+                          <img
+                            [src]="getOtherArtistThumbnail(other)"
+                            [alt]="other.name"
+                            loading="lazy"
+                            decoding="async"
+                            (error)="onOtherArtistImageError(other)"
+                            class="w-full h-full object-cover"
+                          />
+                        } @else {
+                          <div
+                            class="w-full h-full flex items-center justify-center bg-purple-950/60 text-purple-300"
+                            title="Artista"
+                          >
+                            <svg lucideUser class="w-3.5 h-3.5"></svg>
+                          </div>
+                        }
+                      </div>
+                      <span class="text-xs font-medium text-neutral-200 truncate flex-1">
+                        {{ other.name }}
+                      </span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </aside>
+        }
+
+        <!-- Contenido Principal: Álbumes (Prioridad 1), Playlists y Canciones -->
+        <div class="flex-1 min-w-0 w-full space-y-8">
+          <!-- SECCIÓN 1 (MAYOR PRIORIDAD): Álbumes -->
+          @if (albumList.length > 0) {
+            <section class="space-y-3.5">
+              <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                <div class="flex items-center gap-2.5">
+                  <div
+                    class="w-7 h-7 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400"
+                  >
+                    <svg lucideDisc class="w-4 h-4"></svg>
+                  </div>
+                  <div>
+                    <h2
+                      class="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2"
+                    >
+                      Álbumes
+                      <span
+                        class="px-2 py-0.5 text-[11px] rounded-full bg-purple-500/15 text-purple-300 font-medium border border-purple-500/30"
+                      >
+                        {{ albumList.length }}
+                      </span>
+                    </h2>
+                  </div>
+                </div>
+
+                <!-- Controles de desplazamiento para Álbumes -->
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    (click)="scrollAlbums('left', albumsScrollContainer)"
+                    class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                    title="Desplazar álbumes a la izquierda"
+                  >
+                    <svg lucideChevronLeft class="w-4 h-4"></svg>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="scrollAlbums('right', albumsScrollContainer)"
+                    class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                    title="Desplazar álbumes a la derecha"
+                  >
+                    <svg lucideChevronRight class="w-4 h-4"></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Carrusel horizontal de Álbumes -->
+              <div
+                #albumsScrollContainer
+                class="flex gap-4 overflow-x-auto pb-3.5 pt-1 px-0.5 custom-scrollbar snap-x scroll-smooth"
+              >
+                @for (album of albumList; track album.albumId || album.playlistId || $index) {
+                  <div
+                    (click)="openAlbum(album)"
+                    class="group w-40 sm:w-48 shrink-0 snap-start p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/40 hover:shadow-xl hover:shadow-purple-950/40 transition-all duration-300 cursor-pointer flex flex-col"
+                  >
+                    <!-- Carátula del Álbum -->
+                    <div
+                      class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/5 shadow-md group-hover:shadow-lg"
+                    >
+                      @if (getAlbumThumbnail(album)) {
+                        <img
+                          [src]="getAlbumThumbnail(album)"
+                          [alt]="album.name"
+                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          decoding="async"
+                          (error)="onAlbumImageError(album)"
+                        />
+                      } @else {
+                        <!-- Placeholder claro para que el usuario entienda que es un Álbum -->
+                        <div
+                          class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950 via-neutral-900 to-neutral-950 text-purple-300 p-3 text-center select-none"
+                          title="Álbum"
+                        >
+                          <div
+                            class="w-12 h-12 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
+                          >
+                            <svg lucideDisc class="w-6 h-6 text-purple-400"></svg>
+                          </div>
+                          <span
+                            class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
+                          >
+                            Álbum
+                          </span>
+                        </div>
+                      }
+
+                      <!-- Badge flotante de Álbum -->
+                      <div
+                        class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-semibold text-neutral-200 uppercase tracking-wider flex items-center gap-1"
+                      >
+                        <svg lucideDisc class="w-3 h-3 text-purple-400"></svg>
+                        Álbum
+                      </div>
+
+                      <!-- Botón de Play en Hover -->
+                      <div
+                        class="absolute right-2.5 bottom-2.5 w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl shadow-purple-950/80 translate-y-2 group-hover:translate-y-0 hover:scale-110"
+                      >
+                        <svg lucidePlay class="w-4 h-4 fill-current translate-x-0.5"></svg>
+                      </div>
+                    </div>
+
+                    <!-- Título y detalles del Álbum -->
+                    <span
+                      class="mt-3 text-xs md:text-sm font-bold text-neutral-100 group-hover:text-purple-300 truncate"
+                      [title]="album.name"
+                    >
+                      {{ album.name }}
+                    </span>
+                    <div
+                      class="flex items-center gap-1.5 text-[11px] text-neutral-400 truncate mt-0.5"
+                    >
+                      <span class="truncate" [title]="album.artist?.name || ''">
+                        {{ album.artist?.name || 'Artista' }}
+                      </span>
+                      @if (album.year) {
+                        <span class="text-neutral-600">•</span>
+                        <span>{{ album.year }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- SECCIÓN 2: Playlists -->
+          @if (playlistList.length > 0) {
+            <section class="space-y-3">
+              <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                <div class="flex items-center gap-2">
+                  <svg lucideListMusic class="w-4 h-4 text-purple-400"></svg>
+                  <h2 class="text-base md:text-lg font-bold tracking-tight text-white">
+                    Playlists
+                  </h2>
+                  <span
+                    class="px-2 py-0.5 text-[11px] rounded-full bg-purple-500/15 text-purple-300 font-medium border border-purple-500/30"
+                  >
+                    {{ playlistList.length }}
+                  </span>
+                </div>
+
+                <!-- Controles de desplazamiento horizontal -->
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    (click)="scrollPlaylists('left', playlistsScrollContainer)"
+                    class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                    title="Desplazar a la izquierda"
+                  >
+                    <svg lucideChevronLeft class="w-4 h-4"></svg>
+                  </button>
+                  <button
+                    type="button"
+                    (click)="scrollPlaylists('right', playlistsScrollContainer)"
+                    class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer border border-white/5"
+                    title="Desplazar a la derecha"
+                  >
+                    <svg lucideChevronRight class="w-4 h-4"></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Contenedor scrollable horizontal para Playlists -->
+              <div
+                #playlistsScrollContainer
+                class="flex gap-3.5 overflow-x-auto pb-3 pt-1 px-0.5 custom-scrollbar snap-x scroll-smooth"
+              >
+                @for (playlist of playlistList; track playlist.playlistId || $index) {
+                  <div
+                    (click)="openPlaylist(playlist)"
+                    class="group w-38 sm:w-44 shrink-0 snap-start p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/30 transition-all duration-200 cursor-pointer flex flex-col"
+                  >
+                    <!-- Miniatura de la Playlist con fallback de imagen -->
+                    <div
+                      class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/5 shadow-md"
+                    >
+                      @if (getPlaylistThumbnail(playlist)) {
+                        <img
+                          [src]="getPlaylistThumbnail(playlist)"
+                          [alt]="playlist.name"
+                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          decoding="async"
+                          (error)="onPlaylistImageError(playlist)"
+                        />
+                      } @else {
+                        <!-- Placeholder claro para que el usuario entienda que es una Playlist -->
+                        <div
+                          class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/80 via-neutral-900 to-indigo-950/80 text-purple-300 p-3 text-center select-none"
+                          title="Lista de reproducción"
+                        >
+                          <div
+                            class="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
+                          >
+                            <svg lucideListMusic class="w-5 h-5 text-purple-400"></svg>
+                          </div>
+                          <span
+                            class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
+                          >
+                            Playlist
+                          </span>
+                        </div>
+                      }
+
+                      <!-- Botón de Play en Hover -->
+                      <div
+                        class="absolute right-2 bottom-2 w-9 h-9 rounded-full bg-purple-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-purple-950/60 translate-y-2 group-hover:translate-y-0"
+                      >
+                        <svg lucidePlay class="w-4 h-4 fill-current translate-x-0.5"></svg>
+                      </div>
+                    </div>
+
+                    <!-- Título y Creador -->
+                    <span
+                      class="mt-2.5 text-xs md:text-sm font-semibold text-neutral-100 group-hover:text-purple-300 truncate"
+                      [title]="playlist.name"
+                    >
+                      {{ playlist.name }}
+                    </span>
+                    <span
+                      class="text-[11px] text-neutral-400 truncate mt-0.5"
+                      [title]="playlist.artist?.name || ''"
+                    >
+                      {{ playlist.artist?.name || 'Playlist' }}
+                    </span>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- SECCIÓN 3: Canciones con scroll dedicado -->
+          @if (songList.length > 0) {
+            <section class="space-y-3">
+              <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                <div class="flex items-center gap-2">
+                  <svg lucideMusic class="w-4 h-4 text-purple-400"></svg>
+                  <h2 class="text-base md:text-lg font-bold tracking-tight text-white">
+                    Canciones
+                  </h2>
+                  <span
+                    class="px-2 py-0.5 text-[11px] rounded-full bg-purple-500/15 text-purple-300 font-medium border border-purple-500/30"
+                  >
+                    {{ songList.length }}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    (click)="playAllSongs()"
+                    class="text-xs px-2.5 py-1 rounded-lg bg-white/5 hover:bg-purple-600/30 text-neutral-300 hover:text-white border border-white/10 hover:border-purple-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <svg lucidePlay class="w-3 h-3 fill-current"></svg>
+                    Reproducir todo
+                  </button>
+                  <button
+                    type="button"
+                    (click)="shuffleAllSongs()"
+                    class="text-xs p-1 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 transition-colors cursor-pointer"
+                    title="Mezclar canciones"
+                  >
+                    <svg lucideShuffle class="w-3.5 h-3.5"></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Lista de canciones con scroll vertical dedicado sin cortes -->
+              <div
+                class="flex flex-col gap-1.5 max-h-[540px] xl:max-h-[660px] overflow-y-auto custom-scrollbar pr-1.5 pb-3"
+              >
+                @for (item of songList; track item.videoId || $index) {
+                  <app-detail-song
+                    [$song]="item"
+                    [$index]="$index + 1"
+                    (songSelected)="onPlaySong(item, $index)"
+                  />
+                }
+              </div>
+            </section>
+          }
+        </div>
+      </div>
+    } @else {
+      <!-- Estado vacío -->
+      <div
+        class="h-64 flex flex-col items-center justify-center text-center gap-3 text-neutral-400"
+      >
+        <div
+          class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-neutral-400"
+        >
+          <svg lucideMusic class="w-6 h-6"></svg>
+        </div>
+        <div>
+          <p class="font-medium text-neutral-200">No hay resultados para mostrar</p>
+          <p class="text-xs text-neutral-500 mt-1">
+            Busca una canción, artista o álbum arriba para comenzar
+          </p>
+        </div>
+      </div>
+    }
+  </main>
+</section>

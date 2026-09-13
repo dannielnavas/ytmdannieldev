@@ -1,4 +1,7 @@
-<main class="flex flex-col gap-4 min-h-[calc(100dvh-4rem)]">
+<div class="h-dvh max-h-dvh flex flex-col pt-9 bg-[#0c0a15] text-white overflow-hidden">
   <app-title-bar [$title]="$title()" />
-  <router-outlet />
-</main>|
+  <div class="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+    <router-outlet />
+  </div>
+  <app-player-bar class="shrink-0 z-30" />
+</div>

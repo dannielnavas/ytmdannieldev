@@ -1,1 +1,12 @@
-<p>search works!</p>
+<form [formGroup]="form" (ngSubmit)="onSubmit($event)" class="relative w-full max-w-md md:max-w-lg">
+  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+    <svg lucideSearch class="w-4 h-4"></svg>
+  </div>
+  <input
+    formControlName="query"
+    (keyup.enter)="onSubmit($event)"
+    type="text"
+    placeholder="Buscar canciones, álbumes, artistas..."
+    class="w-full pl-10 pr-4 py-2 bg-white/5 hover:bg-white/10 focus:bg-[#18152c] text-neutral-100 placeholder-neutral-400 text-xs md:text-sm rounded-full border border-white/10 focus:border-purple-500/50 outline-none transition-all shadow-inner"
+  />
+</form>

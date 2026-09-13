@@ -37,6 +37,9 @@ const electron_1 = require("electron");
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 electron_1.app.setName('Sonara');
+// Optimización de caché de red de Chromium para imágenes y multimedia
+electron_1.app.commandLine.appendSwitch('disk-cache-size', '1073741824'); // 1 GB de caché en disco
+electron_1.app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de caché multimedia
 let mainWindow = null;
 let authWindow = null;
 const isDev = !electron_1.app.isPackaged; // Detecta si estamos en desarrollo o producción
@@ -142,6 +145,7 @@ function registerAuthIpcHandlers() {
     electron_1.ipcMain.handle('auth:login-google', async () => {
         return new Promise((resolve, reject) => {
             let isResolved = false;
+            let windowShown = false;
             const iconPath = getWindowIconPath();
             authWindow = new electron_1.BrowserWindow({
                 title: 'Iniciar sesión con Google - Sonara',
@@ -149,35 +153,216 @@ function registerAuthIpcHandlers() {
                 height: 600,
                 parent: mainWindow ?? undefined,
                 modal: true,
+                show: false,
                 icon: iconPath || undefined,
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
                 },
             });
-            authWindow.loadURL('https://accounts.google.com/ServiceLogin?service=youtube');
-            // Escuchar cuando la ventana se cierra o cuando navega a YouTube Music con éxito
-            authWindow.webContents.on('did-navigate', async (_event, url) => {
-                if (url.includes('music.youtube.com') || url.includes('youtube.com')) {
-                    // Obtenemos las cookies de la sesión de esa ventana
+            authWindow.loadURL('https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fmusic.youtube.com%2F');
+            const checkLoggedInAndResolve = async () => {
+                if (isResolved || !authWindow)
+                    return;
+                const currentUrl = authWindow.webContents.getURL();
+                if (!currentUrl.includes('music.youtube.com'))
+                    return;
+                let loggedIn = false;
+                try {
+                    // Preguntamos DIRECTAMENTE a la página ya autenticada, no con un fetch externo
+                    loggedIn = await authWindow.webContents.executeJavaScript(`
+            (function() {
+              try {
+                return !!(window.ytcfg && window.ytcfg.data_ && window.ytcfg.data_.LOGGED_IN === true);
+              } catch (e) {
+                return false;
+              }
+            })();
+          `);
+                }
+                catch {
+                    loggedIn = false;
+                }
+                if (loggedIn) {
                     const cookies = await electron_1.session.defaultSession.cookies.get({ domain: '.youtube.com' });
-                    // Filtramos las cookies esenciales que requiere la API de YouTube Music (como SAPISID, HSID, etc.)
                     const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
                     if (cookieHeader.includes('SAPISID')) {
                         isResolved = true;
-                        if (authWindow)
-                            authWindow.close();
-                        resolve(cookieHeader); // Devolvemos el string de cookies listo para tu backend
+                        clearInterval(retryInterval);
+                        clearTimeout(fallbackTimer);
+                        authWindow.close();
+                        resolve(cookieHeader);
+                        return;
                     }
                 }
-            });
+                if (!windowShown && authWindow) {
+                    windowShown = true;
+                    authWindow.show();
+                }
+            };
+            authWindow.webContents.on('did-navigate', checkLoggedInAndResolve);
+            authWindow.webContents.on('did-navigate-in-page', checkLoggedInAndResolve);
+            authWindow.webContents.on('did-finish-load', checkLoggedInAndResolve);
+            // El SPA de YouTube Music tarda un poco en montar `ytcfg`,
+            // así que reintentamos cada 1.5s mientras estemos ahí.
+            const retryInterval = setInterval(checkLoggedInAndResolve, 1500);
+            const fallbackTimer = setTimeout(() => {
+                if (!isResolved && !windowShown && authWindow) {
+                    windowShown = true;
+                    authWindow.show();
+                }
+            }, 4000);
             authWindow.on('closed', () => {
+                clearInterval(retryInterval);
+                clearTimeout(fallbackTimer);
                 authWindow = null;
                 if (!isResolved) {
                     reject('Ventana de autenticación cerrada por el usuario');
                 }
             });
         });
+    });
+}
+function registerSafeStorageIpcHandlers() {
+    const getStorageFilePath = () => path.join(electron_1.app.getPath('userData'), 'secure-storage.json');
+    const getSecureStorageData = () => {
+        try {
+            const filePath = getStorageFilePath();
+            if (fs.existsSync(filePath)) {
+                const content = fs.readFileSync(filePath, 'utf-8');
+                return JSON.parse(content);
+            }
+        }
+        catch (error) {
+            console.error('Error al leer secure-storage:', error);
+        }
+        return {};
+    };
+    const saveSecureStorageData = (data) => {
+        try {
+            const filePath = getStorageFilePath();
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+        }
+        catch (error) {
+            console.error('Error al guardar secure-storage:', error);
+        }
+    };
+    electron_1.ipcMain.handle('safe-storage:is-available', () => {
+        return electron_1.safeStorage.isEncryptionAvailable();
+    });
+    electron_1.ipcMain.handle('safe-storage:encrypt-string', (_event, plainText) => {
+        if (!electron_1.safeStorage.isEncryptionAvailable()) {
+            throw new Error('safeStorage no está disponible en este sistema.');
+        }
+        const buffer = electron_1.safeStorage.encryptString(plainText);
+        return buffer.toString('base64');
+    });
+    electron_1.ipcMain.handle('safe-storage:decrypt-string', (_event, encryptedBase64) => {
+        if (!electron_1.safeStorage.isEncryptionAvailable()) {
+            throw new Error('safeStorage no está disponible en este sistema.');
+        }
+        const buffer = Buffer.from(encryptedBase64, 'base64');
+        return electron_1.safeStorage.decryptString(buffer);
+    });
+    electron_1.ipcMain.handle('safe-storage:set-item', (_event, key, value) => {
+        if (!electron_1.safeStorage.isEncryptionAvailable()) {
+            throw new Error('safeStorage no está disponible en este sistema.');
+        }
+        const buffer = electron_1.safeStorage.encryptString(value);
+        const data = getSecureStorageData();
+        data[key] = buffer.toString('base64');
+        saveSecureStorageData(data);
+        return true;
+    });
+    electron_1.ipcMain.handle('safe-storage:get-item', (_event, key) => {
+        const data = getSecureStorageData();
+        const encryptedBase64 = data[key];
+        if (!encryptedBase64) {
+            return null;
+        }
+        if (!electron_1.safeStorage.isEncryptionAvailable()) {
+            throw new Error('safeStorage no está disponible en este sistema.');
+        }
+        const buffer = Buffer.from(encryptedBase64, 'base64');
+        return electron_1.safeStorage.decryptString(buffer);
+    });
+    electron_1.ipcMain.on('safe-storage:get-item-sync', (event, key) => {
+        try {
+            const data = getSecureStorageData();
+            const encryptedBase64 = data[key];
+            if (!encryptedBase64) {
+                event.returnValue = null;
+                return;
+            }
+            if (!electron_1.safeStorage.isEncryptionAvailable()) {
+                event.returnValue = null;
+                return;
+            }
+            const buffer = Buffer.from(encryptedBase64, 'base64');
+            event.returnValue = electron_1.safeStorage.decryptString(buffer);
+        }
+        catch (error) {
+            console.error('Error al obtener item sincrónicamente:', error);
+            event.returnValue = null;
+        }
+    });
+    electron_1.ipcMain.handle('safe-storage:remove-item', (_event, key) => {
+        const data = getSecureStorageData();
+        if (key in data) {
+            delete data[key];
+            saveSecureStorageData(data);
+            return true;
+        }
+        return false;
+    });
+    electron_1.ipcMain.handle('safe-storage:clear', () => {
+        saveSecureStorageData({});
+        return true;
+    });
+}
+/**
+ * Configura la optimización de red y mitigación de errores 429 para imágenes de YouTube Music:
+ * 1. Simula peticiones legítimas del cliente web de YouTube Music (Referer y Origin).
+ * 2. Limpia el User-Agent para evitar bloqueos por cliente automatizado/Electron.
+ * 3. Habilita cabeceras CORS para permitir análisis de color (ColorThief).
+ * 4. Fuerza cabeceras de caché inmutable (30 días) para que Chromium sirva las imágenes desde disco.
+ */
+function setupImageOptimization() {
+    const googleFilter = {
+        urls: [
+            '*://*.googleusercontent.com/*',
+            '*://*.ytimg.com/*',
+            '*://*.ggpht.com/*',
+            '*://*.youtube.com/*',
+            '*://music.youtube.com/*',
+        ],
+    };
+    // 1. Enmascarar peticiones salientes con cabeceras de cliente oficial
+    electron_1.session.defaultSession.webRequest.onBeforeSendHeaders(googleFilter, (details, callback) => {
+        const requestHeaders = { ...details.requestHeaders };
+        requestHeaders['Referer'] = 'https://music.youtube.com/';
+        requestHeaders['Origin'] = 'https://music.youtube.com';
+        // Normalizar User-Agent removiendo Electron para evitar rate-limits de bot
+        const userAgent = requestHeaders['User-Agent'] || requestHeaders['user-agent'];
+        if (userAgent && userAgent.includes('Electron')) {
+            requestHeaders['User-Agent'] = userAgent.replace(/Electron\/[0-9.]+\s?/, '');
+        }
+        callback({ requestHeaders });
+    });
+    // 2. Interceptar respuestas para habilitar CORS y asegurar almacenamiento en disco
+    electron_1.session.defaultSession.webRequest.onHeadersReceived(googleFilter, (details, callback) => {
+        const responseHeaders = { ...details.responseHeaders };
+        // Permitir CORS para ColorThief y canvas sin restricciones
+        responseHeaders['access-control-allow-origin'] = ['*'];
+        responseHeaders['access-control-allow-methods'] = ['GET, HEAD, OPTIONS'];
+        responseHeaders['access-control-allow-headers'] = ['*'];
+        // Si la imagen cargó con éxito (2xx), forzar almacenamiento persistente en caché de disco
+        const status = details.statusCode;
+        if (status >= 200 && status < 300) {
+            responseHeaders['cache-control'] = ['public, max-age=2592000, immutable'];
+        }
+        callback({ responseHeaders });
     });
 }
 function createWindow() {
@@ -212,16 +397,23 @@ function createWindow() {
     }
     else {
         // En producción, carga el archivo index.html compilado por Angular
-        mainWindow.loadFile(path.join(__dirname, '../dist/ytmdannieldev/browser/index.html'));
+        const productionHtmlPath = findExistingPath([
+            path.join(electron_1.app.getAppPath(), 'dist/ytmdannieldev/browser/index.html'),
+            path.join(__dirname, '../dist/ytmdannieldev/browser/index.html'),
+            path.join(process.resourcesPath, 'app/dist/ytmdannieldev/browser/index.html'),
+        ]);
+        mainWindow.loadFile(productionHtmlPath || path.join(__dirname, '../dist/ytmdannieldev/browser/index.html'));
     }
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
 }
-electron_1.app.whenReady().then(() => {
+electron_1.app.whenReady().then(async () => {
     setupMacDockIcon();
+    setupImageOptimization();
     registerWindowIpcHandlers();
     registerAuthIpcHandlers();
+    registerSafeStorageIpcHandlers();
     createWindow();
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
