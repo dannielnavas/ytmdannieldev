@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { MainLayout } from './features/shell/components/main-layout/main-layout';
 import { AuthViewComponent } from './features/auth/auth-view/auth-view';
 import { authorizationGuard } from './core/guards/authorization-guard';
+import { redirectInterceptor } from './core/interceptors/redirect-interceptor';
 
 export const routes: Routes = [
   {
@@ -12,6 +13,7 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/auth/auth-view/auth-view').then((m) => m.AuthViewComponent),
+        canActivate: [redirectInterceptor],
       },
       {
         path: 'home',
@@ -37,7 +39,8 @@ export const routes: Routes = [
       },
       {
         path: 'now-playing',
-        loadComponent: () => import('./features/shell/components/now-playing/now-playing').then((m) => m.NowPlaying),
+        loadComponent: () =>
+          import('./features/shell/components/now-playing/now-playing').then((m) => m.NowPlaying),
         canActivate: [authorizationGuard],
       },
     ],

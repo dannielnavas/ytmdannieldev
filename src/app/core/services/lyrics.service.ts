@@ -32,7 +32,7 @@ export class LyricsService {
   public getLyrics(trackName: string, artistName: string): Observable<LrclibResponse | null> {
     return this._http
       .get<LrclibResponse>(
-        `http://localhost:3000/youtube/lyrics?track_name=${trackName}&artist_name=${artistName}`,
+        `https://ytmdannieldev-back.vercel.app/youtube/lyrics?track_name=${trackName}&artist_name=${artistName}`,
       )
       .pipe(
         catchError(() => {
