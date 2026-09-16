@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { AlbumResponse } from '../../../../core/models/album.model';
 import { ColorThiefService } from '@soarlin/angular-color-thief';
-import { ImageHelperService } from '../../../../core/services/image-helper.service';
+import { ImageHelperService, getHighResThumbnail } from '../../../../core/services/image-helper.service';
 import {
   LucidePlay,
   LucideShuffle,
@@ -61,10 +61,8 @@ export class DetailInfoAlbum {
     const thumbs = this.$album()?.thumbnails;
     if (!thumbs || thumbs.length === 0) return '';
     const index = this.$thumbnailIndex();
-    if (index >= 0 && index < thumbs.length) {
-      return thumbs[index]?.url || '';
-    }
-    return thumbs[thumbs.length - 1]?.url || '';
+    const raw = (index >= 0 && index < thumbs.length) ? thumbs[index]?.url : thumbs[thumbs.length - 1]?.url;
+    return getHighResThumbnail(raw || '', 800);
   });
 
   public onImageLoad(img: HTMLImageElement): void {

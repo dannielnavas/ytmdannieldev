@@ -16,6 +16,7 @@ import {
   LucideListMusic,
   LucideMusic,
 } from '@lucide/angular';
+import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
 
 export interface StoredPlaylistData {
   playlistId?: string;
@@ -96,7 +97,7 @@ export class Playlist {
       videoId: cleanId,
       name: playlistInfo?.name || albumInfo?.name || '',
       artist: playlistInfo?.artist || albumInfo?.artist || '',
-      thumbnail: playlistInfo?.thumbnail || albumInfo?.thumbnail || '',
+      thumbnail: getHighResThumbnail(playlistInfo?.thumbnail || albumInfo?.thumbnail || '', 800),
     });
   }
 
@@ -113,7 +114,10 @@ export class Playlist {
       name: s.name,
       artist: s.artist?.name || '',
       duration: s.duration,
-      thumbnail: s.thumbnails?.[0]?.url || '',
+      thumbnail: getHighResThumbnail(
+        s.thumbnails?.[s.thumbnails.length - 1]?.url || s.thumbnails?.[0]?.url || '',
+        800,
+      ),
     }));
 
     this._playbackService.playQueue(items, index, playlist.infoPlaylist?.name);
@@ -134,7 +138,10 @@ export class Playlist {
       name: s.name,
       artist: s.artist?.name || '',
       duration: s.duration,
-      thumbnail: s.thumbnails?.[0]?.url || '',
+      thumbnail: getHighResThumbnail(
+        s.thumbnails?.[s.thumbnails.length - 1]?.url || s.thumbnails?.[0]?.url || '',
+        800,
+      ),
     }));
 
     // Iniciar desde un índice aleatorio o mezclar la cola

@@ -122,3 +122,65 @@
   --warning: #fbbf24;
   --error: #f87171;
 }
+
+/* =========================================
+   VIEW TRANSITIONS API (Angular Router)
+   ========================================= */
+
+@keyframes vt-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+::view-transition-old(root) {
+  animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 260ms cubic-bezier(0, 0, 0.2, 1) both vt-fade-in;
+}
+
+/* Mantener estable la barra de título durante transiciones para evitar parpadeos */
+.app-title-bar-fixed {
+  view-transition-name: app-titlebar;
+}
+
+/* Shared element transition: Carátula */
+.vt-artwork {
+  view-transition-name: current-artwork;
+  contain: layout paint;
+}
+
+::view-transition-group(current-artwork) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  overflow: hidden;
+}
+
+/* Shared element transition: Título y artista */
+.vt-track-info {
+  view-transition-name: current-track-info;
+  contain: layout;
+}
+
+::view-transition-group(current-track-info) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}

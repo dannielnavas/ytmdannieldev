@@ -8,6 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { ColorThiefService } from '@soarlin/angular-color-thief';
 import {
   LucideSkipBack,
@@ -23,6 +24,7 @@ import {
   LucideListMusic,
   LucideX,
   LucideMusic,
+  LucideChevronDown,
 } from '@lucide/angular';
 import { GlobalStorage } from '../../../../core/store/global-storage';
 import { Dashboard } from '../../../../core/services/dashboard/dashboard';
@@ -31,7 +33,7 @@ import { StreamResponse } from '../../../../core/models/stream';
 import { PlaybackService } from '../../../../core/services/playback.service';
 
 import { of } from 'rxjs';
-import { ImageHelperService } from '../../../../core/services/image-helper.service';
+import { ImageHelperService, getHighResThumbnail } from '../../../../core/services/image-helper.service';
 
 @Component({
   selector: 'app-player-bar',
@@ -49,6 +51,7 @@ import { ImageHelperService } from '../../../../core/services/image-helper.servi
     LucideListMusic,
     LucideX,
     LucideMusic,
+    LucideChevronDown,
   ],
   templateUrl: './player-bar.html',
   styleUrl: './player-bar.css',
@@ -62,6 +65,7 @@ export class PlayerBar {
   public readonly playbackService = inject(PlaybackService);
   private readonly _imageHelper = inject(ImageHelperService);
   private readonly _colorThief = inject(ColorThiefService);
+  private readonly _router = inject(Router);
 
   public $song = this._globalStorage.getStore<StreamResponse>('song');
   public $audioElementRef = viewChild<ElementRef<HTMLAudioElement>>('player');
@@ -71,15 +75,14 @@ export class PlayerBar {
     computation: () => null as [number, number, number] | null,
   });
 
-  public $isPlaying = signal(false);
-  public $currentTime = signal(0);
-  public $duration = signal(0);
-  public $volume = signal(1);
-  public $isMuted = signal(false);
+  public $isPlaying = this.playbackService.$isPlaying;
+  public $currentTime = this.playbackService.$currentTime;
+  public $duration = this.playbackService.$duration;
+  public $volume = this.playbackService.$volume;
+  public $isMuted = this.playbackService.$isMuted;
+  public $artworkError = this.playbackService.$artworkError;
   public $previousVolume = signal(1);
   public $showQueue = signal(false);
-  public $artworkError = signal(false);
-  private _shouldPlay = true;
 
   public playerBarDynamicStyle = computed(() => {
     const color = this.$dominantColor();
@@ -129,9 +132,9 @@ export class PlayerBar {
   public currentArtworkUrl = computed(() => {
     if (this.$artworkError()) return '';
     const currentTrack = this.playbackService.$currentTrack();
-    if (currentTrack?.thumbnail) return currentTrack.thumbnail;
+    if (currentTrack?.thumbnail) return getHighResThumbnail(currentTrack.thumbnail, 400);
     const metaThumb = this.resourceMetadata.value()?.thumbnail;
-    if (metaThumb) return metaThumb;
+    if (metaThumb) return getHighResThumbnail(metaThumb, 400);
     return '';
   });
 
@@ -189,18 +192,31 @@ export class PlayerBar {
 
   constructor() {
     effect(() => {
+      const audio = this.$audioElementRef()?.nativeElement;
+      if (audio && audio !== this.playbackService.$audioElement()) {
+        this.playbackService.$audioElement.set(audio);
+      }
+    });
+
+    effect(() => {
       const meta = this.$song();
       if (meta?.videoId) {
-        this._shouldPlay = true;
+        this.playbackService.shouldPlay = true;
         this.$artworkError.set(false);
         this.$currentTime.set(0);
         this.$duration.set(0);
+        this.$isPlaying.set(true);
       }
-    });
+    }, { allowSignalWrites: true });
   }
 
   public onPlay(): void {
+    this.playbackService.shouldPlay = true;
     this.$isPlaying.set(true);
+  }
+
+  public openNowPlaying(): void {
+    this._router.navigate(['/now-playing']);
   }
 
   public onPause(): void {
@@ -212,45 +228,40 @@ export class PlayerBar {
 
   public onCanPlay(): void {
     const audio = this.$audioElementRef()?.nativeElement;
-    if (audio && this._shouldPlay && audio.paused) {
-      audio.play().catch((err) => {
-        if (err.name !== 'AbortError') {
-          console.warn('Error al reproducir audio en canplay:', err);
-        }
-      });
+    if (audio && this.playbackService.shouldPlay && audio.paused) {
+      audio
+        .play()
+        .then(() => this.$isPlaying.set(true))
+        .catch((err) => {
+          if (err.name !== 'AbortError') {
+            console.warn('Error al reproducir audio en canplay:', err);
+            this.$isPlaying.set(false);
+          }
+        });
     }
   }
 
   public togglePlay(): void {
-    const audio = this.$audioElementRef()?.nativeElement;
-    if (!audio) return;
-    if (audio.paused) {
-      this._shouldPlay = true;
-      audio
-        .play()
-        .then(() => this.$isPlaying.set(true))
-        .catch((err) => console.warn('Error al reanudar:', err));
-    } else {
-      this._shouldPlay = false;
-      audio.pause();
-      this.$isPlaying.set(false);
-    }
+    this.playbackService.togglePlay();
   }
 
   public onNext(): void {
-    this._shouldPlay = true;
+    this.playbackService.shouldPlay = true;
     this.playbackService.playNext();
   }
 
   public onPrevious(): void {
-    this._shouldPlay = true;
+    this.playbackService.shouldPlay = true;
     const audio = this.$audioElementRef()?.nativeElement;
     const currentTime = audio ? audio.currentTime : 0;
     const moved = this.playbackService.playPrevious(currentTime);
     if (!moved && audio) {
       audio.currentTime = 0;
       this.$currentTime.set(0);
-      audio.play().catch((err) => console.warn('Error al reiniciar:', err));
+      audio
+        .play()
+        .then(() => this.$isPlaying.set(true))
+        .catch((err) => console.warn('Error al reiniciar:', err));
     }
   }
 
@@ -295,7 +306,7 @@ export class PlayerBar {
   }
 
   public onEnded(): void {
-    this._shouldPlay = true;
+    this.playbackService.shouldPlay = true;
     if (this.playbackService.$repeatMode() === 'one') {
       const audio = this.$audioElementRef()?.nativeElement;
       if (audio) {
@@ -306,6 +317,10 @@ export class PlayerBar {
           .catch((err) => console.warn('Error al repetir pista:', err));
       }
       return;
+    }
+    const hasNext = this.playbackService.$hasNext();
+    if (!hasNext) {
+      this.$isPlaying.set(false);
     }
     this.playbackService.onTrackEnded();
   }
@@ -341,7 +356,7 @@ export class PlayerBar {
   }
 
   public selectQueueTrack(index: number): void {
-    this._shouldPlay = true;
+    this.playbackService.shouldPlay = true;
     this.playbackService.playIndex(index);
   }
 

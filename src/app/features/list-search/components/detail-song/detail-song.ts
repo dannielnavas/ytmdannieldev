@@ -6,7 +6,7 @@ import { GlobalStorage } from '../../../../core/store/global-storage';
 import { StreamResponse } from '../../../../core/models/stream';
 import { PlaybackService } from '../../../../core/services/playback.service';
 
-import { ImageHelperService } from '../../../../core/services/image-helper.service';
+import { ImageHelperService, getHighResThumbnail } from '../../../../core/services/image-helper.service';
 
 @Component({
   imports: [LucidePlay, LucidePause, LucideLoader2, LucideMusic],
@@ -63,7 +63,7 @@ export class DetailSong {
     if (!thumbs || thumbs.length === 0) return '';
     const index = this.$thumbnailIndex();
     if (index >= 0 && index < thumbs.length) {
-      return thumbs[index]?.url || '';
+      return getHighResThumbnail(thumbs[index]?.url, 240);
     }
     return '';
   });

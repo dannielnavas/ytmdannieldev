@@ -16,6 +16,52 @@ export class PlaybackService {
   public readonly $repeatMode = signal<'off' | 'all' | 'one'>('all');
   public readonly $isLoadingSong = signal<boolean>(false);
 
+  // --- Audio Element State ---
+  public readonly $audioElement = signal<HTMLAudioElement | null>(null);
+  public readonly $isPlaying = signal<boolean>(false);
+  public readonly $currentTime = signal<number>(0);
+  public readonly $duration = signal<number>(0);
+  public readonly $volume = signal<number>(1);
+  public readonly $isMuted = signal<boolean>(false);
+  public readonly $artworkError = signal<boolean>(false);
+  public shouldPlay = true;
+
+  public togglePlay(): void {
+    const audio = this.$audioElement();
+    if (!audio) return;
+    if (this.$isPlaying()) {
+      this.shouldPlay = false;
+      audio.pause();
+      this.$isPlaying.set(false);
+    } else {
+      this.shouldPlay = true;
+      audio
+        .play()
+        .then(() => this.$isPlaying.set(true))
+        .catch((err) => console.warn('Error al reanudar:', err));
+    }
+  }
+
+  public play(): void {
+    const audio = this.$audioElement();
+    if (audio) {
+      this.shouldPlay = true;
+      audio
+        .play()
+        .then(() => this.$isPlaying.set(true))
+        .catch((err) => console.warn('Error al reproducir audio:', err));
+    }
+  }
+
+  public pause(): void {
+    const audio = this.$audioElement();
+    if (audio) {
+      this.shouldPlay = false;
+      audio.pause();
+      this.$isPlaying.set(false);
+    }
+  }
+
   // Guarda la lista original en caso de shuffle
   private _originalQueue: QueueItem[] = [];
 
@@ -188,6 +234,8 @@ export class PlaybackService {
     const current = this.$currentTrack();
     if (!current?.videoId) return;
 
+    this.shouldPlay = true;
+    this.$isPlaying.set(true);
     this._syncQueueStorage();
 
     this._globalStorage.setStore('song', {

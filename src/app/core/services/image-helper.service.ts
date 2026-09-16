@@ -6,6 +6,45 @@ export interface ThumbnailItem {
   height?: number;
 }
 
+/**
+ * Transforma una URL de miniatura de YouTube o Google a su versión de alta resolución.
+ * Por defecto, solicita 800x800 px (ideal para portadas nítidas en desktop y retina).
+ */
+export function getHighResThumbnail(url: string | null | undefined, size = 800): string {
+  if (!url) return '';
+
+  // URLs de Google User Content y GGPHT (YouTube Music álbumes, artistas, canciones)
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    // Si ya contiene =w...-h...
+    if (/=w\d+-h\d+/.test(url)) {
+      return url.replace(/=w\d+-h\d+[^?&=]*/, `=w${size}-h${size}-l90-rj`);
+    }
+    // Si contiene =s...
+    if (/=s\d+/.test(url)) {
+      return url.replace(/=s\d+[^?&=]*/, `=s${size}-c-k-c0x00ffffff-no-rj`);
+    }
+    // Si no contiene modificador de tamaño al final, agregar el parámetro
+    if (!url.includes('=')) {
+      return `${url}=w${size}-h${size}-l90-rj`;
+    }
+  }
+
+  // Miniaturas estándar de videos de YouTube (i.ytimg.com o img.youtube.com)
+  if (url.includes('ytimg.com') || url.includes('youtube.com')) {
+    if (url.includes('/hqdefault.jpg')) {
+      return url.replace('/hqdefault.jpg', '/maxresdefault.jpg');
+    }
+    if (url.includes('/mqdefault.jpg')) {
+      return url.replace('/mqdefault.jpg', '/maxresdefault.jpg');
+    }
+    if (url.includes('/default.jpg')) {
+      return url.replace('/default.jpg', '/maxresdefault.jpg');
+    }
+  }
+
+  return url;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -100,11 +139,13 @@ export class ImageHelperService {
     if (preferredSize === 'medium') {
       // Para tarjetas de carrusel, álbumes o playlists (~180-300px)
       const midIdx = Math.min(Math.floor(available.length / 2), available.length - 1);
-      return available[midIdx]?.url || available[0]?.url || '';
+      const raw = available[midIdx]?.url || available[0]?.url || '';
+      return getHighResThumbnail(raw, 400);
     }
 
     // Para portadas grandes (cabecera de artista, playlist principal, barra reproductora)
-    return available[available.length - 1]?.url || available[0]?.url || '';
+    const best = available[available.length - 1]?.url || available[0]?.url || '';
+    return getHighResThumbnail(best, 800);
   }
 
   /**

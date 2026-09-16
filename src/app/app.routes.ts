@@ -35,6 +35,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/album/pages/album/album').then((m) => m.Album),
         canActivate: [authorizationGuard],
       },
+      {
+        path: 'now-playing',
+        loadComponent: () => import('./features/shell/components/now-playing/now-playing').then((m) => m.NowPlaying),
+        canActivate: [authorizationGuard],
+      },
     ],
   },
 ];

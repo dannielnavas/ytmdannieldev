@@ -11,6 +11,7 @@ import { DetailSongAlbum } from '../../components/detail-song-album/detail-song-
 import { PlaybackService } from '../../../../core/services/playback.service';
 import { QueueItem } from '../../../../core/models/queue.model';
 import { LucideArrowLeft, LucideClock, LucideDisc, LucideMusic } from '@lucide/angular';
+import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
 
 export interface StoredAlbumData {
   albumId?: string;
@@ -92,7 +93,7 @@ export class Album {
       videoId: cleanId,
       name: albumInfo?.name || playlistInfo?.name || '',
       artist: albumInfo?.artist || playlistInfo?.artist || '',
-      thumbnail: albumInfo?.thumbnail || playlistInfo?.thumbnail || '',
+      thumbnail: getHighResThumbnail(albumInfo?.thumbnail || playlistInfo?.thumbnail || '', 800),
     });
   }
 
@@ -115,7 +116,14 @@ export class Album {
       name: s.name,
       artist: s.artist?.name || album.artist?.name || '',
       duration: s.duration,
-      thumbnail: s.thumbnails?.[0]?.url || album.thumbnails?.[0]?.url || '',
+      thumbnail: getHighResThumbnail(
+        s.thumbnails?.[s.thumbnails.length - 1]?.url ||
+          album.thumbnails?.[album.thumbnails.length - 1]?.url ||
+          s.thumbnails?.[0]?.url ||
+          album.thumbnails?.[0]?.url ||
+          '',
+        800,
+      ),
     }));
 
     this._playbackService.playQueue(items, index, album.name);
@@ -136,7 +144,14 @@ export class Album {
       name: s.name,
       artist: s.artist?.name || album.artist?.name || '',
       duration: s.duration,
-      thumbnail: s.thumbnails?.[0]?.url || album.thumbnails?.[0]?.url || '',
+      thumbnail: getHighResThumbnail(
+        s.thumbnails?.[s.thumbnails.length - 1]?.url ||
+          album.thumbnails?.[album.thumbnails.length - 1]?.url ||
+          s.thumbnails?.[0]?.url ||
+          album.thumbnails?.[0]?.url ||
+          '',
+        800,
+      ),
     }));
 
     const randomIndex = Math.floor(Math.random() * items.length);

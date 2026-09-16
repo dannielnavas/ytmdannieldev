@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { SafeStorageService } from '../safe-storage.service';
+import { UserModel } from '../../models/user.model';
 
 @Injectable({
   providedIn: 'root',
@@ -30,7 +31,7 @@ export class Auth {
     return this._safeStorage.removeItem('youtube-cookies');
   }
 
-  public getMe(): Observable<{}> {
-    return this._http.get<{}>('https://ytmdannieldev-back.vercel.app/auth/me');
+  public getMe(): Observable<UserModel> {
+    return this._http.get<UserModel>('https://ytmdannieldev-back.vercel.app/users/me');
   }
 }

@@ -1,6 +1,6 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Search } from '../search/search';
-import { LucidePlay } from '@lucide/angular';
+import { LucideCrown, LucidePlay } from '@lucide/angular';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DashboardItem } from '../../core/models/dashboard';
@@ -10,9 +10,11 @@ import { Auth } from '../../core/services/auth/auth';
 import { Router } from '@angular/router';
 import { PlaybackService } from '../../core/services/playback.service';
 import { QueueItem } from '../../core/models/queue.model';
+import { UserModel } from '../../core/models/user.model';
+import { getHighResThumbnail } from '../../core/services/image-helper.service';
 
 @Component({
-  imports: [Search, LucidePlay, ThumbnailUrlPipe],
+  imports: [Search, LucidePlay, LucideCrown, ThumbnailUrlPipe],
   selector: 'app-home',
   styleUrl: './home.css',
   templateUrl: './home.html',
@@ -24,14 +26,31 @@ export class Home {
   private readonly _router = inject(Router);
   private readonly _playbackService = inject(PlaybackService);
 
-  // public resourceMe = rxResource({
-  //   stream: () => this._authService.getMe(),
-  //   defaultValue: {},
-  // });
+  public resourceMe = rxResource({
+    stream: () => this._authService.getMe(),
+    defaultValue: {} as UserModel,
+  });
+
+  public hasAvatarError = signal(false);
 
   public resourceDashboard = rxResource({
     stream: () => this._dashboard.getDashboardData(),
     defaultValue: [],
+  });
+
+  public $lettersName = computed(() => {
+    const name = this.resourceMe.value()?.full_name;
+    if (!name) {
+      return '';
+    }
+    return name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
   });
 
   public validSections = computed(() => {
@@ -50,7 +69,8 @@ export class Home {
     if (!item.thumbnails || item.thumbnails.length === 0) {
       return '';
     }
-    return item.thumbnails[item.thumbnails.length - 1]?.url || item.thumbnails[0]?.url;
+    const raw = item.thumbnails[item.thumbnails.length - 1]?.url || item.thumbnails[0]?.url || '';
+    return getHighResThumbnail(raw, 500);
   }
 
   public playItem(
@@ -117,7 +137,7 @@ export class Home {
             videoId: itId,
             name: it.name,
             artist: (it as any).artist?.name || '',
-            thumbnail: thumb,
+            thumbnail: getHighResThumbnail(thumb, 800),
           };
         })
         .filter((it) => !!it.videoId);
@@ -133,8 +153,10 @@ export class Home {
       videoId: id,
       name: item.name,
       artist: (item as any).artist?.name || '',
-      thumbnail:
+      thumbnail: getHighResThumbnail(
         item.thumbnails?.[item.thumbnails.length - 1]?.url || item.thumbnails?.[0]?.url || '',
+        800,
+      ),
     });
   }
 }

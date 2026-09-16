@@ -4,7 +4,7 @@ import { LucideLoader2, LucideMusic, LucidePause, LucidePlay } from '@lucide/ang
 import { GlobalStorage } from '../../../../core/store/global-storage';
 import { StreamResponse } from '../../../../core/models/stream';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { ImageHelperService } from '../../../../core/services/image-helper.service';
+import { ImageHelperService, getHighResThumbnail } from '../../../../core/services/image-helper.service';
 
 @Component({
   imports: [LucidePlay, LucidePause, LucideLoader2, LucideMusic],
@@ -57,10 +57,8 @@ export class DetailSongAlbum {
     const thumbs = this.$song()?.thumbnails;
     if (!thumbs || thumbs.length === 0) return '';
     const index = this.$thumbnailIndex();
-    if (index >= 0 && index < thumbs.length) {
-      return thumbs[index]?.url || '';
-    }
-    return thumbs[thumbs.length - 1]?.url || '';
+    const raw = (index >= 0 && index < thumbs.length) ? thumbs[index]?.url : thumbs[thumbs.length - 1]?.url;
+    return getHighResThumbnail(raw || '', 240);
   });
 
   public onImageError(): void {

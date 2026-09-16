@@ -11,6 +11,7 @@
     (loadedmetadata)="onLoadedMetadata($event)"
     (ended)="onEnded()"
     (play)="onPlay()"
+    (playing)="onPlay()"
     (pause)="onPause()"
     (canplay)="onCanPlay()"
     (error)="onError($event)"
@@ -126,7 +127,11 @@
   >
     <!-- Left: Track Artwork & Info -->
     <div class="flex items-center gap-3 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px] md:max-w-[300px]">
-      <div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md bg-neutral-900 relative group">
+      <div 
+        (click)="openNowPlaying()"
+        class="vt-artwork w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md bg-neutral-900 relative group cursor-pointer hover:scale-105 transition-transform"
+        title="Pantalla completa"
+      >
         @if (currentArtworkUrl()) {
           <img
             #artImg
@@ -136,8 +141,11 @@
             decoding="async"
             (load)="onImageLoad(artImg)"
             (error)="onArtworkError()"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover group-hover:brightness-75 transition-all"
           />
+          <div class="absolute inset-0 hidden group-hover:flex items-center justify-center pointer-events-none">
+            <svg lucideChevronDown class="w-5 h-5 text-white rotate-180 drop-shadow-md"></svg>
+          </div>
         } @else {
           <div class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400">
             <svg lucideMusic class="w-5 h-5"></svg>
@@ -145,7 +153,7 @@
         }
       </div>
 
-      <div class="flex flex-col justify-center min-w-0">
+      <div class="vt-track-info flex flex-col justify-center min-w-0">
         <span
           class="text-xs md:text-sm font-semibold text-neutral-100 tracking-tight truncate hover:text-white transition-colors"
           [title]="trackTitle() || 'Reproduciendo'"
