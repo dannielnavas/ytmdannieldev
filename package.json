@@ -36,8 +36,7 @@
     "@soarlin/angular-color-thief": "^2.0.4",
     "jwt-decode": "^4.0.0",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "wavesurfer.js": "^7.12.11"
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@angular/build": "^22.1.4",
@@ -64,12 +63,23 @@
     "files": [
       "dist-electron/**/*",
       "dist/ytmdannieldev/browser/**/*",
-      "icons/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/**"
     ],
+    "electronLanguages": [
+      "en-US",
+      "es"
+    ],
+    "compression": "maximum",
     "mac": {
       "icon": "icons/macos/icon.icns",
       "category": "public.app-category.music",
+      "extraResources": [
+        {
+          "from": "icons/macos/icon.icns",
+          "to": "icons/icon.icns"
+        }
+      ],
       "target": [
         {
           "target": "dmg",
@@ -90,6 +100,12 @@
     },
     "win": {
       "icon": "icons/windows/icon.ico",
+      "extraResources": [
+        {
+          "from": "icons/windows/icon.ico",
+          "to": "icons/icon.ico"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
@@ -115,6 +131,12 @@
     "linux": {
       "syncDesktopName": true,
       "icon": "icons/linux/icons/512x512.png",
+      "extraResources": [
+        {
+          "from": "icons/linux/icons/512x512.png",
+          "to": "icons/icon.png"
+        }
+      ],
       "category": "AudioVideo;Audio;Player;",
       "maintainer": "Sonara Developers <contact@dannieldev.dev>",
       "synopsis": "Modern YouTube Music Desktop Player",

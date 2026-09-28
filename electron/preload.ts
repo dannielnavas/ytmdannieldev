@@ -23,37 +23,32 @@ const windowControls: WindowControlsAPI = {
   },
 };
 
+/**
+ * Superficie mínima de `safeStorage`.
+ *
+ * Antes se exponían nueve métodos, pero el renderer solo usaba cuatro
+ * (`isAvailable`, `setItem`, `getItem`, `removeItem`). Los demás eran un
+ * `Record<string, any>` en la práctica: handlers IPC que nadie llamaba y que
+ * nadie testeaba. Menos superficie expuesta es más difícil de explotar.
+ */
 export interface SafeStorageAPI {
   isAvailable: () => Promise<boolean>;
-  encryptString: (plainText: string) => Promise<string>;
-  decryptString: (encryptedBase64: string) => Promise<string>;
   setItem: (key: string, value: string) => Promise<boolean>;
+  /**
+   * Síncrono a propósito: el interceptor HTTP necesita el token en el momento
+   * de construir la petición, y un guard funcional tampoco puede esperar. El
+   * valor está ya en memoria de Electron (`userData/secure-storage.json`), así
+   * que el coste es despreciable.
+   */
   getItem: (key: string) => string | null;
-  getItemAsync?: (key: string) => Promise<string | null>;
   removeItem: (key: string) => Promise<boolean>;
-  clear: () => Promise<boolean>;
-  encryptStringAsync: (keyOrText: string, value?: string) => Promise<string | boolean>;
-  decryptStringAsync: (encryptedBase64: string) => Promise<string>;
 }
 
 const safeStorageAPI: SafeStorageAPI = {
   isAvailable: () => ipcRenderer.invoke('safe-storage:is-available'),
-  encryptString: (plainText: string) => ipcRenderer.invoke('safe-storage:encrypt-string', plainText),
-  decryptString: (encryptedBase64: string) =>
-    ipcRenderer.invoke('safe-storage:decrypt-string', encryptedBase64),
   setItem: (key: string, value: string) => ipcRenderer.invoke('safe-storage:set-item', key, value),
   getItem: (key: string): string | null => ipcRenderer.sendSync('safe-storage:get-item-sync', key),
-  getItemAsync: (key: string) => ipcRenderer.invoke('safe-storage:get-item', key),
   removeItem: (key: string) => ipcRenderer.invoke('safe-storage:remove-item', key),
-  clear: () => ipcRenderer.invoke('safe-storage:clear'),
-  encryptStringAsync: (keyOrText: string, value?: string) => {
-    if (value !== undefined) {
-      return ipcRenderer.invoke('safe-storage:set-item', keyOrText, value);
-    }
-    return ipcRenderer.invoke('safe-storage:encrypt-string', keyOrText);
-  },
-  decryptStringAsync: (encryptedBase64: string) =>
-    ipcRenderer.invoke('safe-storage:decrypt-string', encryptedBase64),
 };
 
 // Exponer la API al proceso de renderizado de manera segura

@@ -1,121 +1,199 @@
 @let song = $song();
-@let queue = playbackService.$queue();
-@let currentIdx = playbackService.$currentIndex();
+@let queue = $queue();
+@let currentIdx = $currentIndex();
 
 @if (song?.videoId) {
-  <audio
-    #player
-    autoplay
-    [src]="'https://ytmdannieldev-back.vercel.app/youtube/stream/' + song.videoId"
-    (timeupdate)="onTimeUpdate($event)"
-    (loadedmetadata)="onLoadedMetadata($event)"
-    (ended)="onEnded()"
-    (play)="onPlay()"
-    (playing)="onPlay()"
-    (pause)="onPause()"
-    (canplay)="onCanPlay()"
-    (error)="onError($event)"
-  ></audio>
-
   <!-- Floating Queue Drawer / Popover -->
   @if ($showQueue()) {
     <div
+      role="dialog"
+      aria-label="Cola de reproducción"
       class="absolute bottom-[calc(100%+10px)] right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[380px] max-h-[440px] bg-[#12101f]/95 backdrop-blur-2xl border border-purple-500/30 rounded-2xl shadow-2xl shadow-purple-950/80 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
     >
       <!-- Queue Header -->
-      <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+      <div
+        class="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]"
+      >
         <div class="flex items-center gap-2">
           <svg lucideListMusic class="w-4 h-4 text-purple-400"></svg>
           <span class="text-sm font-bold text-white">Cola de reproducción</span>
-          <span class="text-[11px] font-semibold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">
+          <span
+            class="text-[11px] font-semibold text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30"
+          >
             {{ queue.length }} canciones
           </span>
         </div>
-        <button
-          type="button"
-          (click)="toggleQueue()"
-          class="p-1 text-neutral-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-          aria-label="Cerrar cola"
-        >
-          <svg lucideX class="w-4 h-4"></svg>
-        </button>
-      </div>
-
-      <!-- Queue Track List -->
-      <div class="flex-1 overflow-y-auto p-2 space-y-1 max-h-[360px] custom-scrollbar">
-        @for (item of queue; track item.videoId || $index) {
-          @let isCurrent = $index === currentIdx;
+        <div class="flex items-center gap-1">
           <button
             type="button"
-            (click)="selectQueueTrack($index)"
-            class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-all cursor-pointer group"
+            (click)="clearQueue()"
+            class="p-1 text-neutral-400 hover:text-red-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-neutral-400 disabled:hover:bg-transparent"
+            aria-label="Vaciar la cola"
+            [disabled]="queue.length === 0"
+          >
+            <svg lucideListX class="w-4 h-4"></svg>
+          </button>
+          <button
+            type="button"
+            (click)="toggleQueue()"
+            class="p-1 text-neutral-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+            aria-label="Cerrar cola"
+          >
+            <svg lucideX class="w-4 h-4"></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hint: the drag is not the only way to reorder. -->
+      <p class="px-4 py-1.5 text-[10px] text-neutral-500 border-b border-white/5">
+        Arrastra para reordenar, o usa
+        <kbd class="font-sans text-neutral-400">Ctrl</kbd>+<kbd class="font-sans">↑</kbd>/<kbd
+          class="font-sans"
+          >↓</kbd
+        >
+        con la fila enfocada y <kbd class="font-sans text-neutral-400">Supr</kbd> para quitarla.
+      </p>
+
+      <!-- Queue Track List -->
+      <ul
+        id="queue-list"
+        #queueList
+        tabindex="-1"
+        aria-label="Canciones en la cola"
+        class="flex-1 overflow-y-auto p-2 space-y-1 max-h-[340px] custom-scrollbar focus:outline-none"
+      >
+        @for (item of queue; track item.id) {
+          @let isCurrent = $index === currentIdx;
+          @let isDragging = $dragIndex() === $index;
+          <li
+            draggable="true"
+            (dragstart)="onDragStart($event, $index)"
+            (dragover)="onDragOver($event, $index)"
+            (drop)="onDrop($event, $index)"
+            (dragend)="onDragEnd()"
+            (keydown)="onQueueKeydown($event, $index)"
+            class="group/row relative flex items-center rounded-xl transition-all"
+            [class.opacity-40]="isDragging"
+            [class.ring-1]="isDropTarget($index)"
+            [class.ring-purple-400]="isDropTarget($index)"
             [class.bg-purple-950/50]="isCurrent"
             [class.border]="isCurrent"
             [class.border-purple-500/40]="isCurrent"
-            [class.hover:bg-white/5]="!isCurrent"
+            [class.hover:bg-white/5]="!isCurrent && !isDropTarget($index)"
           >
-            <!-- Track index or equalizer -->
-            <div class="w-5 shrink-0 flex items-center justify-center text-xs">
-              @if (isCurrent && $isPlaying()) {
-                <div class="flex items-end gap-0.5 h-3.5">
-                  <span class="w-0.5 bg-purple-400 rounded-full animate-pb-wave-1"></span>
-                  <span class="w-0.5 bg-purple-300 rounded-full animate-pb-wave-2"></span>
-                  <span class="w-0.5 bg-purple-400 rounded-full animate-pb-wave-3"></span>
-                </div>
-              } @else {
-                <span
-                  class="font-mono text-neutral-500 group-hover:text-purple-300 transition-colors"
-                  [class.text-purple-400]="isCurrent"
+            <!-- Drag handle: decorative, the whole row is the drag source. -->
+            <svg
+              lucideGripVertical
+              aria-hidden="true"
+              class="w-4 h-4 shrink-0 ml-1 text-neutral-600 group-hover/row:text-neutral-400 cursor-grab active:cursor-grabbing"
+            ></svg>
+
+            <button
+              type="button"
+              #queueRow
+              (click)="selectQueueTrack($index)"
+              [attr.aria-current]="isCurrent ? 'true' : null"
+              aria-keyshortcuts="Control+ArrowUp Control+ArrowDown Delete"
+              class="flex-1 min-w-0 flex items-center gap-3 py-2 pr-1 pl-2 text-left cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-purple-400"
+            >
+              <!-- Track index or equalizer -->
+              <div class="w-5 shrink-0 flex items-center justify-center text-xs">
+                @if (isCurrent && $isPlaying()) {
+                  <div class="flex items-end gap-0.5 h-3.5" aria-hidden="true">
+                    <span class="w-0.5 bg-purple-400 rounded-full animate-pb-wave-1"></span>
+                    <span class="w-0.5 bg-purple-300 rounded-full animate-pb-wave-2"></span>
+                    <span class="w-0.5 bg-purple-400 rounded-full animate-pb-wave-3"></span>
+                  </div>
+                } @else {
+                  <span
+                    class="font-mono text-neutral-500 group-hover/row:text-purple-300 transition-colors"
+                    [class.text-purple-400]="isCurrent"
+                  >
+                    {{ $index + 1 }}
+                  </span>
+                }
+              </div>
+
+              <!-- Thumbnail -->
+              <div
+                class="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-neutral-900 border border-white/10"
+              >
+                @if (item.thumbnail) {
+                  <img
+                    [src]="item.thumbnail"
+                    [alt]="item.name"
+                    loading="lazy"
+                    decoding="async"
+                    class="w-full h-full object-cover"
+                  />
+                } @else {
+                  <div
+                    class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400"
+                  >
+                    <svg lucideMusic class="w-4 h-4"></svg>
+                  </div>
+                }
+              </div>
+
+              <!-- Title & Artist -->
+              <div class="flex-1 min-w-0">
+                <p
+                  class="text-xs font-semibold truncate"
+                  [class.text-purple-300]="isCurrent"
+                  [class.text-neutral-200]="!isCurrent"
                 >
-                  {{ $index + 1 }}
+                  {{ item.name }}
+                </p>
+                @if (item.artist) {
+                  <p class="text-[11px] text-neutral-400 truncate mt-0.5">{{ item.artist }}</p>
+                }
+              </div>
+
+              @if (isCurrent) {
+                <span
+                  class="text-[10px] font-bold text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30 uppercase"
+                >
+                  Sonando
                 </span>
               }
-            </div>
+            </button>
 
-            <!-- Thumbnail -->
-            <div class="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-neutral-900 border border-white/10">
-              @if (item.thumbnail) {
-                <img
-                  [src]="item.thumbnail"
-                  [alt]="item.name"
-                  loading="lazy"
-                  decoding="async"
-                  class="w-full h-full object-cover"
-                />
-              } @else {
-                <div class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400">
-                  <svg lucideMusic class="w-4 h-4"></svg>
-                </div>
-              }
-            </div>
-
-            <!-- Title & Artist -->
-            <div class="flex-1 min-w-0">
-              <p
-                class="text-xs font-semibold truncate"
-                [class.text-purple-300]="isCurrent"
-                [class.text-neutral-200]="!isCurrent"
-              >
-                {{ item.name }}
-              </p>
-              @if (item.artist) {
-                <p class="text-[11px] text-neutral-400 truncate mt-0.5">{{ item.artist }}</p>
-              }
-            </div>
-
-            @if (isCurrent) {
-              <span class="text-[10px] font-bold text-purple-400 bg-purple-500/20 px-1.5 py-0.5 rounded border border-purple-500/30 uppercase">
-                Sonando
-              </span>
-            }
-          </button>
+            <button
+              type="button"
+              (click)="removeQueueTrack($index)"
+              class="p-1.5 mr-1.5 text-neutral-500 hover:text-red-300 rounded-lg hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+              [attr.aria-label]="'Quitar ' + item.name + ' de la cola'"
+            >
+              <svg lucideTrash2 class="w-3.5 h-3.5"></svg>
+            </button>
+          </li>
         } @empty {
-          <div class="py-10 text-center text-neutral-400">
+          <li class="py-10 text-center text-neutral-400">
             <svg lucideListMusic class="w-8 h-8 mx-auto mb-2 text-neutral-600"></svg>
             <p class="text-xs font-medium">No hay canciones en la cola</p>
-          </div>
+          </li>
         }
-      </div>
+      </ul>
+    </div>
+  }
+
+  <!-- Stream error: previously only logged to the console, so playback just
+       stopped with no explanation. -->
+  @if ($error(); as message) {
+    <div
+      role="alert"
+      class="absolute bottom-[calc(100%+10px)] left-4 sm:left-6 max-w-[380px] flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-950/90 border border-red-500/40 backdrop-blur-xl z-50"
+    >
+      <svg lucideAlertCircle class="w-4 h-4 text-red-300 shrink-0 mt-0.5"></svg>
+      <p class="text-xs text-red-100 flex-1">{{ message }}</p>
+      <button
+        type="button"
+        (click)="dismissError()"
+        class="text-red-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+        aria-label="Descartar error"
+      >
+        <svg lucideX class="w-3.5 h-3.5"></svg>
+      </button>
     </div>
   }
 
@@ -126,11 +204,15 @@
     [style.box-shadow]="playerBarDynamicStyle()['box-shadow']"
   >
     <!-- Left: Track Artwork & Info -->
-    <div class="flex items-center gap-3 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px] md:max-w-[300px]">
-      <div 
+    <div
+      class="flex items-center gap-3 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px] md:max-w-[300px]"
+    >
+      <button
+        type="button"
         (click)="openNowPlaying()"
-        class="vt-artwork w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md bg-neutral-900 relative group cursor-pointer hover:scale-105 transition-transform"
-        title="Pantalla completa"
+        class="vt-artwork w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md bg-neutral-900 relative group cursor-pointer hover:scale-105 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+        title="Abrir pantalla completa"
+        aria-label="Abrir pantalla completa de la pista"
       >
         @if (currentArtworkUrl()) {
           <img
@@ -143,15 +225,19 @@
             (error)="onArtworkError()"
             class="w-full h-full object-cover group-hover:brightness-75 transition-all"
           />
-          <div class="absolute inset-0 hidden group-hover:flex items-center justify-center pointer-events-none">
+          <div
+            class="absolute inset-0 hidden group-hover:flex items-center justify-center pointer-events-none"
+          >
             <svg lucideChevronDown class="w-5 h-5 text-white rotate-180 drop-shadow-md"></svg>
           </div>
         } @else {
-          <div class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400">
+          <div
+            class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400"
+          >
             <svg lucideMusic class="w-5 h-5"></svg>
           </div>
         }
-      </div>
+      </button>
 
       <div class="vt-track-info flex flex-col justify-center min-w-0">
         <span
@@ -167,7 +253,7 @@
           </span>
 
           @if (queue.length > 0) {
-            <span class="text-neutral-600 font-bold">•</span>
+            <span class="text-neutral-600 font-bold" aria-hidden="true">•</span>
             <span class="text-purple-400 font-mono text-[10px] shrink-0">
               {{ currentIdx + 1 }}/{{ queue.length }}
             </span>
@@ -177,19 +263,22 @@
     </div>
 
     <!-- Center: Playback Controls & Progress Bar -->
-    <div class="flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 px-1 sm:px-4 max-w-2xl">
+    <div
+      class="flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 px-1 sm:px-4 max-w-2xl"
+    >
       <!-- Controls Button Row -->
       <div class="flex items-center gap-2 sm:gap-3">
         <!-- Shuffle button -->
         <button
           type="button"
           (click)="toggleShuffle()"
-          class="p-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none"
+          class="p-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
           [class.text-purple-400]="playbackService.$isShuffle()"
           [class.bg-purple-500/20]="playbackService.$isShuffle()"
           [class.text-neutral-400]="!playbackService.$isShuffle()"
           [class.hover:text-white]="!playbackService.$isShuffle()"
-          title="Modo aleatorio"
+          [attr.aria-pressed]="playbackService.$isShuffle()"
+          [title]="playbackService.$isShuffle() ? 'Aleatorio activado' : 'Modo aleatorio'"
           aria-label="Modo aleatorio"
         >
           <svg lucideShuffle class="w-3.5 h-3.5"></svg>
@@ -199,13 +288,13 @@
         <button
           type="button"
           (click)="onPrevious()"
-          class="p-1.5 rounded-lg transition-all focus:outline-none cursor-pointer"
+          [disabled]="!playbackService.$hasPrevious()"
+          class="p-1.5 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 enabled:cursor-pointer disabled:cursor-not-allowed"
           [class.text-neutral-300]="playbackService.$hasPrevious()"
           [class.hover:text-white]="playbackService.$hasPrevious()"
           [class.hover:bg-white/5]="playbackService.$hasPrevious()"
           [class.active:scale-95]="playbackService.$hasPrevious()"
           [class.text-neutral-600]="!playbackService.$hasPrevious()"
-          [class.cursor-not-allowed]="!playbackService.$hasPrevious()"
           title="Pista anterior"
           aria-label="Pista anterior"
         >
@@ -216,7 +305,7 @@
         <button
           type="button"
           (click)="togglePlay()"
-          class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-90 text-white flex items-center justify-center shadow-md shadow-purple-900/60 transition-all focus:outline-none cursor-pointer"
+          class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-90 text-white flex items-center justify-center shadow-md shadow-purple-900/60 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300 cursor-pointer"
           [attr.aria-label]="$isPlaying() ? 'Pausar' : 'Reproducir'"
         >
           @if ($isPlaying()) {
@@ -230,13 +319,13 @@
         <button
           type="button"
           (click)="onNext()"
-          class="p-1.5 rounded-lg transition-all focus:outline-none cursor-pointer"
+          [disabled]="!playbackService.$hasNext()"
+          class="p-1.5 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 enabled:cursor-pointer disabled:cursor-not-allowed"
           [class.text-neutral-300]="playbackService.$hasNext()"
           [class.hover:text-white]="playbackService.$hasNext()"
           [class.hover:bg-white/5]="playbackService.$hasNext()"
           [class.active:scale-95]="playbackService.$hasNext()"
           [class.text-neutral-600]="!playbackService.$hasNext()"
-          [class.cursor-not-allowed]="!playbackService.$hasNext()"
           title="Siguiente pista"
           aria-label="Siguiente pista"
         >
@@ -247,13 +336,25 @@
         <button
           type="button"
           (click)="toggleRepeat()"
-          class="p-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none"
+          class="p-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
           [class.text-purple-400]="playbackService.$repeatMode() !== 'off'"
           [class.bg-purple-500/20]="playbackService.$repeatMode() !== 'off'"
           [class.text-neutral-400]="playbackService.$repeatMode() === 'off'"
           [class.hover:text-white]="playbackService.$repeatMode() === 'off'"
-          [title]="playbackService.$repeatMode() === 'one' ? 'Repetir una' : playbackService.$repeatMode() === 'all' ? 'Repetir todas' : 'Repetición desactivada'"
-          aria-label="Modo de repetición"
+          [title]="
+            playbackService.$repeatMode() === 'one'
+              ? 'Repetir una'
+              : playbackService.$repeatMode() === 'all'
+                ? 'Repetir todas'
+                : 'Repetición desactivada'
+          "
+          [attr.aria-label]="
+            playbackService.$repeatMode() === 'one'
+              ? 'Repetir una pista'
+              : playbackService.$repeatMode() === 'all'
+                ? 'Repetir todas las pistas'
+                : 'Repetición desactivada'
+          "
         >
           @if (playbackService.$repeatMode() === 'one') {
             <svg lucideRepeat1 class="w-3.5 h-3.5"></svg>
@@ -270,7 +371,9 @@
         </span>
 
         <div class="relative flex-1 flex items-center group py-1">
-          <div class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative">
+          <div
+            class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative"
+          >
             <div
               class="h-full bg-gradient-to-r from-purple-500 to-indigo-400 rounded-full"
               [style.width.%]="progressPercent()"
@@ -282,9 +385,15 @@
             max="100"
             step="0.1"
             [value]="progressPercent()"
-            (input)="onSeek($event)"
-            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            (pointerdown)="onSeekStart()"
+            (pointerup)="onSeekEnd()"
+            (pointercancel)="onSeekEnd()"
+            (keydown)="onSeekStart()"
+            (keyup)="onSeekEnd()"
+            (input)="onSeekInput($event)"
+            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer focus-visible:opacity-100"
             aria-label="Progreso de reproducción"
+            [attr.aria-valuetext]="seekValueText()"
           />
         </div>
 
@@ -294,14 +403,48 @@
       </div>
     </div>
 
-    <!-- Right: Volume & Queue Menu -->
+    <!-- Right: Volume, Rate, Output Device & Queue Menu -->
     <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      <!-- Output device: only when the platform really exposes a choice -->
+      @if (audioOutput.$hasChoices()) {
+        <div class="relative hidden md:flex items-center">
+          <svg
+            lucideVolume2
+            class="w-3.5 h-3.5 text-neutral-400 absolute left-1.5 pointer-events-none"
+          ></svg>
+          <select
+            [value]="audioOutput.$deviceId()"
+            (change)="onOutputDeviceChange($event)"
+            class="pl-6 pr-2 py-1 text-[11px] text-neutral-300 bg-[#1a1730] border border-white/10 rounded-lg appearance-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 max-w-[130px] truncate"
+            aria-label="Dispositivo de salida de audio"
+          >
+            <option value="">Salida del sistema</option>
+            @for (device of audioOutput.$devices(); track device.deviceId) {
+              <option [value]="device.deviceId">{{ device.label }}</option>
+            }
+          </select>
+        </div>
+      }
+
+      <!-- Playback rate -->
+      <button
+        type="button"
+        (click)="cycleRate()"
+        class="hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-lg text-[11px] font-bold font-mono text-neutral-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+        title="Velocidad de reproducción"
+        aria-label="Cambiar velocidad de reproducción"
+      >
+        <svg lucideGauge class="w-3.5 h-3.5"></svg>
+        {{ rateLabel() }}
+      </button>
+
       <!-- Mute / Volume toggle -->
       <button
         type="button"
         (click)="toggleMute()"
-        class="text-neutral-300 hover:text-white transition-colors focus:outline-none p-1 cursor-pointer"
+        class="text-neutral-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 p-1 cursor-pointer"
         aria-label="Silenciar / Activar sonido"
+        [attr.aria-pressed]="$isMuted()"
       >
         @if ($isMuted() || $volume() === 0) {
           <svg lucideVolumeX class="w-4 h-4 text-neutral-400"></svg>
@@ -314,7 +457,9 @@
 
       <!-- Volume Slider -->
       <div class="relative w-16 sm:w-20 flex items-center group py-1">
-        <div class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative">
+        <div
+          class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative"
+        >
           <div
             class="h-full bg-purple-400 group-hover:bg-purple-300 rounded-full"
             [style.width.%]="($isMuted() ? 0 : $volume()) * 100"
@@ -327,8 +472,9 @@
           step="0.01"
           [value]="$isMuted() ? 0 : $volume()"
           (input)="onVolumeChange($event)"
-          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer focus-visible:opacity-100"
           aria-label="Volumen"
+          [attr.aria-valuetext]="volumeValueText()"
         />
       </div>
 
@@ -336,7 +482,7 @@
       <button
         type="button"
         (click)="toggleQueue()"
-        class="p-1.5 rounded-lg transition-colors focus:outline-none cursor-pointer relative"
+        class="p-1.5 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 cursor-pointer relative"
         [class.text-purple-300]="$showQueue()"
         [class.bg-purple-500/20]="$showQueue()"
         [class.text-neutral-300]="!$showQueue()"
@@ -344,6 +490,8 @@
         [class.hover:bg-white/10]="!$showQueue()"
         title="Cola de reproducción"
         aria-label="Cola de reproducción"
+        [attr.aria-expanded]="$showQueue()"
+        aria-haspopup="dialog"
       >
         <svg lucideListMusic class="w-4 h-4 stroke-[2]"></svg>
         @if (queue.length > 0) {

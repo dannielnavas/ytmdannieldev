@@ -1,42 +1,43 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { IDashboard } from '../../models/dashboard';
-import { IStream, MetadataResponse, StreamResponse } from '../../models/stream';
+import { MetadataResponse, StreamResponse } from '../../models/stream';
 import { IListSearch } from '../../models/list-search';
 import { PlaylistModel } from '../../models/playlist.model';
 import { AlbumResponse } from '../../models/album.model';
+import { apiUrl } from '../../config/api.config';
 
-@Injectable({
-  providedIn: 'root',
-})
+/**
+ * Prefijo que YouTube Music antepone a los browse ids y que no forma parte del id real.
+ * Estaba hardcodeado en 4 ficheros como `/^RDAM(?:VM|PL)/`.
+ */
+export const BROWSE_ID_PREFIX = /^RDAM(?:VM|PL)/;
+
+/** Quita el prefijo `RDAMVM`/`RDAMPL` de un browse id. */
+export function normalizeBrowseId(id: string | null | undefined): string {
+  return (id ?? '').replace(BROWSE_ID_PREFIX, '');
+}
+
+@Service()
 export class Dashboard {
   private readonly _http = inject(HttpClient);
 
   public getDashboardData(): Observable<IDashboard[]> {
-    return this._http.get<IDashboard[]>('https://ytmdannieldev-back.vercel.app/youtube/dashboard');
+    return this._http.get<IDashboard[]>(apiUrl('youtube', 'dashboard'));
   }
 
-  /**
-   * Consulta los metadatos del stream para un videoId
-   */
-  public stream(videoId: string): Observable<StreamResponse> {
-    return this._http.get<StreamResponse>(
-      `https://ytmdannieldev-back.vercel.app/youtube/stream?videoId=${encodeURIComponent(videoId)}`,
-    );
-  }
   /**
    * Genera la URL absoluta para el elemento <audio [src]>
    */
   public getStreamUrl(videoId: string): string {
-    return `https://ytmdannieldev-back.vercel.app/youtube/stream/${encodeURIComponent(videoId)}`;
+    return apiUrl('youtube', 'stream', videoId);
   }
 
   /**
    * Obtiene los metadatos de un video
    */
   public getMetadata(videoId: string): Observable<MetadataResponse> {
-    console.log('videoId', videoId);
     if (!videoId) {
       return of({
         title: 'Loading...',
@@ -47,26 +48,20 @@ export class Dashboard {
         viewCount: 0,
       });
     }
-    return this._http.get<MetadataResponse>(
-      `https://ytmdannieldev-back.vercel.app/youtube/metadata/${encodeURIComponent(videoId)}`,
-    );
+    return this._http.get<MetadataResponse>(apiUrl('youtube', 'metadata', videoId));
   }
 
   public searchSongs(query: string): Observable<IListSearch> {
-    return this._http.get<IListSearch>(
-      `https://ytmdannieldev-back.vercel.app/youtube/search?q=${encodeURIComponent(query)}`,
-    );
+    return this._http.get<IListSearch>(apiUrl('youtube', 'search'), {
+      params: { q: query },
+    });
   }
 
-  public getPlaylist(playlistId: string) {
-    return this._http.get<PlaylistModel>(
-      `https://ytmdannieldev-back.vercel.app/youtube/playlist/${encodeURIComponent(playlistId)}`,
-    );
+  public getPlaylist(playlistId: string): Observable<PlaylistModel> {
+    return this._http.get<PlaylistModel>(apiUrl('youtube', 'playlist', playlistId));
   }
 
-  public getAlbumById(albumId: string) {
-    return this._http.get<AlbumResponse>(
-      `https://ytmdannieldev-back.vercel.app/youtube/album/${encodeURIComponent(albumId)}`,
-    );
+  public getAlbumById(albumId: string): Observable<AlbumResponse> {
+    return this._http.get<AlbumResponse>(apiUrl('youtube', 'album', albumId));
   }
 }

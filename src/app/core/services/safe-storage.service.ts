@@ -1,96 +1,79 @@
-import { Injectable } from '@angular/core';
+import { Service } from '@angular/core';
 
-@Injectable({
-  providedIn: 'root',
-})
+/**
+ * Acceso al almacenamiento seguro de Electron (`safeStorage`), respaldado por el
+ * keychain del sistema operativo.
+ *
+ * Antes, cuando `window.safeStorage` no estaba disponible, el servicio caía a
+ * `localStorage` en texto plano y devolvía `true` como si hubiera funcionado. Eso
+ * significaba que el JWT derivado de la cookie de sesión de YouTube podía quedar
+ * en claro. Ahora el token **nunca** se escribe en claro: si el keychain rechaza
+ * la escritura, `setItem` devuelve `false` y el login falla de forma explícita.
+ */
+@Service()
 export class SafeStorageService {
   /**
-   * Indica si la API de safeStorage de Electron está disponible en el entorno actual.
+   * Fallback para correr fuera de Electron (p.ej. `ng serve` sin la app montada).
+   *
+   * Los valores viven solo en memoria y se pierden al recargar. Es preferible a
+   * la alternativa anterior de escribirlos en `localStorage`, donde el token
+   * quedaba en texto plano legible por cualquier proceso del usuario.
    */
+  private readonly session = new Map<string, string>();
+
+  private get _bridge() {
+    return typeof window !== 'undefined' ? window.safeStorage : undefined;
+  }
+
   public async isAvailable(): Promise<boolean> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      try {
-        return await window.safeStorage.isAvailable();
-      } catch {
-        return false;
-      }
+    if (!this._bridge) {
+      return false;
     }
-    return false;
+    try {
+      return await this._bridge.isAvailable();
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Encripta y guarda un valor bajo una clave de forma segura en disco.
+   * Guarda un valor cifrado con la clave del sistema operativo.
+   *
+   * @returns `false` si el keychain rechazó la escritura. Fuera de Electron
+   *   devuelve `true` porque el valor queda solo en memoria.
    */
   public async setItem(key: string, value: string): Promise<boolean> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.setItem(key, value);
-    }
-    // Fallback para desarrollo web si se ejecuta fuera de Electron
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(key, value);
+    if (!this._bridge) {
+      this.session.set(key, value);
       return true;
     }
-    return false;
+    try {
+      return await this._bridge.setItem(key, value);
+    } catch {
+      return false;
+    }
   }
 
-  /**
-   * Obtiene y desencripta el valor guardado para la clave especificada de manera sincrónica.
-   */
   public getItem(key: string): string | null {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.getItem(key);
+    if (!this._bridge) {
+      return this.session.get(key) ?? null;
     }
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem(key);
+    try {
+      return this._bridge.getItem(key);
+    } catch {
+      return null;
     }
-    return null;
   }
 
-  /**
-   * Elimina la clave y su valor del almacenamiento seguro.
-   */
   public async removeItem(key: string): Promise<boolean> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.removeItem(key);
-    }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(key);
+    this.session.delete(key);
+    if (!this._bridge) {
       return true;
     }
-    return false;
-  }
-
-  /**
-   * Limpia todo el almacenamiento seguro.
-   */
-  public async clear(): Promise<boolean> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.clear();
+    try {
+      return await this._bridge.removeItem(key);
+    } catch {
+      return false;
     }
-    if (typeof localStorage !== 'undefined') {
-      localStorage.clear();
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Encripta un texto plano usando safeStorage de Electron y devuelve la cadena en Base64.
-   */
-  public async encryptString(plainText: string): Promise<string> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.encryptString(plainText);
-    }
-    throw new Error('safeStorage solo está disponible dentro de Electron.');
-  }
-
-  /**
-   * Desencripta una cadena en Base64 previamente encriptada con safeStorage.
-   */
-  public async decryptString(encryptedBase64: string): Promise<string> {
-    if (typeof window !== 'undefined' && window.safeStorage) {
-      return window.safeStorage.decryptString(encryptedBase64);
-    }
-    throw new Error('safeStorage solo está disponible dentro de Electron.');
   }
 }

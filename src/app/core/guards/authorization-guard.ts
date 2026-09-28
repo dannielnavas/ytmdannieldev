@@ -2,22 +2,21 @@ import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { Auth } from '../services/auth/auth';
 
-export const authorizationGuard: CanActivateFn = async (route, state) => {
+export const authorizationGuard: CanActivateFn = () => {
   const auth = inject(Auth);
-  const _router = inject(Router);
+  const router = inject(Router);
 
   try {
-    const token = await auth.getToken();
-
-    if (token) {
+    // `getToken()` es síncrono; antes se hacía `await` sobre un valor no-Promise,
+    // lo que ocultaba que esto hace IPC bloqueante en cada navegación.
+    if (auth.getToken()) {
       return true;
-    } else {
-      _router.navigate(['/auth']);
-      return false;
     }
   } catch (error) {
     console.error('Error al verificar autenticación:', error);
-    _router.navigate(['/auth']);
-    return false;
   }
+
+  // Devolver un UrlTree en vez de `navigate()` + `return false` evita que el router
+  // cancele esta navegación y arranque otra, dos eventos por un solo rechazo.
+  return router.createUrlTree(['/']);
 };

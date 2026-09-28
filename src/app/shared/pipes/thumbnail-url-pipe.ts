@@ -10,7 +10,8 @@ export class ThumbnailUrlPipe implements PipeTransform {
     if (!value.thumbnails || value.thumbnails.length === 0) {
       return '';
     }
-    const raw = value.thumbnails[value.thumbnails.length - 1]?.url || value.thumbnails[0]?.url || '';
+    const raw =
+      value.thumbnails[value.thumbnails.length - 1]?.url || value.thumbnails[0]?.url || '';
     return getHighResThumbnail(raw, size);
   }
 }

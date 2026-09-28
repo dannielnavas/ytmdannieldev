@@ -1,16 +1,27 @@
-<div class="h-full w-full absolute inset-0 z-40 transition-colors duration-1000 flex flex-col" [style]="backgroundStyle()">
+<div
+  class="h-full w-full absolute inset-0 z-40 transition-colors duration-1000 flex flex-col"
+  [style]="backgroundStyle()"
+>
   <!-- Top bar (back button) -->
   <div class="flex items-center justify-between p-4 lg:p-8 shrink-0">
-    <button (click)="goBack()" class="p-2.5 bg-white/5 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition shadow-lg cursor-pointer">
+    <button
+      type="button"
+      (click)="goBack()"
+      class="p-2.5 bg-white/5 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition shadow-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
+      aria-label="Volver"
+    >
       <svg lucideChevronDown class="w-7 h-7"></svg>
     </button>
   </div>
 
   <div class="flex-1 min-h-0 flex flex-col lg:flex-row gap-6 lg:gap-12 px-6 lg:px-12 pb-10">
-    
     <!-- Left Column: Artwork & Visualizer -->
-    <div class="flex-1 flex flex-col justify-center items-center lg:items-end lg:pr-10 max-w-2xl mx-auto w-full">
-      <div class="vt-artwork aspect-square w-[75%] max-w-[320px] lg:w-full lg:max-w-[480px] rounded-3xl overflow-hidden shadow-2xl relative group border border-white/10">
+    <div
+      class="flex-1 flex flex-col justify-center items-center lg:items-end lg:pr-10 max-w-2xl mx-auto w-full"
+    >
+      <div
+        class="vt-artwork aspect-square w-[75%] max-w-[320px] lg:w-full lg:max-w-[480px] rounded-3xl overflow-hidden shadow-2xl relative group border border-white/10"
+      >
         @if (currentArtworkUrl()) {
           <img
             #artImg
@@ -18,6 +29,7 @@
             [src]="currentArtworkUrl()"
             [alt]="trackTitle()"
             (load)="onImageLoad(artImg)"
+            (error)="playbackService.reportArtworkError()"
             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         } @else {
@@ -27,47 +39,189 @@
         }
       </div>
 
-      <!-- Wavesurfer container -->
-      <div class="w-[75%] max-w-[320px] lg:w-full lg:max-w-[480px] mt-8" #waveform></div>
+      <!-- Spectrum canvas: the analyser is attached to the shared audio
+           element, so this view can no longer hold its own wavesurfer
+           instance. -->
+      <canvas
+        #visualizer
+        aria-hidden="true"
+        class="w-[75%] max-w-[320px] lg:w-full lg:max-w-[480px] h-16 mt-8 transition-opacity duration-500"
+        [class.opacity-0]="!$visualizerActive()"
+      ></canvas>
     </div>
 
     <!-- Right Column: Info, Lyrics & Controls -->
-    <div class="flex-1 flex flex-col max-w-2xl mx-auto lg:mx-0 w-full relative h-full pt-4 lg:pt-0 pb-4">
-      
+    <div
+      class="flex-1 flex flex-col max-w-2xl mx-auto lg:mx-0 w-full relative h-full pt-4 lg:pt-0 pb-4"
+    >
       <!-- Track Info -->
       <div class="vt-track-info mb-4 lg:mb-8 text-center lg:text-left shrink-0">
-        <h1 class="text-3xl lg:text-5xl font-black text-white truncate drop-shadow-lg tracking-tight">{{ trackTitle() || 'Cargando...' }}</h1>
-        <h2 class="text-lg lg:text-2xl text-white/70 font-medium mt-1 lg:mt-3 truncate">{{ trackAuthor() }}</h2>
+        <h1
+          class="text-3xl lg:text-5xl font-black text-white truncate drop-shadow-lg tracking-tight"
+        >
+          {{ trackTitle() || 'Cargando...' }}
+        </h1>
+        <h2 class="text-lg lg:text-2xl text-white/70 font-medium mt-1 lg:mt-3 truncate">
+          {{ trackAuthor() }}
+        </h2>
+      </div>
+
+      <!-- Lyrics toolbar: search and timing correction -->
+      <div class="shrink-0 flex items-center gap-2 mb-3">
+        <div class="relative flex-1 min-w-0">
+          <svg
+            lucideSearch
+            aria-hidden="true"
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none"
+          ></svg>
+          <input
+            #lyricsSearch
+            type="search"
+            [value]="$lyricsQuery()"
+            (input)="onLyricsQuery($event)"
+            (keydown.escape)="clearLyricsQuery(); lyricsSearch.blur()"
+            placeholder="Buscar en la letra"
+            aria-label="Buscar en la letra"
+            class="w-full bg-white/5 border border-white/10 rounded-full pl-9 pr-9 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-colors"
+          />
+          @if ($lyricsQuery()) {
+            <button
+              type="button"
+              (click)="clearLyricsQuery(); lyricsSearch.focus()"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-white/50 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white/80"
+              aria-label="Borrar la búsqueda"
+            >
+              <svg lucideX class="w-3.5 h-3.5"></svg>
+            </button>
+          }
+        </div>
+
+        @if ($lyricsQuery()) {
+          <span class="text-xs font-mono text-white/50 shrink-0" aria-live="polite">{{
+            lyricsMatches()
+          }}</span>
+        }
+
+        <!-- Timing correction, only meaningful with synced lyrics. -->
+        @if (hasSyncedLyrics()) {
+          <div
+            class="hidden sm:flex items-center gap-1 shrink-0 bg-white/5 border border-white/10 rounded-full px-1.5 py-1"
+            role="group"
+            aria-label="Ajustar el desfase de la letra"
+          >
+            <button
+              type="button"
+              (click)="shiftLyrics(-0.5)"
+              [disabled]="!canShiftLyricsLater()"
+              class="p-1 text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed rounded-full hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white/80"
+              aria-label="Retrasar la letra medio segundo"
+            >
+              <svg lucideMinus class="w-3.5 h-3.5"></svg>
+            </button>
+            <span class="text-[11px] font-mono text-white/70 w-12 text-center tabular-nums">{{
+              lyricsOffsetLabel()
+            }}</span>
+            <button
+              type="button"
+              (click)="shiftLyrics(0.5)"
+              [disabled]="!canShiftLyricsEarlier()"
+              class="p-1 text-white/60 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed rounded-full hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white/80"
+              aria-label="Retrasar la letra medio segundo"
+            >
+              <svg lucidePlus class="w-3.5 h-3.5"></svg>
+            </button>
+            @if ($lyricsOffset() !== 0) {
+              <button
+                type="button"
+                (click)="resetLyricsOffset()"
+                class="p-1 text-white/60 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white/80"
+                aria-label="Restablecer el desfase"
+              >
+                <svg lucideRotateCcw class="w-3.5 h-3.5"></svg>
+              </button>
+            }
+          </div>
+        }
       </div>
 
       <!-- Lyrics Area -->
-      <div class="flex-1 min-h-0 overflow-hidden relative rounded-3xl bg-black/10 backdrop-blur-sm border border-white/5 p-4 lg:p-8 shadow-inner mask-image-vertical mb-6 lg:mb-10">
+      <div
+        class="flex-1 min-h-0 overflow-hidden relative rounded-3xl bg-black/10 backdrop-blur-sm border border-white/5 p-4 lg:p-8 shadow-inner mask-image-vertical mb-6 lg:mb-10"
+      >
         @if (lyricsResource.isLoading()) {
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="animate-pulse text-white/50 text-lg font-medium">Buscando letras...</div>
           </div>
-        } @else if (parsedLyrics().length > 0) {
-          <div class="h-full overflow-y-auto custom-scrollbar scroll-smooth snap-y mask-scrollbar" style="scrollbar-width: none;">
+        } @else if (visibleLyrics().length > 0) {
+          <div
+            class="h-full overflow-y-auto custom-scrollbar scroll-smooth snap-y mask-scrollbar"
+            style="scrollbar-width: none"
+          >
             <!-- Spacer top -->
             <div class="h-[40%]"></div>
-            @for (lyric of parsedLyrics(); track $index) {
-              @let isCurrent = $index === currentLyricIndex();
-              @let isPassed = $index < currentLyricIndex();
-              <p
-                [id]="'lyric-' + $index"
-                class="text-2xl lg:text-4xl font-bold mb-6 lg:mb-8 transition-all duration-500 snap-center text-center lg:text-left tracking-tight"
-                [class.text-white]="isCurrent"
-                [class.scale-105]="isCurrent"
-                [class.lg:origin-left]="isCurrent"
-                [class.drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]]="isCurrent"
-                [class.text-white/30]="!isCurrent && isPassed"
-                [class.text-white/20]="!isCurrent && !isPassed"
-              >
-                {{ lyric.text || '♪' }}
-              </p>
+            @for (entry of visibleLyrics(); track entry.index) {
+              @let isCurrent = entry.index === currentLyricIndex();
+              @let isPassed = entry.index < currentLyricIndex();
+              @if (hasSyncedLyrics()) {
+                <button
+                  type="button"
+                  [id]="'lyric-' + entry.index"
+                  (click)="onLyricClick(entry.line.time)"
+                  [attr.aria-current]="isCurrent ? 'true' : null"
+                  class="block w-full text-left text-2xl lg:text-4xl font-bold mb-6 lg:mb-8 transition-all duration-500 snap-center text-center lg:text-left tracking-tight cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/80 rounded-lg"
+                  [class.text-white]="isCurrent"
+                  [class.scale-105]="isCurrent"
+                  [class.lg:origin-left]="isCurrent"
+                  [class.drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]]="isCurrent"
+                  [class.text-white/30]="!isCurrent && isPassed"
+                  [class.text-white/20]="!isCurrent && !isPassed"
+                >
+                  @for (part of lyricParts(entry.line.text || '♪'); track $index) {
+                    @if (part.match) {
+                      <mark
+                        class="bg-transparent text-purple-300 underline decoration-purple-400/70 decoration-2 underline-offset-4"
+                        >{{ part.text }}</mark
+                      >
+                    } @else {
+                      {{ part.text }}
+                    }
+                  }
+                </button>
+              } @else {
+                <p
+                  [id]="'lyric-' + entry.index"
+                  class="text-2xl lg:text-4xl font-bold mb-6 lg:mb-8 transition-all duration-500 snap-center text-center lg:text-left tracking-tight"
+                  [class.text-white]="isCurrent"
+                  [class.text-white/30]="!isCurrent && isPassed"
+                  [class.text-white/20]="!isCurrent && !isPassed"
+                >
+                  @for (part of lyricParts(entry.line.text || '♪'); track $index) {
+                    @if (part.match) {
+                      <mark
+                        class="bg-transparent text-purple-300 underline decoration-purple-400/70 decoration-2 underline-offset-4"
+                        >{{ part.text }}</mark
+                      >
+                    } @else {
+                      {{ part.text }}
+                    }
+                  }
+                </p>
+              }
             }
             <!-- Spacer bottom -->
             <div class="h-[60%]"></div>
+          </div>
+        } @else if ($lyricsQuery()) {
+          <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+            <svg lucideSearch class="w-12 h-12 text-white/10 mb-4"></svg>
+            <p class="text-white/30 text-lg font-medium">Sin coincidencias</p>
+            <button
+              type="button"
+              (click)="clearLyricsQuery()"
+              class="mt-4 text-sm text-purple-300 hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 rounded"
+            >
+              Borrar búsqueda
+            </button>
           </div>
         } @else {
           <div class="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
@@ -81,12 +235,21 @@
       <div class="shrink-0 w-full px-2 lg:px-0">
         <!-- Progress Bar -->
         <div class="flex items-center gap-3 lg:gap-4 mb-4 lg:mb-6">
-          <span class="text-xs lg:text-sm font-mono text-white/50 w-10 text-right">{{ formattedCurrentTime() }}</span>
-          
+          <span class="text-xs lg:text-sm font-mono text-white/50 w-10 text-right">{{
+            formattedCurrentTime()
+          }}</span>
+
           <div class="relative flex-1 group py-3">
-            <div class="w-full h-1.5 lg:h-2 bg-white/10 rounded-full overflow-hidden transition-all relative shadow-inner">
-              <div class="h-full bg-white rounded-full relative" [style.width.%]="progressPercent()">
-                <div class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 lg:w-3 lg:h-3 bg-white rounded-full shadow-md"></div>
+            <div
+              class="w-full h-1.5 lg:h-2 bg-white/10 rounded-full overflow-hidden transition-all relative shadow-inner"
+            >
+              <div
+                class="h-full bg-white rounded-full relative"
+                [style.width.%]="progressPercent()"
+              >
+                <div
+                  class="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 lg:w-3 lg:h-3 bg-white rounded-full shadow-md"
+                ></div>
               </div>
             </div>
             <input
@@ -96,25 +259,46 @@
               step="0.1"
               [value]="progressPercent()"
               (input)="onSeek($event)"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer focus-visible:opacity-100"
+              aria-label="Progreso de reproducción"
+              [attr.aria-valuetext]="seekValueText()"
             />
           </div>
 
-          <span class="text-xs lg:text-sm font-mono text-white/50 w-10">{{ formattedDuration() }}</span>
+          <span class="text-xs lg:text-sm font-mono text-white/50 w-10">{{
+            formattedDuration()
+          }}</span>
         </div>
 
         <!-- Controls -->
         <div class="flex items-center justify-between max-w-[400px] mx-auto lg:max-w-none">
           <div class="flex items-center gap-2 lg:gap-4">
-            <button (click)="playbackService.toggleShuffle()" class="p-3 text-white/40 hover:text-white transition cursor-pointer" [class.text-purple-400]="playbackService.$isShuffle()">
+            <button
+              type="button"
+              (click)="playbackService.toggleShuffle()"
+              class="p-3 text-white/40 hover:text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 rounded-full"
+              [class.text-purple-400]="playbackService.$isShuffle()"
+              [attr.aria-pressed]="playbackService.$isShuffle()"
+              aria-label="Modo aleatorio"
+            >
               <svg lucideShuffle class="w-5 h-5 lg:w-6 lg:h-6"></svg>
             </button>
-            <button (click)="playbackService.playPrevious()" class="p-3 text-white hover:text-purple-300 transition hover:scale-110 cursor-pointer">
+            <button
+              type="button"
+              (click)="playbackService.previous()"
+              class="p-3 text-white hover:text-purple-300 transition hover:scale-110 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 rounded-full"
+              aria-label="Pista anterior"
+            >
               <svg lucideSkipBack class="w-8 h-8 lg:w-10 lg:h-10 fill-current"></svg>
             </button>
           </div>
 
-          <button (click)="togglePlay()" class="w-16 h-16 lg:w-20 lg:h-20 bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95 rounded-full flex items-center justify-center transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] cursor-pointer">
+          <button
+            type="button"
+            (click)="togglePlay()"
+            [attr.aria-label]="playbackService.$isPlaying() ? 'Pausar' : 'Reproducir'"
+            class="w-16 h-16 lg:w-20 lg:h-20 bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95 rounded-full flex items-center justify-center transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/80"
+          >
             @if (playbackService.$isPlaying()) {
               <svg lucidePause class="w-8 h-8 lg:w-10 lg:h-10 fill-current"></svg>
             } @else {
@@ -123,10 +307,28 @@
           </button>
 
           <div class="flex items-center gap-2 lg:gap-4">
-            <button (click)="playbackService.playNext()" class="p-3 text-white hover:text-purple-300 transition hover:scale-110 cursor-pointer">
+            <button
+              type="button"
+              (click)="playbackService.playNext()"
+              class="p-3 text-white hover:text-purple-300 transition hover:scale-110 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 rounded-full"
+              aria-label="Siguiente pista"
+            >
               <svg lucideSkipForward class="w-8 h-8 lg:w-10 lg:h-10 fill-current"></svg>
             </button>
-            <button (click)="playbackService.toggleRepeat()" class="p-3 text-white/40 hover:text-white transition cursor-pointer" [class.text-purple-400]="playbackService.$repeatMode() !== 'off'">
+            <button
+              type="button"
+              (click)="playbackService.toggleRepeat()"
+              class="p-3 text-white/40 hover:text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 rounded-full"
+              [class.text-purple-400]="playbackService.$repeatMode() !== 'off'"
+              [attr.aria-pressed]="playbackService.$repeatMode() !== 'off'"
+              [attr.aria-label]="
+                playbackService.$repeatMode() === 'one'
+                  ? 'Repetir una pista'
+                  : playbackService.$repeatMode() === 'all'
+                    ? 'Repetir todas las pistas'
+                    : 'Repetición desactivada'
+              "
+            >
               @if (playbackService.$repeatMode() === 'one') {
                 <svg lucideRepeat1 class="w-5 h-5 lg:w-6 lg:h-6"></svg>
               } @else {
@@ -136,7 +338,6 @@
           </div>
         </div>
       </div>
-      
     </div>
   </div>
 </div>

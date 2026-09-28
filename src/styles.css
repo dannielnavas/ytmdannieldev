@@ -4,7 +4,6 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-
 @theme {
   /* Brand */
   --color-primary: var(--primary);
@@ -37,7 +36,6 @@
   --color-error: var(--error);
 }
 
-
 /* =========================================
    LIGHT MODE (Default)
    ========================================= */
@@ -64,7 +62,6 @@
   --warning: #d97706;
   --error: #dc2626;
 }
-
 
 /* =========================================
    SYSTEM PREFERENCE DARK MODE
@@ -94,7 +91,6 @@
     --error: #f87171;
   }
 }
-
 
 /* =========================================
    CLASS-BASED DARK MODE (.dark)
@@ -183,4 +179,136 @@
 ::view-transition-group(current-track-info) {
   animation-duration: 320ms;
   animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* =========================================
+   SCROLLBARS
+   ========================================= */
+
+/* Estas reglas estaban definidas por separado en home.css, list-search.css y
+   now-playing.css. `album.css` y `playlist.css` usaban la clase
+   `custom-scrollbar` sin definirla, así que esas dos páginas no tenían scrollbar
+   estilizado. Alglobalizarlas se arregla de paso. */
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================================
+   EQUALIZER ANIMATION
+   ========================================= */
+
+/* Los mismos tres @keyframes estaban duplicados en detail-song-album.css,
+   detail-song-playlist.css, detail-song.css y player-bar.css (con prefijo `pb-`). */
+
+@keyframes soundwave-1 {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 15px;
+  }
+}
+
+@keyframes soundwave-2 {
+  0%,
+  100% {
+    height: 13px;
+  }
+  50% {
+    height: 5px;
+  }
+}
+
+@keyframes soundwave-3 {
+  0%,
+  100% {
+    height: 7px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+@keyframes pb-soundwave-1 {
+  0%,
+  100% {
+    height: 3px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+
+@keyframes pb-soundwave-2 {
+  0%,
+  100% {
+    height: 11px;
+  }
+  50% {
+    height: 4px;
+  }
+}
+
+@keyframes pb-soundwave-3 {
+  0%,
+  100% {
+    height: 6px;
+  }
+  50% {
+    height: 13px;
+  }
+}
+
+.animate-wave-1 {
+  animation: soundwave-1 0.8s ease-in-out infinite;
+}
+
+.animate-wave-2 {
+  animation: soundwave-2 0.7s ease-in-out infinite 0.15s;
+}
+
+.animate-wave-3 {
+  animation: soundwave-3 0.9s ease-in-out infinite 0.3s;
+}
+
+.animate-pb-wave-1 {
+  animation: pb-soundwave-1 0.8s ease-in-out infinite;
+}
+
+.animate-pb-wave-2 {
+  animation: pb-soundwave-2 0.7s ease-in-out infinite 0.15s;
+}
+
+.animate-pb-wave-3 {
+  animation: pb-soundwave-3 0.9s ease-in-out infinite 0.3s;
 }

@@ -39,7 +39,9 @@
       <!-- Skeleton Loading State -->
       <div class="animate-pulse p-6 md:p-8 space-y-8">
         <div class="flex flex-col sm:flex-row items-center sm:items-end gap-6">
-          <div class="w-44 h-44 sm:w-52 sm:h-52 rounded-2xl bg-white/5 border border-white/10"></div>
+          <div
+            class="w-44 h-44 sm:w-52 sm:h-52 rounded-2xl bg-white/5 border border-white/10"
+          ></div>
           <div class="flex-1 space-y-3 w-full">
             <div class="h-4 w-20 bg-purple-500/20 rounded-full"></div>
             <div class="h-8 w-3/4 bg-white/10 rounded-lg"></div>
@@ -54,7 +56,9 @@
         <!-- Skeleton Song Rows -->
         <div class="space-y-2 pt-4">
           @for (_ of [1, 2, 3, 4, 5, 6, 7]; track $index) {
-            <div class="h-14 rounded-xl bg-white/[0.02] border border-white/5 flex items-center px-4 gap-4">
+            <div
+              class="h-14 rounded-xl bg-white/[0.02] border border-white/5 flex items-center px-4 gap-4"
+            >
               <div class="w-5 h-4 bg-white/5 rounded"></div>
               <div class="w-10 h-10 bg-white/10 rounded-lg shrink-0"></div>
               <div class="flex-1 space-y-1.5">
@@ -68,9 +72,12 @@
       </div>
     } @else if (playlist && playlist.infoPlaylist) {
       <!-- Playlist Detail Hero Header -->
-      <app-detail-info-playlist
-        [$infoPlaylist]="playlist.infoPlaylist"
-        [$totalSongs]="playlist.songsList.length || playlist.infoPlaylist.videoCount"
+      <app-detail-hero
+        kind="PLAYLIST"
+        [title]="playlist.infoPlaylist.name"
+        [artist]="playlist.infoPlaylist.artist?.name || ''"
+        [thumbnails]="playlist.infoPlaylist.thumbnails"
+        [totalSongs]="playlist.songsList.length || playlist.infoPlaylist.videoCount"
         (playAll)="onPlayAll()"
         (playShuffle)="onPlayShuffle()"
       />
@@ -78,7 +85,9 @@
       <!-- Songs List Section -->
       <div class="px-4 md:px-8 py-6">
         <!-- Table Column Headers -->
-        <div class="flex items-center gap-4 px-4 pb-2 mb-2 border-b border-white/5 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider select-none">
+        <div
+          class="flex items-center gap-4 px-4 pb-2 mb-2 border-b border-white/5 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider select-none"
+        >
           <div class="w-6 shrink-0 text-center">#</div>
           <div class="flex-1 flex items-center gap-3">
             <span>Título</span>
@@ -92,16 +101,20 @@
         <!-- Track Rows -->
         <div class="flex flex-col gap-1.5">
           @for (item of playlist.songsList; track item.videoId || $index) {
-            <app-detail-song-playlist
-              [$song]="item"
-              [$index]="$index + 1"
+            <app-detail-song-row
+              [song]="item"
+              [index]="$index + 1"
               (songSelected)="onPlaySong(item, $index)"
             />
           } @empty {
-            <div class="py-16 text-center text-neutral-400 flex flex-col items-center justify-center">
+            <div
+              class="py-16 text-center text-neutral-400 flex flex-col items-center justify-center"
+            >
               <svg lucideMusic class="w-12 h-12 stroke-[1.5] text-neutral-600 mb-3"></svg>
               <p class="text-base font-medium text-neutral-300">No se encontraron canciones</p>
-              <p class="text-xs text-neutral-500 mt-1">Esta playlist no contiene pistas disponibles para reproducción.</p>
+              <p class="text-xs text-neutral-500 mt-1">
+                Esta playlist no contiene pistas disponibles para reproducción.
+              </p>
             </div>
           }
         </div>
@@ -109,7 +122,9 @@
     } @else {
       <!-- Empty / Error state -->
       <div class="h-full flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div class="w-16 h-16 rounded-2xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 shadow-xl">
+        <div
+          class="w-16 h-16 rounded-2xl bg-purple-950/40 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 shadow-xl"
+        >
           <svg lucideListMusic class="w-8 h-8"></svg>
         </div>
         <h2 class="text-xl font-bold text-white mb-2">No pudimos cargar la playlist</h2>

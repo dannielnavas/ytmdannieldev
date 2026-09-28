@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { MainLayout } from './features/shell/components/main-layout/main-layout';
 import { AuthViewComponent } from './features/auth/auth-view/auth-view';
 import { authorizationGuard } from './core/guards/authorization-guard';
-import { redirectInterceptor } from './core/interceptors/redirect-interceptor';
+import { redirectGuard } from './core/guards/redirect-guard';
 
 export const routes: Routes = [
   {
@@ -13,7 +13,7 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/auth/auth-view/auth-view').then((m) => m.AuthViewComponent),
-        canActivate: [redirectInterceptor],
+        canActivate: [redirectGuard],
       },
       {
         path: 'home',
@@ -27,13 +27,13 @@ export const routes: Routes = [
         canActivate: [authorizationGuard],
       },
       {
-        path: 'playlist',
+        path: 'playlist/:playlistId',
         loadComponent: () =>
           import('./features/playlist/pages/playlist/playlist').then((m) => m.Playlist),
         canActivate: [authorizationGuard],
       },
       {
-        path: 'album',
+        path: 'album/:albumId',
         loadComponent: () => import('./features/album/pages/album/album').then((m) => m.Album),
         canActivate: [authorizationGuard],
       },

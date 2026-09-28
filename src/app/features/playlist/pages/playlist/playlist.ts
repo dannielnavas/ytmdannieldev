@@ -1,37 +1,20 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { Dashboard } from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
-import { GlobalStorage } from '../../../../core/store/global-storage';
 import { Location } from '@angular/common';
 import { Search } from '../../../search/search';
-import { PlaylistModel, SongsList } from '../../../../core/models/playlist.model';
-import { DetailInfoPlaylist } from '../../components/detail-info-playlist/detail-info-playlist';
-import { DetailSongPlaylist } from '../../components/detail-song-playlist/detail-song-playlist';
+import { PlaylistModel, Song } from '../../../../core/models/playlist.model';
+import { DetailHero } from '../../../../shared/components/detail-hero/detail-hero';
+import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { QueueItem } from '../../../../core/models/queue.model';
-import {
-  LucideArrowLeft,
-  LucideClock,
-  LucideListMusic,
-  LucideMusic,
-} from '@lucide/angular';
-import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
-
-export interface StoredPlaylistData {
-  playlistId?: string;
-  albumId?: string;
-  videoId?: string;
-  name?: string;
-  artist?: string;
-  thumbnail?: string;
-}
+import { LucideArrowLeft, LucideClock, LucideListMusic, LucideMusic } from '@lucide/angular';
 
 @Component({
   imports: [
     Search,
-    DetailInfoPlaylist,
-    DetailSongPlaylist,
+    DetailHero,
+    DetailSongRow,
     LucideArrowLeft,
     LucideListMusic,
     LucideClock,
@@ -43,12 +26,13 @@ export interface StoredPlaylistData {
 })
 export class Playlist {
   private readonly _youtubeService = inject(Dashboard);
-  private readonly _globalStorage = inject(GlobalStorage);
   private readonly _playbackService = inject(PlaybackService);
   private readonly _location = inject(Location);
 
-  public $playlistInfo = this._globalStorage.getStore<StoredPlaylistData>('playlist');
-  public $playlistId = computed(() => this.$playlistInfo()?.playlistId || this.$playlistInfo()?.albumId || '');
+  /** Inyectado desde `:playlistId` por `withComponentInputBinding()`. */
+  public readonly playlistId = input<string>('');
+
+  public readonly $playlistId = computed(() => this.playlistId().replace(/^RDAM(?:VM|PL)/, ''));
 
   public resourceGetPlaylist = rxResource({
     params: () => this.$playlistId(),
@@ -58,16 +42,16 @@ export class Playlist {
       }
       return this._youtubeService.getPlaylist(id).pipe(
         tap((res) => {
-          if (!res || !res.songsList || res.songsList.length === 0) {
-            this.fallbackPlayTrack();
+          if (!res?.songsList?.length) {
+            this.fallbackPlayTrack(id);
           }
         }),
         catchError((err) => {
           console.error(
-            'El servicio de playlist falló, intentando reproducir canción con ID almacenado:',
+            'El servicio de playlist falló, intentando reproducir canción con el id de la ruta:',
             err,
           );
-          this.fallbackPlayTrack();
+          this.fallbackPlayTrack(id);
           return of({} as unknown as PlaylistModel);
         }),
       );
@@ -75,52 +59,27 @@ export class Playlist {
     defaultValue: {} as unknown as PlaylistModel,
   });
 
-  public fallbackPlayTrack(): void {
-    const playlistInfo = this.$playlistInfo();
-    const albumInfo = this._globalStorage.getSnapshot<StoredPlaylistData>('album');
-
-    const rawId =
-      playlistInfo?.playlistId ||
-      playlistInfo?.albumId ||
-      playlistInfo?.videoId ||
-      albumInfo?.playlistId ||
-      albumInfo?.albumId ||
-      albumInfo?.videoId ||
-      this.$playlistId();
-
-    if (!rawId) return;
-
-    const cleanId = rawId.replace(/^RDAM(?:VM|PL)/, '');
-    if (!cleanId) return;
-
-    this._playbackService.playSingle({
-      videoId: cleanId,
-      name: playlistInfo?.name || albumInfo?.name || '',
-      artist: playlistInfo?.artist || albumInfo?.artist || '',
-      thumbnail: getHighResThumbnail(playlistInfo?.thumbnail || albumInfo?.thumbnail || '', 800),
-    });
+  public fallbackPlayTrack(playlistId: string): void {
+    if (!playlistId) return;
+    this._playbackService.playSingle({ videoId: playlistId, name: '', artist: '', thumbnail: '' });
   }
 
   public goBack(): void {
     this._location.back();
   }
 
-  public onPlaySong(song: SongsList, index: number): void {
+  public onPlaySong(song: Song, index: number): void {
     const playlist = this.resourceGetPlaylist.value();
     if (!playlist?.songsList?.length) return;
 
-    const items: QueueItem[] = playlist.songsList.map((s) => ({
-      videoId: s.videoId,
-      name: s.name,
-      artist: s.artist?.name || '',
-      duration: s.duration,
-      thumbnail: getHighResThumbnail(
-        s.thumbnails?.[s.thumbnails.length - 1]?.url || s.thumbnails?.[0]?.url || '',
-        800,
-      ),
-    }));
-
-    this._playbackService.playQueue(items, index, playlist.infoPlaylist?.name);
+    this._playbackService.playQueue(
+      this._playbackService.toQueueItems(playlist.songsList, {
+        fallbackThumbnails: playlist.infoPlaylist?.thumbnails,
+        size: 800,
+      }),
+      index,
+      playlist.infoPlaylist?.name,
+    );
   }
 
   public onPlayAll(): void {
@@ -133,22 +92,10 @@ export class Playlist {
     const playlist = this.resourceGetPlaylist.value();
     if (!playlist?.songsList?.length) return;
 
-    const items: QueueItem[] = playlist.songsList.map((s) => ({
-      videoId: s.videoId,
-      name: s.name,
-      artist: s.artist?.name || '',
-      duration: s.duration,
-      thumbnail: getHighResThumbnail(
-        s.thumbnails?.[s.thumbnails.length - 1]?.url || s.thumbnails?.[0]?.url || '',
-        800,
-      ),
-    }));
-
-    // Iniciar desde un índice aleatorio o mezclar la cola
-    const randomIndex = Math.floor(Math.random() * items.length);
-    this._playbackService.playQueue(items, randomIndex, playlist.infoPlaylist?.name);
-    if (!this._playbackService.$isShuffle()) {
-      this._playbackService.toggleShuffle();
-    }
+    this._playbackService.playShuffled(playlist.songsList, {
+      fallbackThumbnails: playlist.infoPlaylist?.thumbnails,
+      size: 800,
+      sourceTitle: playlist.infoPlaylist?.name,
+    });
   }
 }

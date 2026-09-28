@@ -2,29 +2,25 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Album } from './album';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { GlobalStorage } from '../../../../core/store/global-storage';
 import { PlaybackService } from '../../../../core/services/playback.service';
 
 describe('Album', () => {
   let component: Album;
   let fixture: ComponentFixture<Album>;
-  let globalStorage: GlobalStorage;
   let playbackService: PlaybackService;
   let httpTesting: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [Album],
-      providers: [provideHttpClient(), provideHttpClientTesting(), GlobalStorage, PlaybackService],
+      providers: [provideHttpClient(), provideHttpClientTesting(), PlaybackService],
     }).compileComponents();
 
-    globalStorage = TestBed.inject(GlobalStorage);
     playbackService = TestBed.inject(PlaybackService);
     httpTesting = TestBed.inject(HttpTestingController);
 
     fixture = TestBed.createComponent(Album);
     component = fixture.componentInstance;
-    await fixture.whenStable();
   });
 
   afterEach(() => {
@@ -35,41 +31,35 @@ describe('Album', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should fallback to playing song using stored ID when album service fails', () => {
+  it('normalizes the RDAMVM/RDAMPL prefix coming from the route', () => {
+    fixture.componentRef.setInput('albumId', 'RDAMVMdQw4w9WgXcQ');
+    expect(component.$albumId()).toBe('dQw4w9WgXcQ');
+
+    fixture.componentRef.setInput('albumId', 'RDAMPLtestPlaylistId');
+    expect(component.$albumId()).toBe('testPlaylistId');
+
+    fixture.componentRef.setInput('albumId', 'plainId');
+    expect(component.$albumId()).toBe('plainId');
+  });
+
+  it('falls back to playing the album itself when the service fails', () => {
     const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
 
-    globalStorage.setStore('album', {
-      albumId: 'RDAMVMdQw4w9WgXcQ',
-      name: 'Sample Song',
-      artist: 'Sample Artist',
-      thumbnail: 'https://example.com/thumb.jpg',
-    });
-
-    component.fallbackPlayTrack();
+    component.fallbackPlayTrack('dQw4w9WgXcQ');
 
     expect(playSingleSpy).toHaveBeenCalledWith({
       videoId: 'dQw4w9WgXcQ',
-      name: 'Sample Song',
-      artist: 'Sample Artist',
-      thumbnail: 'https://example.com/thumb.jpg',
-    });
-  });
-
-  it('should fallback to playlistId if albumId is not present', () => {
-    const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
-
-    globalStorage.setStore('album', {
-      playlistId: 'RDAMPLtestPlaylistId',
-      name: 'Playlist Track',
-    });
-
-    component.fallbackPlayTrack();
-
-    expect(playSingleSpy).toHaveBeenCalledWith({
-      videoId: 'testPlaylistId',
-      name: 'Playlist Track',
+      name: '',
       artist: '',
       thumbnail: '',
     });
+  });
+
+  it('does not attempt playback without an id', () => {
+    const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
+
+    component.fallbackPlayTrack('');
+
+    expect(playSingleSpy).not.toHaveBeenCalled();
   });
 });

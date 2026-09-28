@@ -12,17 +12,17 @@ export interface UserData {
   id?: string;
 }
 
+/**
+ * Réplica de la interfaz expuesta por `electron/preload.ts`.
+ *
+ * Las tres deben seguir en sync: preload (implementación), este archivo
+ * (tipos del renderer) y los consumidores.
+ */
 export interface SafeStorageAPI {
   isAvailable: () => Promise<boolean>;
-  encryptString: (plainText: string) => Promise<string>;
-  decryptString: (encryptedBase64: string) => Promise<string>;
   setItem: (key: string, value: string) => Promise<boolean>;
   getItem: (key: string) => string | null;
-  getItemAsync?: (key: string) => Promise<string | null>;
   removeItem: (key: string) => Promise<boolean>;
-  clear: () => Promise<boolean>;
-  encryptStringAsync: (keyOrText: string, value?: string) => Promise<string | boolean>;
-  decryptStringAsync: (encryptedBase64: string) => Promise<string>;
 }
 
 declare global {

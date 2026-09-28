@@ -1,0 +1,3 @@
+/* Las animaciones del ecualizador se definen una sola vez en src/styles.css
+   (estaban duplicadas en detail-song-album, detail-song-playlist, detail-song
+   y player-bar). */

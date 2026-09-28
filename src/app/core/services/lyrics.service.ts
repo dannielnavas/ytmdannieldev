@@ -1,6 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Service, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, of } from 'rxjs';
+import { apiUrl } from '../config/api.config';
 
 export interface LrclibResponse {
   id: number;
@@ -19,49 +20,57 @@ export interface ParsedLyricLine {
   text: string;
 }
 
-@Injectable({
-  providedIn: 'root',
-})
+@Service()
 export class LyricsService {
   private readonly _http = inject(HttpClient);
-  private readonly _baseUrl = 'https://lrclib.net/api/get';
 
   /**
-   * Fetches lyrics from Lrclib.
+   * Fetches lyrics for a track from the backend.
    */
   public getLyrics(trackName: string, artistName: string): Observable<LrclibResponse | null> {
-    return this._http
-      .get<LrclibResponse>(
-        `https://ytmdannieldev-back.vercel.app/youtube/lyrics?track_name=${trackName}&artist_name=${artistName}`,
-      )
-      .pipe(
-        catchError(() => {
-          return of(null);
-        }),
-      );
+    // Los parámetros se mandan con HttpParams: interpolarlos a mano dejaba pasar
+    // títulos con `&`, `=` o `#` sin codificar, que rompían el query string.
+    const params = new HttpParams({
+      fromObject: { track_name: trackName, artist_name: artistName },
+    });
+
+    return this._http.get<LrclibResponse>(apiUrl('youtube', 'lyrics'), { params }).pipe(
+      catchError(() => {
+        return of(null);
+      }),
+    );
   }
 
   /**
    * Parses an LRC format string (syncedLyrics) into an array of lines with seconds.
+   *
+   * Una misma línea puede llevar varios time tags (`[00:01.00][01:00.00] coro`), y
+   * las cabeceras de metadatos (`[ar:]`, `[ti:]`, `[length:]`) no son letra: se ignoran.
    */
   public parseSyncedLyrics(lrc: string): ParsedLyricLine[] {
     if (!lrc) return [];
 
-    const lines = lrc.split('\n');
+    // \d+ para que una pista de más de 99 minutos no quede sin parsear.
+    const timeRegex = /\[(\d+):(\d{1,2}(?:[.:]\d+)?)\]/g;
     const result: ParsedLyricLine[] = [];
 
-    const timeRegex = /\[(\d{2}):(\d{2}(?:\.\d+)?)\]/;
-
-    for (const line of lines) {
-      const match = timeRegex.exec(line);
-      if (match) {
+    for (const line of lrc.split('\n')) {
+      const times: number[] = [];
+      for (const match of line.matchAll(timeRegex)) {
         const minutes = parseInt(match[1], 10);
-        const seconds = parseFloat(match[2]);
-        const timeInSeconds = minutes * 60 + seconds;
+        const seconds = parseFloat(match[2].replace(':', '.'));
+        times.push(minutes * 60 + seconds);
+      }
 
-        const text = line.replace(timeRegex, '').trim();
+      if (times.length === 0) {
+        continue; // Cabeceras de metadatos o líneas sin sincronizar.
+      }
 
-        result.push({ time: timeInSeconds, text });
+      // La letra es lo que queda tras quitar todos los time tags de la línea:
+      // en `[00:10.00][01:00.00] Chorus` el texto es `Chorus`, no el concatenado.
+      const cleanText = line.replace(timeRegex, '').trim();
+      for (const time of times) {
+        result.push({ time, text: cleanText });
       }
     }
 

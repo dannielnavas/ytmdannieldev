@@ -2,6 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { Home } from './home';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
+import { Auth } from '../../core/services/auth/auth';
+import { UserModel } from '../../core/models/user.model';
 
 describe('Home', () => {
   let component: Home;
@@ -15,7 +17,23 @@ describe('Home', () => {
           provide: Dashboard,
           useValue: {
             getDashboardData: () => of([]),
-            stream: () => of({ videoId: '123', streamUrl: '/youtube/stream/123' }),
+            getStreamUrl: (videoId: string) => `/youtube/stream/${videoId}`,
+          },
+        },
+        // Sin este mock, `resourceMe` haría un GET real a /users/me y el test
+        // falla con 401 contra el backend de producción.
+        {
+          provide: Auth,
+          useValue: {
+            getMe: () =>
+              of({
+                email: 'danniel@example.com',
+                full_name: 'Danniel Navas',
+                profile_image: '',
+                youtube_handle: '@dannielnavas',
+                is_youtube_premium: true,
+                youtube_connected_at: new Date(),
+              } satisfies UserModel),
           },
         },
       ],
@@ -28,5 +46,10 @@ describe('Home', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('derives up to two initials from the user name', async () => {
+    await fixture.whenStable();
+    expect(component.$lettersName()).toBe('DN');
   });
 });

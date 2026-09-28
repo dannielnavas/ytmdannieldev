@@ -65,31 +65,23 @@
                 class="relative mx-auto w-36 h-36 sm:w-40 sm:h-40 rounded-full overflow-hidden border-2 border-purple-400/40 shadow-2xl ring-4 ring-purple-500/10 group transition-all duration-500 bg-neutral-900"
                 [style]="artistRingStyle()"
               >
-                @if (artistThumbnailUrl()) {
-                  <img
-                    #artistImg
-                    [src]="artistThumbnailUrl()"
-                    [alt]="artist.name"
-                    crossorigin="anonymous"
-                    decoding="async"
-                    (load)="onImageLoad(artistImg)"
-                    (error)="onArtistImageError()"
-                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                } @else {
-                  <!-- Placeholder identificable para el artista cuando fallan las imágenes -->
-                  <div
-                    class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-900/80 via-neutral-900 to-purple-950 text-purple-200 p-4 text-center select-none"
-                    title="Artista"
+                <app-thumb
+                  [thumbnails]="currentArtist()?.thumbnails"
+                  [alt]="artist.name"
+                  crossOrigin="anonymous"
+                  [size]="800"
+                  (loaded)="onImageLoad($event)"
+                  imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  placeholderClass="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-900/80 via-neutral-900 to-purple-950 text-purple-200 p-4 text-center select-none"
+                >
+                  <svg thumbPlaceholder lucideUser class="w-14 h-14 text-purple-300 mb-1"></svg>
+                  <span
+                    thumbPlaceholder
+                    class="text-[10px] font-bold uppercase tracking-widest text-purple-300/80"
                   >
-                    <svg lucideUser class="w-14 h-14 text-purple-300 mb-1"></svg>
-                    <span
-                      class="text-[10px] font-bold uppercase tracking-widest text-purple-300/80"
-                    >
-                      Artista
-                    </span>
-                  </div>
-                }
+                    Artista
+                  </span>
+                </app-thumb>
               </div>
 
               <!-- Nombre y etiqueta de Artista -->
@@ -175,23 +167,15 @@
                       <div
                         class="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-neutral-900 border border-white/10 flex items-center justify-center"
                       >
-                        @if (getOtherArtistThumbnail(other)) {
-                          <img
-                            [src]="getOtherArtistThumbnail(other)"
-                            [alt]="other.name"
-                            loading="lazy"
-                            decoding="async"
-                            (error)="onOtherArtistImageError(other)"
-                            class="w-full h-full object-cover"
-                          />
-                        } @else {
-                          <div
-                            class="w-full h-full flex items-center justify-center bg-purple-950/60 text-purple-300"
-                            title="Artista"
-                          >
-                            <svg lucideUser class="w-3.5 h-3.5"></svg>
-                          </div>
-                        }
+                        <app-thumb
+                          [thumbnails]="other.thumbnails"
+                          [alt]="other.name"
+                          [size]="400"
+                          imgClass="w-full h-full object-cover"
+                          placeholderClass="w-full h-full flex items-center justify-center bg-purple-950/60 text-purple-300"
+                        >
+                          <svg thumbPlaceholder lucideUser class="w-3.5 h-3.5"></svg>
+                        </app-thumb>
                       </div>
                       <span class="text-xs font-medium text-neutral-200 truncate flex-1">
                         {{ other.name }}
@@ -265,33 +249,26 @@
                     <div
                       class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/5 shadow-md group-hover:shadow-lg"
                     >
-                      @if (getAlbumThumbnail(album)) {
-                        <img
-                          [src]="getAlbumThumbnail(album)"
-                          [alt]="album.name"
-                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                          decoding="async"
-                          (error)="onAlbumImageError(album)"
-                        />
-                      } @else {
-                        <!-- Placeholder claro para que el usuario entienda que es un Álbum -->
+                      <app-thumb
+                        [thumbnails]="album.thumbnails"
+                        [alt]="album.name"
+                        [size]="400"
+                        imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        placeholderClass="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950 via-neutral-900 to-neutral-950 text-purple-300 p-3 text-center select-none"
+                      >
                         <div
-                          class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950 via-neutral-900 to-neutral-950 text-purple-300 p-3 text-center select-none"
-                          title="Álbum"
+                          thumbPlaceholder
+                          class="w-12 h-12 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
                         >
-                          <div
-                            class="w-12 h-12 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
-                          >
-                            <svg lucideDisc class="w-6 h-6 text-purple-400"></svg>
-                          </div>
-                          <span
-                            class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
-                          >
-                            Álbum
-                          </span>
+                          <svg lucideDisc class="w-6 h-6 text-purple-400"></svg>
                         </div>
-                      }
+                        <span
+                          thumbPlaceholder
+                          class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
+                        >
+                          Álbum
+                        </span>
+                      </app-thumb>
 
                       <!-- Badge flotante de Álbum -->
                       <div
@@ -384,33 +361,26 @@
                     <div
                       class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 border border-white/5 shadow-md"
                     >
-                      @if (getPlaylistThumbnail(playlist)) {
-                        <img
-                          [src]="getPlaylistThumbnail(playlist)"
-                          [alt]="playlist.name"
-                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                          decoding="async"
-                          (error)="onPlaylistImageError(playlist)"
-                        />
-                      } @else {
-                        <!-- Placeholder claro para que el usuario entienda que es una Playlist -->
+                      <app-thumb
+                        [thumbnails]="playlist.thumbnails"
+                        [alt]="playlist.name"
+                        [size]="400"
+                        imgClass="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        placeholderClass="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/80 via-neutral-900 to-indigo-950/80 text-purple-300 p-3 text-center select-none"
+                      >
                         <div
-                          class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-950/80 via-neutral-900 to-indigo-950/80 text-purple-300 p-3 text-center select-none"
-                          title="Lista de reproducción"
+                          thumbPlaceholder
+                          class="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
                         >
-                          <div
-                            class="w-10 h-10 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-1.5 shadow-sm"
-                          >
-                            <svg lucideListMusic class="w-5 h-5 text-purple-400"></svg>
-                          </div>
-                          <span
-                            class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
-                          >
-                            Playlist
-                          </span>
+                          <svg lucideListMusic class="w-5 h-5 text-purple-400"></svg>
                         </div>
-                      }
+                        <span
+                          thumbPlaceholder
+                          class="text-[10px] font-semibold tracking-wider text-purple-300/90 uppercase"
+                        >
+                          Playlist
+                        </span>
+                      </app-thumb>
 
                       <!-- Botón de Play en Hover -->
                       <div
@@ -480,9 +450,9 @@
                 class="flex flex-col gap-1.5 max-h-[540px] xl:max-h-[660px] overflow-y-auto custom-scrollbar pr-1.5 pb-3"
               >
                 @for (item of songList; track item.videoId || $index) {
-                  <app-detail-song
-                    [$song]="item"
-                    [$index]="$index + 1"
+                  <app-detail-song-row
+                    [song]="item"
+                    [index]="$index + 1"
                     (songSelected)="onPlaySong(item, $index)"
                   />
                 }

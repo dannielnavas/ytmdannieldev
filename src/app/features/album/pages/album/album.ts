@@ -1,32 +1,20 @@
-import { Component, computed, inject } from '@angular/core';
-import { GlobalStorage } from '../../../../core/store/global-storage';
+import { Component, computed, inject, input } from '@angular/core';
 import { Dashboard } from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
 import { Search } from '../../../search/search';
 import { Location } from '@angular/common';
 import { AlbumResponse, Song } from '../../../../core/models/album.model';
-import { DetailInfoAlbum } from '../../components/detail-info-album/detail-info-album';
-import { DetailSongAlbum } from '../../components/detail-song-album/detail-song-album';
+import { DetailHero } from '../../../../shared/components/detail-hero/detail-hero';
+import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { QueueItem } from '../../../../core/models/queue.model';
 import { LucideArrowLeft, LucideClock, LucideDisc, LucideMusic } from '@lucide/angular';
-import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
-
-export interface StoredAlbumData {
-  albumId?: string;
-  playlistId?: string;
-  videoId?: string;
-  name?: string;
-  artist?: string;
-  thumbnail?: string;
-}
 
 @Component({
   imports: [
     Search,
-    DetailInfoAlbum,
-    DetailSongAlbum,
+    DetailHero,
+    DetailSongRow,
     LucideArrowLeft,
     LucideDisc,
     LucideClock,
@@ -38,12 +26,21 @@ export interface StoredAlbumData {
 })
 export class Album {
   private readonly _youtubeService = inject(Dashboard);
-  private readonly _globalStorage = inject(GlobalStorage);
   private readonly _playbackService = inject(PlaybackService);
   private readonly _location = inject(Location);
 
-  public $albumInfo = this._globalStorage.getStore<StoredAlbumData>('album');
-  public $albumId = computed(() => this.$albumInfo()?.albumId || this.$albumInfo()?.playlistId || '');
+  /**
+   * Inyectado por `withComponentInputBinding()` desde `:albumId` en la ruta.
+   *
+   * Antes el id viajaba por la clave `'album'` de `GlobalStorage`, un
+   * `Record<string, any>` global. Eso obligaba a que cada navegación escribiera
+   * en ese store, impedía compartir enlaces y hacía que una recarga de página
+   * abriera un álbum vacío.
+   */
+  public readonly albumId = input<string>('');
+
+  /** Los id de álbum pueden venir como `RDAMVM...` / `RDAMPL...`. */
+  public readonly $albumId = computed(() => this.albumId().replace(/^RDAM(?:VM|PL)/, ''));
 
   public resourceAlbum = rxResource({
     params: () => this.$albumId(),
@@ -53,16 +50,16 @@ export class Album {
       }
       return this._youtubeService.getAlbumById(albumId).pipe(
         tap((res) => {
-          if (!res || !res.songs || res.songs.length === 0) {
-            this.fallbackPlayTrack();
+          if (!res?.songs?.length) {
+            this.fallbackPlayTrack(albumId);
           }
         }),
         catchError((err) => {
           console.error(
-            'El servicio de álbum falló, intentando reproducir canción con ID almacenado:',
+            'El servicio de álbum falló, intentando reproducir canción con el id de la ruta:',
             err,
           );
-          this.fallbackPlayTrack();
+          this.fallbackPlayTrack(albumId);
           return of({} as AlbumResponse);
         }),
       );
@@ -71,36 +68,17 @@ export class Album {
     defaultValue: {} as AlbumResponse,
   });
 
-  public fallbackPlayTrack(): void {
-    const albumInfo = this.$albumInfo();
-    const playlistInfo = this._globalStorage.getSnapshot<StoredAlbumData>('playlist');
-
-    const rawId =
-      albumInfo?.albumId ||
-      albumInfo?.playlistId ||
-      albumInfo?.videoId ||
-      playlistInfo?.albumId ||
-      playlistInfo?.playlistId ||
-      playlistInfo?.videoId ||
-      this.$albumId();
-
-    if (!rawId) return;
-
-    const cleanId = rawId.replace(/^RDAM(?:VM|PL)/, '');
-    if (!cleanId) return;
-
-    this._playbackService.playSingle({
-      videoId: cleanId,
-      name: albumInfo?.name || playlistInfo?.name || '',
-      artist: albumInfo?.artist || playlistInfo?.artist || '',
-      thumbnail: getHighResThumbnail(albumInfo?.thumbnail || playlistInfo?.thumbnail || '', 800),
-    });
+  /** Si el backend no devuelve pistas, al menos reproduce el propio álbum. */
+  public fallbackPlayTrack(albumId: string): void {
+    if (!albumId) return;
+    this._playbackService.playSingle({ videoId: albumId, name: '', artist: '', thumbnail: '' });
   }
 
   public totalDuration = computed(() => {
     const songs = this.resourceAlbum.value()?.songs;
-    if (!songs || songs.length === 0) return 0;
-    return songs.reduce((acc, s) => acc + (s.duration || 0), 0);
+    if (!songs?.length) return 0;
+    // `duration` puede venir como string ("3:45") o null, así que solo suman los numéricos.
+    return songs.reduce((acc, s) => acc + (Number(s.duration) || 0), 0);
   });
 
   public goBack(): void {
@@ -111,22 +89,14 @@ export class Album {
     const album = this.resourceAlbum.value();
     if (!album?.songs?.length) return;
 
-    const items: QueueItem[] = album.songs.map((s) => ({
-      videoId: s.videoId,
-      name: s.name,
-      artist: s.artist?.name || album.artist?.name || '',
-      duration: s.duration,
-      thumbnail: getHighResThumbnail(
-        s.thumbnails?.[s.thumbnails.length - 1]?.url ||
-          album.thumbnails?.[album.thumbnails.length - 1]?.url ||
-          s.thumbnails?.[0]?.url ||
-          album.thumbnails?.[0]?.url ||
-          '',
-        800,
-      ),
-    }));
-
-    this._playbackService.playQueue(items, index, album.name);
+    this._playbackService.playQueue(
+      this._playbackService.toQueueItems(album.songs, {
+        fallbackThumbnails: album.thumbnails,
+        size: 800,
+      }),
+      index,
+      album.name,
+    );
   }
 
   public onPlayAll(): void {
@@ -139,25 +109,10 @@ export class Album {
     const album = this.resourceAlbum.value();
     if (!album?.songs?.length) return;
 
-    const items: QueueItem[] = album.songs.map((s) => ({
-      videoId: s.videoId,
-      name: s.name,
-      artist: s.artist?.name || album.artist?.name || '',
-      duration: s.duration,
-      thumbnail: getHighResThumbnail(
-        s.thumbnails?.[s.thumbnails.length - 1]?.url ||
-          album.thumbnails?.[album.thumbnails.length - 1]?.url ||
-          s.thumbnails?.[0]?.url ||
-          album.thumbnails?.[0]?.url ||
-          '',
-        800,
-      ),
-    }));
-
-    const randomIndex = Math.floor(Math.random() * items.length);
-    this._playbackService.playQueue(items, randomIndex, album.name);
-    if (!this._playbackService.$isShuffle()) {
-      this._playbackService.toggleShuffle();
-    }
+    this._playbackService.playShuffled(album.songs, {
+      fallbackThumbnails: album.thumbnails,
+      size: 800,
+      sourceTitle: album.name,
+    });
   }
 }

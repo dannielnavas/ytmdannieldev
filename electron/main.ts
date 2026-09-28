@@ -11,7 +11,15 @@ app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de cach
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
 
-const isDev = !app.isPackaged; // Detecta si estamos en desarrollo o producción
+const isPackaged = app.isPackaged; // Detecta si estamos en desarrollo o producción
+const isDev = !isPackaged;
+
+/**
+ * Origen del backend. Debe coincidir con `API_BASE_URL` de
+ * `src/app/core/config/api.config.ts`: es el único origen al que se le inyectan
+ * cabeceras CORS para el stream de audio.
+ */
+const API_ORIGIN = 'https://ytmdannieldev-back.vercel.app';
 
 /**
  * Busca el primer archivo existente dentro de una lista de rutas posibles.
@@ -26,80 +34,46 @@ function findExistingPath(paths: string[]): string {
 }
 
 /**
- * Retorna la ruta adecuada del ícono de ventana según el sistema operativo:
- * - Windows: icon.ico
- * - Linux: 512x512.png (o icon.png)
- * - macOS: icon.icns (o icon.png)
+ * Ruta del ícono de runtime, relativa a `process.resourcesPath` dentro del paquete.
+ * Cada destino de electron-builder copia exactamente un archivo a `icons/` (ver
+ * `extraResources` en package.json), así que no hay que adivinar entre candidatos.
+ */
+const RUNTIME_ICON: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: 'icons/icon.icns',
+  win32: 'icons/icon.ico',
+  linux: 'icons/icon.png',
+};
+
+/**
+ * Retorna la ruta absoluta del ícono de ventana, o '' si no está disponible.
  */
 function getWindowIconPath(): string {
-  const baseDirs = [
-    app.getAppPath(),
-    path.resolve(__dirname, '..'),
-    process.resourcesPath,
-    __dirname,
-  ];
-
-  if (process.platform === 'win32') {
-    return findExistingPath(
-      baseDirs.flatMap((dir) => [
-        path.join(dir, 'icons', 'windows', 'icon.ico'),
-        path.join(dir, 'icons', 'icon.ico'),
-        path.join(dir, 'icons', 'icon.png'),
-      ]),
-    );
+  const relative = RUNTIME_ICON[process.platform];
+  if (!relative) {
+    return '';
   }
-
-  if (process.platform === 'linux') {
-    return findExistingPath(
-      baseDirs.flatMap((dir) => [
-        path.join(dir, 'icons', 'linux', 'icons', '512x512.png'),
-        path.join(dir, 'icons', 'linux', 'icons', '256x256.png'),
-        path.join(dir, 'icons', 'icon.png'),
-      ]),
-    );
-  }
-
-  if (process.platform === 'darwin') {
-    return findExistingPath(
-      baseDirs.flatMap((dir) => [
-        path.join(dir, 'icons', 'macos', 'icon.icns'),
-        path.join(dir, 'icons', 'icon.icns'),
-        path.join(dir, 'icons', 'macos', '512x512.png'),
-        path.join(dir, 'icons', 'icon.png'),
-      ]),
-    );
-  }
-
-  return findExistingPath(baseDirs.map((dir) => path.join(dir, 'icons', 'icon.png')));
+  // En desarrollo `process.resourcesPath` apunta a los recursos del propio Electron,
+  // así que se busca primero en el project dir.
+  const candidates = isPackaged
+    ? [path.join(process.resourcesPath, relative)]
+    : [path.join(app.getAppPath(), relative), path.join(process.resourcesPath, relative)];
+  return findExistingPath(candidates);
 }
 
 /**
  * Configura el ícono de la aplicación en el Dock de macOS en tiempo de ejecución.
  */
 function setupMacDockIcon(): void {
-  if (process.platform === 'darwin' && app.dock) {
-    const baseDirs = [
-      app.getAppPath(),
-      path.resolve(__dirname, '..'),
-      process.resourcesPath,
-      __dirname,
-    ];
-
-    const dockIconPath = findExistingPath(
-      baseDirs.flatMap((dir) => [
-        path.join(dir, 'icons', 'macos', '512x512.png'),
-        path.join(dir, 'icons', 'macos', '1024x1024.png'),
-        path.join(dir, 'icons', 'icon.png'),
-        path.join(dir, 'icons', 'macos', 'icon.icns'),
-      ]),
-    );
-
-    if (dockIconPath) {
-      const icon = nativeImage.createFromPath(dockIconPath);
-      if (!icon.isEmpty()) {
-        app.dock.setIcon(icon);
-      }
-    }
+  if (process.platform !== 'darwin' || !app.dock) {
+    return;
+  }
+  const dockIconPath = getWindowIconPath();
+  if (!dockIconPath) {
+    return;
+  }
+  const icon = nativeImage.createFromPath(dockIconPath);
+  if (!icon.isEmpty()) {
+    app.dock.setIcon(icon);
   }
 }
 
@@ -228,12 +202,37 @@ function registerAuthIpcHandlers() {
 function registerSafeStorageIpcHandlers() {
   const getStorageFilePath = () => path.join(app.getPath('userData'), 'secure-storage.json');
 
+  /**
+   * Valida que el argumento recibido por IPC sea una clave usable.
+   *
+   * `ipcMain` entrega `any`: sin esta comprobación, un renderer comprometido
+   * podría mandar un objeto y terminar con claves como `"__proto__"` o
+   * `constructor` dentro del JSON de sesión.
+   */
+  function assertKey(key: unknown): asserts key is string {
+    if (typeof key !== 'string' || key.length === 0 || key.length > 256) {
+      throw new Error('Clave de almacenamiento inválida.');
+    }
+    if (!/^[\w.-]+$/.test(key)) {
+      throw new Error('La clave de almacenamiento contiene caracteres no permitidos.');
+    }
+  }
+
+  function assertValue(value: unknown): asserts value is string {
+    if (typeof value !== 'string') {
+      throw new Error('Valor de almacenamiento inválido.');
+    }
+  }
+
   const getSecureStorageData = (): Record<string, string> => {
     try {
       const filePath = getStorageFilePath();
       if (fs.existsSync(filePath)) {
         const content = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(content);
+        const parsed = JSON.parse(content);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed as Record<string, string>;
+        }
       }
     } catch (error) {
       console.error('Error al leer secure-storage:', error);
@@ -242,38 +241,27 @@ function registerSafeStorageIpcHandlers() {
   };
 
   const saveSecureStorageData = (data: Record<string, string>): void => {
-    try {
-      const filePath = getStorageFilePath();
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (error) {
-      console.error('Error al guardar secure-storage:', error);
-    }
+    const filePath = getStorageFilePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    // Se escribe en un temporal y se renombra: una interrupción a mitad de
+    // escritura ya no puede dejar el archivo de sesión corrupto.
+    const tmpPath = `${filePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
+    fs.renameSync(tmpPath, filePath);
   };
 
   ipcMain.handle('safe-storage:is-available', () => {
     return safeStorage.isEncryptionAvailable();
   });
 
-  ipcMain.handle('safe-storage:encrypt-string', (_event, plainText: string) => {
+  ipcMain.handle('safe-storage:set-item', (_event, key: unknown, value: unknown) => {
+    assertKey(key);
+    assertValue(value);
     if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('safeStorage no está disponible en este sistema.');
-    }
-    const buffer = safeStorage.encryptString(plainText);
-    return buffer.toString('base64');
-  });
-
-  ipcMain.handle('safe-storage:decrypt-string', (_event, encryptedBase64: string) => {
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('safeStorage no está disponible en este sistema.');
-    }
-    const buffer = Buffer.from(encryptedBase64, 'base64');
-    return safeStorage.decryptString(buffer);
-  });
-
-  ipcMain.handle('safe-storage:set-item', (_event, key: string, value: string) => {
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('safeStorage no está disponible en este sistema.');
+      return false;
     }
     const buffer = safeStorage.encryptString(value);
     const data = getSecureStorageData();
@@ -282,40 +270,23 @@ function registerSafeStorageIpcHandlers() {
     return true;
   });
 
-  ipcMain.handle('safe-storage:get-item', (_event, key: string) => {
-    const data = getSecureStorageData();
-    const encryptedBase64 = data[key];
-    if (!encryptedBase64) {
-      return null;
-    }
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('safeStorage no está disponible en este sistema.');
-    }
-    const buffer = Buffer.from(encryptedBase64, 'base64');
-    return safeStorage.decryptString(buffer);
-  });
-
-  ipcMain.on('safe-storage:get-item-sync', (event, key: string) => {
+  ipcMain.on('safe-storage:get-item-sync', (event, key: unknown) => {
     try {
-      const data = getSecureStorageData();
-      const encryptedBase64 = data[key];
-      if (!encryptedBase64) {
+      assertKey(key);
+      const encryptedBase64 = getSecureStorageData()[key];
+      if (!encryptedBase64 || !safeStorage.isEncryptionAvailable()) {
         event.returnValue = null;
         return;
       }
-      if (!safeStorage.isEncryptionAvailable()) {
-        event.returnValue = null;
-        return;
-      }
-      const buffer = Buffer.from(encryptedBase64, 'base64');
-      event.returnValue = safeStorage.decryptString(buffer);
+      event.returnValue = safeStorage.decryptString(Buffer.from(encryptedBase64, 'base64'));
     } catch (error) {
       console.error('Error al obtener item sincrónicamente:', error);
       event.returnValue = null;
     }
   });
 
-  ipcMain.handle('safe-storage:remove-item', (_event, key: string) => {
+  ipcMain.handle('safe-storage:remove-item', (_event, key: unknown) => {
+    assertKey(key);
     const data = getSecureStorageData();
     if (key in data) {
       delete data[key];
@@ -324,18 +295,14 @@ function registerSafeStorageIpcHandlers() {
     }
     return false;
   });
-
-  ipcMain.handle('safe-storage:clear', () => {
-    saveSecureStorageData({});
-    return true;
-  });
 }
 
 /**
  * Configura la optimización de red y mitigación de errores 429 para imágenes de YouTube Music:
  * 1. Simula peticiones legítimas del cliente web de YouTube Music (Referer y Origin).
  * 2. Limpia el User-Agent para evitar bloqueos por cliente automatizado/Electron.
- * 3. Habilita cabeceras CORS para permitir análisis de color (ColorThief).
+ * 3. Habilita cabeceras CORS para permitir análisis de color (ColorThief) y para el
+ *    `HTMLAudioElement`, que carga el stream con `crossOrigin = 'anonymous'`.
  * 4. Fuerza cabeceras de caché inmutable (30 días) para que Chromium sirva las imágenes desde disco.
  */
 function setupImageOptimization(): void {
@@ -347,6 +314,14 @@ function setupImageOptimization(): void {
       '*://*.youtube.com/*',
       '*://music.youtube.com/*',
     ],
+  };
+
+  // El stream de audio se carga en un `HTMLAudioElement` con
+  // `crossOrigin = 'anonymous'` para poder analysed con un `AnalyserNode`.
+  // El backend sirve el audio desde su propio origen, así que sin esta cabecera
+  // el elemento rechaza la respuesta y no reproduce nada.
+  const streamFilter = {
+    urls: [`${API_ORIGIN}/*`],
   };
 
   // 1. Enmascarar peticiones salientes con cabeceras de cliente oficial
@@ -365,22 +340,64 @@ function setupImageOptimization(): void {
     callback({ requestHeaders });
   });
 
-  // 2. Interceptar respuestas para habilitar CORS y asegurar almacenamiento en disco
-  session.defaultSession.webRequest.onHeadersReceived(googleFilter, (details, callback) => {
-    const responseHeaders = { ...details.responseHeaders };
+  // 2. Interceptar respuestas para habilitar CORS y asegurar almacenamiento en disco.
+  //
+  // Un solo listener para los dos filtros: Electron solo atiende el último
+  // `onHeadersReceived` que se registra en la sesión, así que registrar dos
+  // dejaba el primero (el de las imágenes) sin efecto. Y sin este `*` las
+  // imágenes con `crossorigin="anonymous"` no cargan: el `Origin` del punto 1 es
+  // reescrito a `https://music.youtube.com` y Google lo refleja en
+  // `access-control-allow-origin`, que entonces no coincide con el origen real
+  // de la app y el navegador rechaza la imagen con `net::ERR_FAILED`.
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: [...googleFilter.urls, ...streamFilter.urls] },
+    (details, callback) => {
+      const responseHeaders = { ...details.responseHeaders };
 
-    // Permitir CORS para ColorThief y canvas sin restricciones
-    responseHeaders['access-control-allow-origin'] = ['*'];
-    responseHeaders['access-control-allow-methods'] = ['GET, HEAD, OPTIONS'];
-    responseHeaders['access-control-allow-headers'] = ['*'];
+      // Permitir CORS para ColorThief y canvas sin restricciones
+      responseHeaders['access-control-allow-origin'] = ['*'];
+      responseHeaders['access-control-allow-methods'] = ['GET, HEAD, OPTIONS'];
+      responseHeaders['access-control-allow-headers'] = ['*'];
 
-    // Si la imagen cargó con éxito (2xx), forzar almacenamiento persistente en caché de disco
-    const status = details.statusCode;
-    if (status >= 200 && status < 300) {
-      responseHeaders['cache-control'] = ['public, max-age=2592000, immutable'];
-    }
+      if (details.url.startsWith(API_ORIGIN)) {
+        // El audio no debe quedar cacheado: la cola puede repetir la misma pista.
+        responseHeaders['cache-control'] = ['no-store'];
+      } else if (details.statusCode >= 200 && details.statusCode < 300) {
+        // Si la imagen cargó con éxito (2xx), forzar almacenamiento persistente
+        // en caché de disco.
+        responseHeaders['cache-control'] = ['public, max-age=2592000, immutable'];
+      }
 
-    callback({ responseHeaders });
+      callback({ responseHeaders });
+    },
+  );
+}
+
+/**
+ * La app se sirve desde el dev server o desde un `file://` empaquetado: cualquier
+ * otro origen no es de nuestra app.
+ */
+function isAppOrigin(url: string): boolean {
+  return isDev ? url.startsWith('http://localhost:4200') : url.startsWith('file://');
+}
+
+/**
+ * Chromium exige el permiso `speaker-selection` para que
+ * `HTMLMediaElement.setSinkId()` funcione y para que
+ * `navigator.mediaDevices.enumerateDevices()` devuelva los nombres de los
+ * dispositivos. Sonara solo necesita elegir la salida de audio, así que ese es el
+ * único permiso concedido y todo lo demás se rechaza: sin cámara, micrófono,
+ * ubicación ni notificaciones.
+ */
+function setupPermissions(window: BrowserWindow): void {
+  const { session } = window.webContents;
+
+  session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'speaker-selection' && isAppOrigin(window.webContents.getURL()));
+  });
+
+  session.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
+    return permission === 'speaker-selection' && isAppOrigin(requestingOrigin);
   });
 }
 
@@ -403,6 +420,20 @@ function createWindow() {
   if (iconPath && (process.platform === 'win32' || process.platform === 'linux')) {
     mainWindow.setIcon(iconPath);
   }
+
+  setupPermissions(mainWindow);
+
+  // La app es una SPA de una sola ventana: ni popups ni navegaciones externas.
+  // Sin esto, un renderer comprometido podría redirigir la ventana principal a
+  // una página de phishing manteniendo el marco de la aplicación.
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const isDevServer = isDev && url.startsWith('http://localhost:4200');
+    if (!isDevServer && !url.startsWith('file://')) {
+      event.preventDefault();
+    }
+  });
 
   // Notificar al renderer cuando la ventana cambia de estado maximizado/restaurado
   mainWindow.on('maximize', () => {

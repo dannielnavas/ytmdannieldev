@@ -1,23 +1,25 @@
 import {
   Component,
+  DestroyRef,
+  ElementRef,
   computed,
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
-  ElementRef,
-  OnDestroy,
-  AfterViewInit,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { PlaybackService } from '../../../../core/services/playback.service';
-import { LyricsService, ParsedLyricLine } from '../../../../core/services/lyrics.service';
-import { Dashboard } from '../../../../core/services/dashboard/dashboard';
-import { ColorThiefService } from '@soarlin/angular-color-thief';
-import { GlobalStorage } from '../../../../core/store/global-storage';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
+import { PlaybackService } from '../../../../core/services/playback.service';
+import { AudioVisualizerService } from '../../../../core/services/audio-visualizer.service';
+import { LyricsPreferencesService } from '../../../../core/services/lyrics-preferences.service';
+import { LyricsService } from '../../../../core/services/lyrics.service';
+import { TrackMetadataService } from '../../../../core/services/track-metadata.service';
 import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
+import { CoverPalette, Rgb } from '../../../../core/services/cover-palette.service';
+import { formatTime } from '../../../../core/utils/format-time';
 import {
   LucideChevronDown,
   LucidePlay,
@@ -28,9 +30,11 @@ import {
   LucideRepeat,
   LucideRepeat1,
   LucideMusic,
+  LucideSearch,
+  LucidePlus,
+  LucideMinus,
+  LucideRotateCcw,
 } from '@lucide/angular';
-import WaveSurfer from 'wavesurfer.js';
-import { StreamResponse } from '../../../../core/models/stream';
 
 @Component({
   selector: 'app-now-playing',
@@ -44,23 +48,30 @@ import { StreamResponse } from '../../../../core/models/stream';
     LucideRepeat,
     LucideRepeat1,
     LucideMusic,
+    LucideSearch,
+    LucidePlus,
+    LucideMinus,
+    LucideRotateCcw,
   ],
   templateUrl: './now-playing.html',
   styleUrl: './now-playing.css',
 })
-export class NowPlaying implements OnDestroy, AfterViewInit {
+export class NowPlaying {
   public readonly playbackService = inject(PlaybackService);
   private readonly _lyricsService = inject(LyricsService);
-  private readonly _youtubeService = inject(Dashboard);
+  private readonly _trackMetadata = inject(TrackMetadataService);
   private readonly _router = inject(Router);
-  private readonly _colorThief = inject(ColorThiefService);
-  private readonly _globalStorage = inject(GlobalStorage);
+  private readonly _coverPalette = inject(CoverPalette);
+  private readonly _visualizer = inject(AudioVisualizerService);
+  private readonly _lyricsPreferences = inject(LyricsPreferencesService);
+  private readonly _destroyRef = inject(DestroyRef);
 
-  public $song = this._globalStorage.getStore<StreamResponse>('song');
-  public $dominantColor = signal<[number, number, number] | null>(null);
+  public $song = this.playbackService.$stream;
+  public $dominantColor = signal<Rgb | null>(null);
 
-  public waveformContainer = viewChild<ElementRef<HTMLElement>>('waveform');
-  private _wavesurfer: WaveSurfer | null = null;
+  public visualizerCanvas = viewChild<ElementRef<HTMLCanvasElement>>('visualizer');
+  /** False when Web Audio is unavailable: the canvas then stays empty. */
+  public $visualizerActive = this._visualizer.$active;
 
   public backgroundStyle = computed(() => {
     const color = this.$dominantColor();
@@ -73,60 +84,38 @@ export class NowPlaying implements OnDestroy, AfterViewInit {
     return { background: '#0c0a15' };
   });
 
-  public resourceMetadata = rxResource({
-    params: () => this.$song()?.videoId || '',
-    stream: ({ params: videoId }) => {
-      if (!videoId) return of(null);
-      const track = this.playbackService.$currentTrack();
-      if (track && track.videoId === videoId && track.name) {
-        // Fallback for metadata if already in queue
-        return of({
-          title: track.name,
-          duration: typeof track.duration === 'number' ? track.duration : 0,
-          thumbnail: track.thumbnail || '',
-          author: track.artist || '',
-          channel: '',
-          viewCount: 0,
-        });
-      }
-      return this._youtubeService.getMetadata(videoId);
-    },
-  });
+  // Metadata comes from the shared service: mounting this view used to fire a
+  // second request for the track `player-bar` had already asked for.
+  public resourceMetadata = this._trackMetadata.$metadata;
 
   public trackTitle = computed(
-    () => this.playbackService.$currentTrack()?.name || this.resourceMetadata.value()?.title || '',
+    () => this.playbackService.$currentTrack()?.name || this.resourceMetadata().title || '',
   );
   public trackAuthor = computed(
-    () =>
-      this.playbackService.$currentTrack()?.artist || this.resourceMetadata.value()?.author || '',
+    () => this.playbackService.$currentTrack()?.artist || this.resourceMetadata().author || '',
   );
   public trackDuration = computed(() => {
-    const dur = this.playbackService.$duration();
-    return dur ? dur : this.resourceMetadata.value()?.duration || 0;
+    const live = this.playbackService.$duration();
+    return live || this.playbackService.$effectiveDuration() || this.resourceMetadata().duration;
   });
   public currentArtworkUrl = computed(() => {
     const raw =
-      this.playbackService.$currentTrack()?.thumbnail ||
-      this.resourceMetadata.value()?.thumbnail ||
-      '';
+      this.playbackService.$currentTrack()?.thumbnail || this.resourceMetadata().thumbnail || '';
     return getHighResThumbnail(raw, 1024);
   });
 
-  public formattedCurrentTime = computed(() =>
-    this._formatSeconds(this.playbackService.$currentTime()),
+  public formattedCurrentTime = computed(() => formatTime(this.playbackService.$currentTime()));
+  public formattedDuration = computed(() => formatTime(this.trackDuration()));
+  public progressPercent = computed(() => this.playbackService.$progressPercent());
+  public seekValueText = computed(
+    () =>
+      `${formatTime(this.playbackService.$currentTime())} de ${formatTime(this.trackDuration())}`,
   );
-  public formattedDuration = computed(() => this._formatSeconds(this.trackDuration()));
-  public progressPercent = computed(() => {
-    const dur = this.trackDuration();
-    if (!dur) return 0;
-    return Math.min(100, Math.max(0, (this.playbackService.$currentTime() / dur) * 100));
-  });
 
   public lyricsResource = rxResource({
     params: () => ({
       title: this.trackTitle(),
       author: this.trackAuthor(),
-      dur: this.trackDuration(),
     }),
     stream: ({ params }) => {
       if (!params.title) return of(null);
@@ -134,18 +123,102 @@ export class NowPlaying implements OnDestroy, AfterViewInit {
     },
   });
 
+  /**
+   * Synced lines when Lrclib returns them, plain lines otherwise.
+   *
+   * `plainLyrics` used to be discarded, so a track with lyrics but without an
+   * LRC file was reported as "Letras no disponibles".
+   */
   public parsedLyrics = computed(() => {
     const data = this.lyricsResource.value();
-    if (data?.syncedLyrics) {
+    if (!data) return [];
+    if (data.syncedLyrics) {
       return this._lyricsService.parseSyncedLyrics(data.syncedLyrics);
     }
-    return [];
+    return this._plainLyrics(data.plainLyrics);
   });
+
+  public hasSyncedLyrics = computed(() => this.parsedLyrics().some((line) => line.time >= 0));
+
+  // --- Lyrics timing and search ---------------------------------------------
+
+  public $lyricsOffset = this._lyricsPreferences.$offset;
+  public $lyricsQuery = signal('');
+
+  public lyricsOffsetLabel = computed(() => this._lyricsPreferences.format(this.$lyricsOffset()));
+  public canShiftLyricsEarlier = computed(() => this.$lyricsOffset() < 10);
+  public canShiftLyricsLater = computed(() => this.$lyricsOffset() > -10);
+
+  /**
+   * Lines to render, each one keeping the index it has in `parsedLyrics()`.
+   *
+   * The index has to survive the filter: the current line and the scroll
+   * position are resolved against the full list, not against what the search
+   * happens to be showing.
+   */
+  public visibleLyrics = computed(() => {
+    const lyrics = this.parsedLyrics();
+    const query = normalizeLyricText(this.$lyricsQuery().trim());
+
+    if (!query) {
+      return lyrics.map((line, index) => ({ line, index }));
+    }
+
+    const matches: { line: (typeof lyrics)[number]; index: number }[] = [];
+    lyrics.forEach((line, index) => {
+      if (normalizeLyricText(line.text).includes(query)) matches.push({ line, index });
+    });
+    return matches;
+  });
+
+  public lyricsMatches = computed(() => {
+    const total = this.parsedLyrics().length;
+    return this.visibleLyrics().length.toString() + ' de ' + total.toString();
+  });
+
+  /**
+   * Splits a line around the search term so it can be highlighted.
+   *
+   * The comparison happens on the normalized text, so an index found there does
+   * not point at the same place in the original: each character is kept with
+   * its normalized form to be able to walk back.
+   */
+  public lyricParts(text: string): { text: string; match: boolean }[] {
+    const query = normalizeLyricText(this.$lyricsQuery().trim());
+    if (!query || !text) return [{ text, match: false }];
+
+    const chars = Array.from(text, (char) => ({ char, norm: normalizeLyricText(char) }));
+    const normalized = chars.map((entry) => entry.norm).join('');
+    if (!normalized.includes(query)) return [{ text, match: false }];
+
+    const slice = (from: number, to: number): string =>
+      chars
+        .slice(from, to)
+        .map((entry) => entry.char)
+        .join('');
+
+    const parts: { text: string; match: boolean }[] = [];
+    let cursor = 0;
+    let found = normalized.indexOf(query);
+
+    while (found !== -1) {
+      if (found > cursor) parts.push({ text: slice(cursor, found), match: false });
+      parts.push({ text: slice(found, found + query.length), match: true });
+      cursor = found + query.length;
+      found = normalized.indexOf(query, cursor);
+    }
+    if (cursor < chars.length) parts.push({ text: slice(cursor, chars.length), match: false });
+
+    return parts;
+  }
 
   public currentLyricIndex = computed(() => {
     const lyrics = this.parsedLyrics();
     if (!lyrics.length) return -1;
-    const time = this.playbackService.$currentTime();
+    // The offset is added to the clock, not to the timestamps: a positive
+    // correction brings the lines forward, which is what someone needs when the
+    // lyrics of the database run behind the audio.
+    const time = this.playbackService.$currentTime() + this.$lyricsOffset();
 
     // Find the last lyric line that has passed
     let index = -1;
@@ -160,12 +233,20 @@ export class NowPlaying implements OnDestroy, AfterViewInit {
   });
 
   constructor() {
+    // The canvas appears with the view, so the analyser is attached as soon as
+    // it exists and the space is already reserved: no layout jump when the
+    // first bars are drawn.
     effect(() => {
-      // Sync wavesurfer with audio element
-      const audio = this.playbackService.$audioElement();
-      if (audio && this._wavesurfer && !this._wavesurfer.getMediaElement()) {
-        // Wavesurfer setup with existing media element
-      }
+      const canvas = this.visualizerCanvas()?.nativeElement ?? null;
+      untracked(() => (canvas ? this._visualizer.attach(canvas) : this._visualizer.detach()));
+    });
+
+    this._destroyRef.onDestroy(() => this._visualizer.detach());
+
+    effect(() => {
+      const track = this.playbackService.$currentTrack();
+      // The queue usually carries title and artist, so no request is needed.
+      this._trackMetadata.load(track?.videoId ?? null, Boolean(track?.name));
     });
 
     effect(() => {
@@ -180,73 +261,71 @@ export class NowPlaying implements OnDestroy, AfterViewInit {
     });
   }
 
-  public ngAfterViewInit(): void {
-    this._initWavesurfer();
-  }
-
-  public ngOnDestroy(): void {
-    if (this._wavesurfer) {
-      this._wavesurfer.destroy();
-    }
-  }
-
-  private _initWavesurfer(): void {
-    const container = this.waveformContainer()?.nativeElement;
-    if (!container) return;
-
-    this._wavesurfer = WaveSurfer.create({
-      container: container,
-      waveColor: 'rgba(167, 139, 250, 0.4)', // purple-400
-      progressColor: 'rgba(192, 132, 252, 0.8)', // purple-300
-      cursorColor: 'transparent',
-      barWidth: 3,
-      barGap: 3,
-      barRadius: 3,
-      height: 60,
-      normalize: true,
-      mediaControls: false,
-    });
-
-    // Try to attach the existing audio element
-    const audio = this.playbackService.$audioElement();
-    if (audio) {
-      this._wavesurfer.load(audio.src);
-    }
-  }
-
   public onImageLoad(img: HTMLImageElement): void {
-    if (!img) return;
-    try {
-      const color = this._colorThief.getColor(img, 10);
-      if (color && color.length === 3) {
-        this.$dominantColor.set(color);
-      }
-    } catch {}
+    this.$dominantColor.set(this._coverPalette.dominant(img));
   }
 
   public goBack(): void {
-    window.history.back(); // or router.navigate(['/'])
+    void this._router.navigate(['/']);
   }
 
   public togglePlay(): void {
     this.playbackService.togglePlay();
   }
 
+  /** Seeks through the service so buffering and error state stay consistent. */
   public onSeek(event: Event): void {
-    const audio = this.playbackService.$audioElement();
-    if (!audio) return;
     const input = event.target as HTMLInputElement;
-    const percent = Number(input.value);
-    const dur = this.trackDuration();
-    if (dur > 0) {
-      audio.currentTime = (percent / 100) * dur;
+    this.playbackService.seekToPercent(Number(input.value));
+  }
+
+  /**
+   * Seeking to the timestamp the user actually saw means undoing the offset,
+   * otherwise every click lands on a different word than the one highlighted:
+   * the correction moved the highlight, not the song.
+   */
+  public onLyricClick(time: number): void {
+    if (time >= 0) {
+      this.playbackService.seek(time - this.$lyricsOffset());
     }
   }
 
-  private _formatSeconds(seconds: number): string {
-    if (isNaN(seconds) || seconds <= 0) return '0:00';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, '0')}`;
+  public shiftLyrics(delta: number): void {
+    this._lyricsPreferences.shift(delta);
   }
+
+  public resetLyricsOffset(): void {
+    this._lyricsPreferences.reset();
+  }
+
+  public onLyricsQuery(event: Event): void {
+    this.$lyricsQuery.set((event.target as HTMLInputElement).value);
+  }
+
+  public clearLyricsQuery(): void {
+    this.$lyricsQuery.set('');
+  }
+
+  /**
+   * `plainLyrics` has no timestamps, so lines get `time: -1` to mark them as
+   * unsynced: the highlight stays off and clicking them does not seek.
+   */
+  private _plainLyrics(plain: string | null | undefined): { time: number; text: string }[] {
+    if (!plain) return [];
+    return plain
+      .split('\n')
+      .map((text) => text.trim())
+      .filter((text) => text.length > 0)
+      .map((text) => ({ time: -1, text }));
+  }
+}
+
+/**
+ * Lowercase, accent-free text, so "cancion" finds "canción".
+ */
+function normalizeLyricText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
 }

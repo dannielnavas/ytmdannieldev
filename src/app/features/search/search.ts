@@ -2,7 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { LucideSearch } from '@lucide/angular';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
-import { GlobalStorage } from '../../core/store/global-storage';
+import { SearchStore } from '../../core/store/search-store';
 import { Router } from '@angular/router';
 
 @Component({
@@ -14,7 +14,7 @@ import { Router } from '@angular/router';
 export class Search implements OnInit {
   private readonly _youtubeService = inject(Dashboard);
   private readonly _formBuilder = inject(FormBuilder);
-  private readonly _globalSotre = inject(GlobalStorage);
+  private readonly _searchStore = inject(SearchStore);
   private readonly _router = inject(Router);
 
   public form!: FormGroup<{ query: FormControl<string | null> }>;
@@ -38,7 +38,7 @@ export class Search implements OnInit {
     }
     this._youtubeService.searchSongs(query).subscribe({
       next: (res) => {
-        this._globalSotre.setStore('search', res);
+        this._searchStore.set(res);
         this._router.navigate(['/search']);
       },
     });

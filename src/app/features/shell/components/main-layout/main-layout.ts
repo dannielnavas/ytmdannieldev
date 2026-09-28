@@ -24,7 +24,8 @@ export class MainLayout {
   }
 
   public onOutletActivate(component: any): void {
-    const isNow = component?.constructor?.name === 'NowPlaying' || this._router.url.includes('/now-playing');
+    const isNow =
+      component?.constructor?.name === 'NowPlaying' || this._router.url.includes('/now-playing');
     this.$isNowPlaying.set(isNow);
   }
 

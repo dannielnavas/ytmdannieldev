@@ -24,12 +24,8 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "src/styles.css"
-            ],
-            "allowedCommonJsDependencies": [
-              "quantize"
-            ]
+            "styles": ["src/styles.css"],
+            "allowedCommonJsDependencies": ["quantize"]
           },
           "configurations": {
             "production": {
@@ -69,7 +65,10 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "setupFiles": ["src/test-setup.ts"]
+          }
         }
       }
     }
