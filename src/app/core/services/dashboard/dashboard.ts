@@ -1,7 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { IDashboard } from '../../models/dashboard';
+import {
+  DashboardQueryOptions,
+  DashboardResponse,
+  IDashboard,
+  PersonalDashboardData,
+} from '../../models/dashboard';
 import { MetadataResponse, StreamResponse } from '../../models/stream';
 import { IListSearch } from '../../models/list-search';
 import { PlaylistModel } from '../../models/playlist.model';
@@ -23,8 +28,54 @@ export function normalizeBrowseId(id: string | null | undefined): string {
 export class Dashboard {
   private readonly _http = inject(HttpClient);
 
-  public getDashboardData(): Observable<IDashboard[]> {
+  /**
+   * Retorna la vista híbrida (decide activeView: 'personal' | 'youtube').
+   * Acepta query params: ?includeYoutube=true/false y ?refresh=true/false.
+   */
+  public getDashboard(options?: DashboardQueryOptions): Observable<DashboardResponse> {
+    const params: Record<string, string> = {};
+    if (options?.includeYoutube !== undefined) {
+      params['includeYoutube'] = String(options.includeYoutube);
+    }
+    if (options?.refresh !== undefined) {
+      params['refresh'] = String(options.refresh);
+    }
+    return this._http.get<DashboardResponse>(apiUrl('dashboard'), { params });
+  }
+
+  /**
+   * Alias directo de /dashboard (/dashboard/summary).
+   */
+  public getDashboardSummary(options?: DashboardQueryOptions): Observable<DashboardResponse> {
+    const params: Record<string, string> = {};
+    if (options?.includeYoutube !== undefined) {
+      params['includeYoutube'] = String(options.includeYoutube);
+    }
+    if (options?.refresh !== undefined) {
+      params['refresh'] = String(options.refresh);
+    }
+    return this._http.get<DashboardResponse>(apiUrl('dashboard', 'summary'), { params });
+  }
+
+  /**
+   * Retorna únicamente el payload de analíticas personales y Last.fm.
+   */
+  public getPersonalDashboard(): Observable<PersonalDashboardData> {
+    return this._http.get<PersonalDashboardData>(apiUrl('dashboard', 'personal'));
+  }
+
+  /**
+   * Retorna directamente las secciones de YouTube Music (/youtube/dashboard).
+   */
+  public getYoutubeDashboard(): Observable<IDashboard[]> {
     return this._http.get<IDashboard[]>(apiUrl('youtube', 'dashboard'));
+  }
+
+  /**
+   * Obtiene los datos del dashboard híbrido por defecto con includeYoutube=true.
+   */
+  public getDashboardData(options?: DashboardQueryOptions): Observable<DashboardResponse> {
+    return this.getDashboard({ includeYoutube: true, ...options });
   }
 
   /**
