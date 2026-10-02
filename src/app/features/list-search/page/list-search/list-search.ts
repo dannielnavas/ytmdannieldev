@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { CoverPalette } from '../../../../core/services/cover-palette.service';
 import { ImageHelperService } from '../../../../core/services/image-helper.service';
 import {
-  LucideArrowLeft,
   LucideChevronLeft,
   LucideChevronRight,
   LucideDisc,
@@ -24,15 +23,13 @@ import {
 } from '../../../../core/models/list-search';
 import { Thumbnail } from '../../../../core/services/thumbnail';
 import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
-import { Search } from '../../../search/search';
 import { PlaybackService } from '../../../../core/services/playback.service';
+import { Header } from '../../../../shared/components/header/header';
 
 @Component({
   imports: [
     DetailSongRow,
     Thumbnail,
-    Search,
-    LucideArrowLeft,
     LucideChevronLeft,
     LucideChevronRight,
     LucideDisc,
@@ -42,6 +39,7 @@ import { PlaybackService } from '../../../../core/services/playback.service';
     LucideUser,
     LucideShuffle,
     LucideSparkles,
+    Header,
   ],
   selector: 'app-list-search',
   styleUrl: './list-search.css',

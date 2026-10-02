@@ -1,9 +1,16 @@
-<div class="h-dvh max-h-dvh flex flex-col pt-9 bg-[#0c0a15] text-white overflow-hidden">
+<div
+  [class.hidden]="$isMiniPlayer()"
+  class="h-dvh max-h-dvh flex flex-col pt-9 bg-[#0c0a15] text-white overflow-hidden"
+>
   <app-title-bar [$title]="$title()" class="app-title-bar-fixed" />
   <div class="flex-1 min-h-0 relative flex flex-col overflow-hidden">
     <router-outlet (activate)="onOutletActivate($event)" (deactivate)="onOutletDeactivate()" />
   </div>
-  <div [class.hidden]="$isNowPlaying()" class="shrink-0 z-30">
+  <div [class.hidden]="$isNowPlaying()" class="fixed bottom-0 inset-x-0 z-30 pointer-events-none">
     <app-player-bar />
   </div>
 </div>
+
+@if ($isMiniPlayer()) {
+  <app-mini-player class="fixed inset-0 z-50 overflow-hidden" />
+}

@@ -155,4 +155,12 @@ describe('DetailSongRow', () => {
       expect(text()).not.toContain('3:35');
     });
   });
+
+  describe('like button', () => {
+    it('renders the like button for the song', () => {
+      render();
+      const likeBtn = fixture.nativeElement.querySelector('app-like-button');
+      expect(likeBtn).toBeTruthy();
+    });
+  });
 });

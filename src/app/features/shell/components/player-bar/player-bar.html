@@ -8,7 +8,7 @@
     <div
       role="dialog"
       aria-label="Cola de reproducción"
-      class="absolute bottom-[calc(100%+10px)] right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[380px] max-h-[440px] bg-[#12101f]/95 backdrop-blur-2xl border border-purple-500/30 rounded-2xl shadow-2xl shadow-purple-950/80 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+      class="absolute bottom-[calc(100%+14px)] right-4 sm:right-8 w-[calc(100vw-2rem)] sm:w-[390px] max-h-[460px] bg-[#12101f]/95 backdrop-blur-2xl border border-purple-500/30 rounded-3xl shadow-2xl shadow-purple-950/80 flex flex-col overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-auto"
     >
       <!-- Queue Header -->
       <div
@@ -158,6 +158,9 @@
               }
             </button>
 
+            <!-- Like button in queue row -->
+            <app-like-button [song]="item" size="xs" [autoHide]="true" class="shrink-0" />
+
             <button
               type="button"
               (click)="removeQueueTrack($index)"
@@ -182,14 +185,14 @@
   @if ($error(); as message) {
     <div
       role="alert"
-      class="absolute bottom-[calc(100%+10px)] left-4 sm:left-6 max-w-[380px] flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-950/90 border border-red-500/40 backdrop-blur-xl z-50"
+      class="absolute bottom-[calc(100%+14px)] left-4 sm:left-8 max-w-[380px] flex items-start gap-2 px-3 py-2.5 rounded-2xl bg-red-950/90 border border-red-500/40 backdrop-blur-xl z-50 shadow-2xl pointer-events-auto"
     >
       <svg lucideAlertCircle class="w-4 h-4 text-red-300 shrink-0 mt-0.5"></svg>
       <p class="text-xs text-red-100 flex-1">{{ message }}</p>
       <button
         type="button"
         (click)="dismissError()"
-        class="text-red-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+        class="text-red-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300 cursor-pointer"
         aria-label="Descartar error"
       >
         <svg lucideX class="w-3.5 h-3.5"></svg>
@@ -197,20 +200,21 @@
     </div>
   }
 
-  <!-- Main Player Bar Container -->
+  <!-- Main Floating Island Player Bar Container -->
   <div
-    class="player-bar-container w-full bg-[#12101f]/95 backdrop-blur-xl border border-[#3b2b68] rounded-2xl px-4 py-2.5 shadow-2xl shadow-purple-950/40 flex items-center justify-between gap-4 md:gap-6 select-none transition-all duration-500"
+    class="player-bar-container w-full max-w-6xl mx-auto rounded-3xl px-4 py-3 sm:px-6 sm:py-3.5 flex items-center justify-between gap-4 md:gap-6 select-none transition-all duration-500 pointer-events-auto"
+    [style.background]="playerBarDynamicStyle()['background']"
     [style.border-color]="playerBarDynamicStyle()['border-color']"
     [style.box-shadow]="playerBarDynamicStyle()['box-shadow']"
   >
     <!-- Left: Track Artwork & Info -->
     <div
-      class="flex items-center gap-3 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px] md:max-w-[300px]"
+      class="flex items-center gap-2.5 sm:gap-3 shrink-0 min-w-0 max-w-[200px] sm:max-w-[260px] md:max-w-[300px]"
     >
       <button
         type="button"
         (click)="openNowPlaying()"
-        class="vt-artwork w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 shadow-md bg-neutral-900 relative group cursor-pointer hover:scale-105 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+        class="vt-artwork w-12 h-12 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg bg-neutral-900 relative group cursor-pointer hover:scale-105 transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
         title="Abrir pantalla completa"
         aria-label="Abrir pantalla completa de la pista"
       >
@@ -239,15 +243,17 @@
         }
       </button>
 
-      <div class="vt-track-info flex flex-col justify-center min-w-0">
-        <span
-          class="text-xs md:text-sm font-semibold text-neutral-100 tracking-tight truncate hover:text-white transition-colors"
+      <div class="vt-track-info flex flex-col justify-center min-w-0 flex-1">
+        <button
+          type="button"
+          (click)="openNowPlaying()"
+          class="text-xs md:text-sm font-bold text-white tracking-tight truncate hover:text-purple-300 transition-colors text-left cursor-pointer"
           [title]="trackTitle() || 'Reproduciendo'"
         >
           {{ trackTitle() || 'Cargando título...' }}
-        </span>
+        </button>
 
-        <div class="flex items-center gap-2 text-[11px] text-neutral-400 truncate mt-0.5">
+        <div class="flex items-center gap-1.5 text-[11px] text-neutral-400 truncate mt-0.5">
           <span class="truncate hover:text-neutral-300" [title]="trackAuthor() || ''">
             {{ trackAuthor() || 'Artista' }}
           </span>
@@ -260,28 +266,34 @@
           }
         </div>
       </div>
+
+      <!-- Like / Heart button for currently playing track -->
+      @if (song?.videoId) {
+        <app-like-button
+          [song]="playbackService.$currentTrack() || song"
+          size="sm"
+          class="shrink-0"
+        />
+      }
     </div>
 
-    <!-- Center: Playback Controls & Progress Bar -->
+    <!-- Center: Floating Island Transport Controls & Waveform Timeline -->
     <div
-      class="flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 px-1 sm:px-4 max-w-2xl"
+      class="flex-1 min-w-0 flex flex-col items-center justify-center gap-1.5 sm:gap-2 px-1 sm:px-4 max-w-2xl"
     >
       <!-- Controls Button Row -->
-      <div class="flex items-center gap-2 sm:gap-3">
+      <div class="flex items-center gap-3 sm:gap-5">
         <!-- Shuffle button -->
         <button
           type="button"
           (click)="toggleShuffle()"
-          class="p-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+          class="p-2 text-white/50 hover:text-white hover:bg-white/10 transition-all rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
           [class.text-purple-400]="playbackService.$isShuffle()"
-          [class.bg-purple-500/20]="playbackService.$isShuffle()"
-          [class.text-neutral-400]="!playbackService.$isShuffle()"
-          [class.hover:text-white]="!playbackService.$isShuffle()"
           [attr.aria-pressed]="playbackService.$isShuffle()"
           [title]="playbackService.$isShuffle() ? 'Aleatorio activado' : 'Modo aleatorio'"
           aria-label="Modo aleatorio"
         >
-          <svg lucideShuffle class="w-3.5 h-3.5"></svg>
+          <svg lucideShuffle class="w-4 h-4 sm:w-4.5 sm:h-4.5"></svg>
         </button>
 
         <!-- Previous track button -->
@@ -289,29 +301,24 @@
           type="button"
           (click)="onPrevious()"
           [disabled]="!playbackService.$hasPrevious()"
-          class="p-1.5 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 enabled:cursor-pointer disabled:cursor-not-allowed"
-          [class.text-neutral-300]="playbackService.$hasPrevious()"
-          [class.hover:text-white]="playbackService.$hasPrevious()"
-          [class.hover:bg-white/5]="playbackService.$hasPrevious()"
-          [class.active:scale-95]="playbackService.$hasPrevious()"
-          [class.text-neutral-600]="!playbackService.$hasPrevious()"
+          class="p-2 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-all rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 enabled:cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           title="Pista anterior"
           aria-label="Pista anterior"
         >
-          <svg lucideSkipBack class="w-4 h-4 fill-current"></svg>
+          <svg lucideSkipBack class="w-5 h-5 fill-current"></svg>
         </button>
 
-        <!-- Play / Pause primary button -->
+        <!-- Play / Pause prominent white circle button with glow -->
         <button
           type="button"
           (click)="togglePlay()"
-          class="w-8 h-8 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-90 text-white flex items-center justify-center shadow-md shadow-purple-900/60 transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300 cursor-pointer"
+          class="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-white text-black hover:bg-neutral-100 hover:scale-105 active:scale-95 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.45)] transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 cursor-pointer"
           [attr.aria-label]="$isPlaying() ? 'Pausar' : 'Reproducir'"
         >
           @if ($isPlaying()) {
-            <svg lucidePause class="w-4 h-4 fill-white text-white stroke-[2.5]"></svg>
+            <svg lucidePause class="w-5 h-5 sm:w-6 sm:h-6 fill-current"></svg>
           } @else {
-            <svg lucidePlay class="w-4 h-4 fill-white text-white translate-x-0.5"></svg>
+            <svg lucidePlay class="w-5 h-5 sm:w-6 sm:h-6 fill-current translate-x-0.5"></svg>
           }
         </button>
 
@@ -320,27 +327,19 @@
           type="button"
           (click)="onNext()"
           [disabled]="!playbackService.$hasNext()"
-          class="p-1.5 rounded-lg transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 enabled:cursor-pointer disabled:cursor-not-allowed"
-          [class.text-neutral-300]="playbackService.$hasNext()"
-          [class.hover:text-white]="playbackService.$hasNext()"
-          [class.hover:bg-white/5]="playbackService.$hasNext()"
-          [class.active:scale-95]="playbackService.$hasNext()"
-          [class.text-neutral-600]="!playbackService.$hasNext()"
+          class="p-2 text-white/80 hover:text-white hover:scale-110 active:scale-95 transition-all rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80 enabled:cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           title="Siguiente pista"
           aria-label="Siguiente pista"
         >
-          <svg lucideSkipForward class="w-4 h-4 fill-current"></svg>
+          <svg lucideSkipForward class="w-5 h-5 fill-current"></svg>
         </button>
 
         <!-- Repeat button -->
         <button
           type="button"
           (click)="toggleRepeat()"
-          class="p-1.5 rounded-lg transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+          class="p-2 text-white/50 hover:text-white hover:bg-white/10 transition-all rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/80"
           [class.text-purple-400]="playbackService.$repeatMode() !== 'off'"
-          [class.bg-purple-500/20]="playbackService.$repeatMode() !== 'off'"
-          [class.text-neutral-400]="playbackService.$repeatMode() === 'off'"
-          [class.hover:text-white]="playbackService.$repeatMode() === 'off'"
           [title]="
             playbackService.$repeatMode() === 'one'
               ? 'Repetir una'
@@ -357,28 +356,48 @@
           "
         >
           @if (playbackService.$repeatMode() === 'one') {
-            <svg lucideRepeat1 class="w-3.5 h-3.5"></svg>
+            <svg lucideRepeat1 class="w-4 h-4 sm:w-4.5 sm:h-4.5"></svg>
           } @else {
-            <svg lucideRepeat class="w-3.5 h-3.5"></svg>
+            <svg lucideRepeat class="w-4 h-4 sm:w-4.5 sm:h-4.5"></svg>
           }
         </button>
       </div>
 
-      <!-- Progress bar & Timestamps row -->
-      <div class="w-full flex items-center gap-2.5">
-        <span class="text-[11px] font-mono text-neutral-400 min-w-[34px] text-right">
+      <!-- Hidden visualizer anchor to preserve viewChild reference without taking layout space -->
+      <canvas #visualizer class="hidden" aria-hidden="true"></canvas>
+
+      <!-- Waveform Progress bar & Timestamps row -->
+      <div class="w-full flex items-center gap-2.5 sm:gap-3">
+        <!-- Elapsed time -->
+        <span
+          class="text-[11px] sm:text-xs font-mono text-white/70 min-w-[34px] text-right tabular-nums"
+        >
           {{ formattedCurrentTime() }}
         </span>
 
-        <div class="relative flex-1 flex items-center group py-1">
+        <!-- Seekbar container -->
+        <div class="relative flex-1 flex items-center group py-2">
+          <!-- Track bar background and filled progress -->
           <div
-            class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative"
+            class="w-full h-1.5 sm:h-2 bg-white/15 group-hover:h-2 rounded-full overflow-hidden transition-all relative shadow-inner"
+            [style.background]="'rgba(' + dominantRgbString() + ', 0.18)'"
           >
             <div
-              class="h-full bg-gradient-to-r from-purple-500 to-indigo-400 rounded-full"
+              class="h-full rounded-full relative transition-all"
+              [style.background]="
+                'linear-gradient(to right, rgb(' + dominantRgbString() + '), #ffffff)'
+              "
               [style.width.%]="progressPercent()"
-            ></div>
+            >
+              <div
+                class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-transform group-hover:scale-125"
+                [style.background-color]="'rgb(' + dominantRgbString() + ')'"
+                [style.box-shadow]="'0 0 10px rgb(' + dominantRgbString() + ')'"
+              ></div>
+            </div>
           </div>
+
+          <!-- Hidden Drag/Seek input -->
           <input
             type="range"
             min="0"
@@ -397,9 +416,20 @@
           />
         </div>
 
-        <span class="text-[11px] font-mono text-neutral-400 min-w-[34px]">
-          {{ formattedDuration() }}
-        </span>
+        <!-- Remaining or Total time (Clickable to switch) -->
+        <button
+          type="button"
+          (click)="toggleTimeDisplay()"
+          class="text-[11px] sm:text-xs font-mono text-white/60 hover:text-white transition-colors min-w-[38px] text-left tabular-nums cursor-pointer"
+          [attr.title]="
+            $showRemainingTime()
+              ? 'Mostrando tiempo restante (clic para total)'
+              : 'Mostrando duración total (clic para restante)'
+          "
+          aria-label="Alternar tiempo restante y duración"
+        >
+          {{ displayDuration() }}
+        </button>
       </div>
     </div>
 
@@ -407,15 +437,15 @@
     <div class="flex items-center gap-2 sm:gap-3 shrink-0">
       <!-- Output device: only when the platform really exposes a choice -->
       @if (audioOutput.$hasChoices()) {
-        <div class="relative hidden md:flex items-center">
+        <div class="relative hidden lg:flex items-center">
           <svg
             lucideVolume2
-            class="w-3.5 h-3.5 text-neutral-400 absolute left-1.5 pointer-events-none"
+            class="w-3.5 h-3.5 text-neutral-400 absolute left-2 pointer-events-none"
           ></svg>
           <select
             [value]="audioOutput.$deviceId()"
             (change)="onOutputDeviceChange($event)"
-            class="pl-6 pr-2 py-1 text-[11px] text-neutral-300 bg-[#1a1730] border border-white/10 rounded-lg appearance-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 max-w-[130px] truncate"
+            class="pl-7 pr-3 py-1.5 text-[11px] text-neutral-300 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full appearance-none cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 max-w-[130px] truncate transition-colors"
             aria-label="Dispositivo de salida de audio"
           >
             <option value="">Salida del sistema</option>
@@ -430,7 +460,7 @@
       <button
         type="button"
         (click)="cycleRate()"
-        class="hidden sm:flex items-center gap-1 px-1.5 py-1 rounded-lg text-[11px] font-bold font-mono text-neutral-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+        class="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-full text-[11px] font-bold font-mono text-neutral-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
         title="Velocidad de reproducción"
         aria-label="Cambiar velocidad de reproducción"
       >
@@ -442,7 +472,7 @@
       <button
         type="button"
         (click)="toggleMute()"
-        class="text-neutral-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 p-1 cursor-pointer"
+        class="text-neutral-300 hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 p-1.5 rounded-full hover:bg-white/10 cursor-pointer"
         aria-label="Silenciar / Activar sonido"
         [attr.aria-pressed]="$isMuted()"
       >
@@ -458,10 +488,10 @@
       <!-- Volume Slider -->
       <div class="relative w-16 sm:w-20 flex items-center group py-1">
         <div
-          class="w-full h-1 bg-[#27233c] group-hover:h-1.5 rounded-full overflow-hidden transition-all relative"
+          class="w-full h-1 bg-white/20 group-hover:h-1.5 rounded-full overflow-hidden transition-all relative"
         >
           <div
-            class="h-full bg-purple-400 group-hover:bg-purple-300 rounded-full"
+            class="h-full bg-white group-hover:bg-purple-200 rounded-full"
             [style.width.%]="($isMuted() ? 0 : $volume()) * 100"
           ></div>
         </div>
@@ -482,9 +512,9 @@
       <button
         type="button"
         (click)="toggleQueue()"
-        class="p-1.5 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 cursor-pointer relative"
-        [class.text-purple-300]="$showQueue()"
-        [class.bg-purple-500/20]="$showQueue()"
+        class="p-2 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 cursor-pointer relative"
+        [class.text-white]="$showQueue()"
+        [class.bg-white/20]="$showQueue()"
         [class.text-neutral-300]="!$showQueue()"
         [class.hover:text-white]="!$showQueue()"
         [class.hover:bg-white/10]="!$showQueue()"
@@ -493,9 +523,9 @@
         [attr.aria-expanded]="$showQueue()"
         aria-haspopup="dialog"
       >
-        <svg lucideListMusic class="w-4 h-4 stroke-[2]"></svg>
+        <svg lucideListMusic class="w-4.5 h-4.5 stroke-[2]"></svg>
         @if (queue.length > 0) {
-          <span class="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-500"></span>
+          <span class="absolute top-0 right-0 w-2 h-2 rounded-full bg-purple-400 shadow-sm"></span>
         }
       </button>
     </div>

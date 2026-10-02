@@ -1,0 +1,230 @@
+@if (!isDismissed()) {
+  <article
+    class="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-950/35 via-[#130f24]/90 to-[#0c0a15] p-6 sm:p-7 md:p-8 shadow-2xl shadow-purple-950/20 transition-all duration-300 hover:border-purple-500/35 group mb-3"
+    aria-labelledby="banner-likes-title"
+  >
+    <!-- Shimmer animated top border highlight -->
+    <div
+      class="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent opacity-80"
+    ></div>
+
+    <!-- Ambient glowing backdrop orbs -->
+    <div
+      class="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-purple-600/15 blur-[75px] pointer-events-none animate-pulse-glow"
+    ></div>
+    <div
+      class="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-indigo-600/15 blur-[85px] pointer-events-none"
+    ></div>
+    <div
+      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-purple-600/5 blur-[100px] pointer-events-none"
+    ></div>
+
+    <!-- Dismiss Button -->
+    @if (dismissible()) {
+      <button
+        type="button"
+        (click)="dismiss()"
+        class="absolute top-4 right-4 p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors z-20 cursor-pointer"
+        aria-label="Cerrar banner"
+        title="Ocultar sugerencia"
+      >
+        <svg lucideX class="w-4 h-4"></svg>
+      </button>
+    }
+
+    <!-- Content Grid -->
+    <div
+      class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8"
+    >
+      <!-- Left side: Hero Icon / Visual & Text -->
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 flex-1 min-w-0"
+      >
+        <!-- Art piece / Glowing Heart Vinyl badge -->
+        <div class="relative shrink-0 select-none group/badge">
+          <!-- Background pulsing aura -->
+          <div
+            class="absolute -inset-1 rounded-2xl bg-gradient-to-r from-[#8c25f5] to-indigo-600 opacity-60 blur-md group-hover/badge:opacity-85 transition-opacity duration-300"
+          ></div>
+
+          <!-- Main art box -->
+          <div
+            class="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-[#8c25f5] via-purple-600 to-indigo-700 p-0.5 shadow-xl flex items-center justify-center overflow-hidden"
+          >
+            <!-- Decorative subtle radial depth -->
+            <div
+              class="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.35)_100%)] pointer-events-none"
+            ></div>
+            <div
+              class="absolute inset-2 rounded-xl border border-white/20 pointer-events-none"
+            ></div>
+
+            @if (likedCount() > 0 && recentThumbnails().length > 0) {
+              <!-- Stacked cover preview when user has likes -->
+              <div class="relative w-full h-full flex items-center justify-center">
+                <img
+                  [src]="recentThumbnails()[0]"
+                  alt="Última canción favorita guardada"
+                  class="w-full h-full object-cover rounded-xl brightness-90 group-hover/badge:scale-105 transition-transform duration-300"
+                />
+                <!-- Floating Mini Heart badge overlay -->
+                <div
+                  class="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-purple-600/90 backdrop-blur-md flex items-center justify-center shadow-md border border-white/20 animate-heart-beat"
+                >
+                  <svg lucideHeart class="w-3.5 h-3.5 fill-white text-white"></svg>
+                </div>
+              </div>
+            } @else {
+              <!-- Glowing Animated Heart & Sparkles for empty/invitation state -->
+              <div class="flex flex-col items-center justify-center text-white relative">
+                <div class="relative">
+                  <svg
+                    lucideHeart
+                    class="w-10 h-10 sm:w-11 sm:h-11 fill-white text-white heart-glow animate-heart-beat transition-transform duration-300 group-hover/badge:scale-110"
+                  ></svg>
+                  <svg
+                    lucideSparkles
+                    class="w-4 h-4 text-purple-300 absolute -top-1.5 -right-2 animate-pulse"
+                  ></svg>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Text details -->
+        <div class="space-y-2 max-w-xl">
+          <!-- Tag / Pill -->
+          <div class="flex items-center gap-2">
+            <span
+              class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-semibold tracking-wide bg-purple-500/15 border border-purple-500/30 text-purple-300 shadow-sm"
+            >
+              <svg lucideSparkles class="w-3 h-3 text-purple-400"></svg>
+              <span>Tu Colección Personal</span>
+            </span>
+
+            @if (likedCount() > 0) {
+              <span
+                class="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full"
+              >
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                <span>{{ likedCount() }} {{ likedCount() === 1 ? 'canción' : 'canciones' }}</span>
+              </span>
+            }
+          </div>
+
+          <!-- Headline -->
+          <h2
+            id="banner-likes-title"
+            class="text-xl sm:text-2xl font-bold tracking-tight text-white leading-snug"
+          >
+            ¿Te encanta una canción?
+            <span
+              class="bg-gradient-to-r from-purple-300 via-fuchsia-300 to-pink-300 bg-clip-text text-transparent"
+            >
+              Guárdala en tus favoritos.
+            </span>
+          </h2>
+
+          <!-- Description -->
+          <p class="text-xs sm:text-sm text-neutral-300/90 leading-relaxed">
+            @if (likedCount() > 0) {
+              Tienes tus temas preferidos listos para reproducir cuando quieras. Sigue tocando el
+              icono de corazón en cualquier reproductor o lista para sumar más canciones.
+            } @else {
+              Toca el corazón <span class="text-purple-400 font-bold">♥</span> en cualquier canción
+              que estés escuchando. Se guardará al instante en tu playlist de favoritos para que
+              nunca la pierdas de vista.
+            }
+          </p>
+
+          <!-- Micro-features / Perks -->
+          <div class="flex flex-wrap items-center gap-2.5 pt-1 text-[11px] text-neutral-400">
+            <span class="inline-flex items-center gap-1.5">
+              <svg lucideMusic class="w-3.5 h-3.5 text-purple-400"></svg>
+              Playlist personalizada
+            </span>
+            <span class="text-white/20">•</span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="text-purple-400 font-semibold">1-Click</span>
+              Guardado instantáneo
+            </span>
+            <span class="text-white/20">•</span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="text-purple-400">✦</span>
+              Disponible sin interrupciones
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right side: Actions & Interactive preview -->
+      <div
+        class="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3 w-full lg:w-auto shrink-0"
+      >
+        <!-- Interactive demo chip: "Pruébalo ahora" -->
+        <div
+          class="flex items-center justify-between sm:justify-start gap-3 px-3.5 py-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-all select-none"
+        >
+          <div class="flex flex-col text-left">
+            <span class="text-[10px] uppercase tracking-wider font-bold text-neutral-400">
+              Pruébalo ahora
+            </span>
+            <span class="text-xs font-semibold text-neutral-200">
+              {{ demoLiked() ? '¡Guardada en Favoritos! ✨' : 'Toca el corazón de prueba' }}
+            </span>
+          </div>
+
+          <!-- Interactive Heart demo button -->
+          <button
+            type="button"
+            (click)="toggleDemoLike()"
+            class="relative w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer"
+            [class.bg-purple-500/20]="demoLiked()"
+            [class.text-purple-400]="demoLiked()"
+            [class.bg-white/5]="!demoLiked()"
+            [class.text-neutral-400]="!demoLiked()"
+            [class.hover:text-white]="!demoLiked()"
+            [class.hover:bg-white/10]="!demoLiked()"
+            [class.animate-heart-pop]="demoAnimating()"
+            [title]="demoLiked() ? 'Quitar prueba' : 'Guardar prueba'"
+            aria-label="Probar botón de Me Gusta"
+          >
+            <svg
+              lucideHeart
+              class="w-4 h-4 transition-transform duration-200"
+              [class.fill-purple-500]="demoLiked()"
+              [class.text-purple-500]="demoLiked()"
+              [class.heart-glow]="demoLiked()"
+            ></svg>
+          </button>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          @if (likedCount() > 0) {
+            <!-- Play button if user has likes -->
+            <button
+              type="button"
+              (click)="playMyLikes()"
+              class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-semibold text-xs sm:text-sm text-white bg-[#8c25f5] hover:bg-[#9d3ef7] shadow-lg shadow-purple-900/40 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+            >
+              <svg lucidePlay class="w-4 h-4 fill-white text-white"></svg>
+              <span>Escuchar Favoritos</span>
+            </button>
+          }
+
+          <!-- View all / Go to likes -->
+          <button
+            type="button"
+            (click)="goToMyLikes()"
+            class="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full font-medium text-xs sm:text-sm text-neutral-200 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-purple-500/30 transition-all cursor-pointer"
+          >
+            <span>{{ likedCount() > 0 ? 'Ver lista completa' : 'Ver mis Me Gusta' }}</span>
+            <svg lucideArrowRight class="w-3.5 h-3.5"></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </article>
+}

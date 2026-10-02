@@ -8,9 +8,12 @@ import {
   inject,
   linkedSignal,
   signal,
+  untracked,
+  viewChild,
   viewChildren,
 } from '@angular/core';
 import { Router } from '@angular/router';
+import { AudioVisualizerService } from '../../../../core/services/audio-visualizer.service';
 import {
   LucideSkipBack,
   LucideSkipForward,
@@ -40,6 +43,7 @@ import { ImageHelperService } from '../../../../core/services/image-helper.servi
 import { getHighResThumbnail } from '../../../../core/services/image-helper.service';
 import { CoverPalette } from '../../../../core/services/cover-palette.service';
 import { formatTime, formatTimeRange } from '../../../../core/utils/format-time';
+import { LikeButton } from '../../../../shared/components/like-button/like-button';
 
 @Component({
   selector: 'app-player-bar',
@@ -64,6 +68,7 @@ import { formatTime, formatTimeRange } from '../../../../core/utils/format-time'
     LucideAlertCircle,
     LucideGauge,
     LucideSpeaker,
+    LikeButton,
   ],
   templateUrl: './player-bar.html',
   styleUrl: './player-bar.css',
@@ -105,12 +110,24 @@ export class PlayerBar {
     const color = this.$dominantColor();
     if (color) {
       const [r, g, b] = color;
+      const lightR = Math.min(255, r + 45);
+      const lightG = Math.min(255, g + 45);
+      const lightB = Math.min(255, b + 45);
       return {
-        'border-color': `rgba(${r}, ${g}, ${b}, 0.45)`,
-        'box-shadow': `0 15px 35px -5px rgba(${r}, ${g}, ${b}, 0.35)`,
+        background: `linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(${r}, ${g}, ${b}, 0.2) 30%, rgba(14, 11, 24, 0.28) 100%)`,
+        'border-color': `rgba(${lightR}, ${lightG}, ${lightB}, 0.38)`,
+        'box-shadow': `inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.65), inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35), 0 20px 45px -10px rgba(0, 0, 0, 0.65), 0 0 35px -5px rgba(${r}, ${g}, ${b}, 0.32)`,
       };
     }
     return {};
+  });
+
+  public dominantRgbString = computed(() => {
+    const color = this.$dominantColor();
+    if (color) {
+      return `${color[0]}, ${color[1]}, ${color[2]}`;
+    }
+    return '140, 90, 220';
   });
 
   public trackTitle = computed(
@@ -135,9 +152,35 @@ export class PlayerBar {
     return metaThumb ? getHighResThumbnail(metaThumb, 400) : '';
   });
 
+  public readonly visualizer = inject(AudioVisualizerService);
+  public visualizerCanvas = viewChild<ElementRef<HTMLCanvasElement>>('visualizer');
+  public $visualizerActive = this.visualizer.$active;
+
+  public $showRemainingTime = signal(true);
+
   public formattedCurrentTime = computed(() => formatTime(this.$currentTime()));
   public formattedDuration = computed(() => formatTime(this.trackDuration()));
+  public formattedRemainingTime = computed(() => {
+    const duration = this.trackDuration();
+    const current = this.$currentTime();
+    const remaining = Math.max(0, duration - current);
+    return `-${formatTime(remaining)}`;
+  });
+  public displayDuration = computed(() =>
+    this.$showRemainingTime() ? this.formattedRemainingTime() : this.formattedDuration(),
+  );
+
+  public toggleTimeDisplay(): void {
+    this.$showRemainingTime.update((v) => !v);
+  }
+
   public seekValueText = computed(() => formatTimeRange(this.$currentTime(), this.trackDuration()));
+
+  /** Visual bars representing music waveform for the seek bar background. */
+  public readonly waveformBars = [
+    30, 42, 58, 48, 75, 92, 85, 60, 72, 88, 52, 68, 86, 96, 74, 62, 78, 92, 68, 52, 42, 64, 82, 98,
+    88, 72, 64, 84, 94, 100, 78, 64, 52, 68, 84, 92, 72, 58, 68, 84, 88, 72, 54, 44, 62, 78, 52, 38,
+  ];
 
   /**
    * Mirrors the service progress, except while the user drags the slider, where
@@ -159,6 +202,20 @@ export class PlayerBar {
       const track = this.playbackService.$currentTrack();
       const hasOwnName = Boolean(track && track.videoId === stream?.videoId && track.name);
       this._metadata.load(stream?.videoId, hasOwnName);
+    });
+
+    effect(() => {
+      const canvas = this.visualizerCanvas()?.nativeElement ?? null;
+      untracked(() => {
+        if (canvas && !this._router.url.includes('/now-playing')) {
+          this.visualizer.attach(canvas);
+        }
+      });
+    });
+
+    effect(() => {
+      const color = this.$dominantColor();
+      this.visualizer.setColor(color);
     });
   }
 

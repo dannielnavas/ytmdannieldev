@@ -1,0 +1,161 @@
+<section class="space-y-4" aria-labelledby="likes-section-heading">
+  <!-- Encabezado de la Sección (mismo estilo que las secciones del Dashboard) -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <h2
+        id="likes-section-heading"
+        class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"
+      >
+        <span>Tus Me Gusta</span>
+        @if (likedCount() > 0) {
+          <span
+            class="text-xs font-normal text-purple-300 bg-purple-500/15 border border-purple-500/25 px-2.5 py-0.5 rounded-full"
+          >
+            {{ likedCount() }} {{ likedCount() === 1 ? 'canción' : 'canciones' }}
+          </span>
+        }
+      </h2>
+    </div>
+
+    <!-- Botón Ver todo -->
+    <button
+      type="button"
+      (click)="goToLikes()"
+      class="text-xs font-medium text-neutral-400 hover:text-white border border-white/10 rounded-full px-3 py-1 hover:border-purple-500/30 hover:bg-white/5 transition-all cursor-pointer"
+    >
+      Ver todo
+    </button>
+  </div>
+
+  <!-- Fila de desplazamiento horizontal (mismo layout que el Dashboard) -->
+  <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-1 px-1">
+    <!-- Tarjeta Principal: Acceso a la Colección "Tus Me Gusta" -->
+    <div
+      (click)="goToLikes()"
+      class="group w-64 sm:w-72 shrink-0 flex flex-col justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/35 transition-all cursor-pointer shadow-sm relative overflow-hidden"
+    >
+      <!-- Resplandor sutil en la parte superior -->
+      <div
+        class="absolute inset-0 bg-gradient-to-br from-purple-900/25 via-purple-950/15 to-transparent pointer-events-none"
+      ></div>
+
+      <!-- Fila superior: Carátula e icono de play -->
+      <div class="relative z-10 flex items-start justify-between gap-3">
+        <div
+          class="relative w-24 h-24 rounded-xl overflow-hidden shadow-md shrink-0 bg-gradient-to-br from-[#8c25f5] via-purple-600 to-indigo-700 flex items-center justify-center p-0.5 group-hover:scale-105 transition-transform duration-300"
+        >
+          @if (recentThumbnails().length > 0) {
+            <img
+              [src]="recentThumbnails()[0]"
+              alt="Portada de favoritos"
+              class="w-full h-full object-cover rounded-[10px] brightness-90"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-purple-950/80 via-transparent to-transparent flex items-end justify-center pb-1.5"
+            >
+              <svg lucideHeart class="w-5 h-5 fill-white text-white drop-shadow"></svg>
+            </div>
+          } @else {
+            <svg
+              lucideHeart
+              class="w-10 h-10 fill-white text-white heart-glow animate-pulse-subtle"
+            ></svg>
+          }
+        </div>
+
+        @if (likedCount() > 0) {
+          <button
+            type="button"
+            (click)="togglePlayLikes($event)"
+            class="w-10 h-10 rounded-full bg-[#8c25f5] text-white flex items-center justify-center shadow-lg shadow-purple-900/60 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0 z-20"
+            [title]="isPlayingLikes() ? 'Pausar favoritos' : 'Reproducir favoritos'"
+            [attr.aria-label]="isPlayingLikes() ? 'Pausar favoritos' : 'Reproducir favoritos'"
+          >
+            @if (isPlayingLikes()) {
+              <svg lucidePause class="w-4 h-4 fill-white text-white"></svg>
+            } @else {
+              <svg lucidePlay class="w-4 h-4 fill-white text-white translate-x-0.5"></svg>
+            }
+          </button>
+        }
+      </div>
+
+      <!-- Fila inferior: Títulos y metadata -->
+      <div class="relative z-10 pt-3 flex flex-col gap-0.5">
+        <span
+          class="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-purple-300"
+        >
+          <svg lucideSparkles class="w-3 h-3 text-purple-400"></svg>
+          Colección personal
+        </span>
+        <h3 class="text-sm font-semibold text-neutral-100 group-hover:text-purple-300 transition-colors truncate">
+          Canciones que te gustan
+        </h3>
+        <p class="text-xs text-neutral-400 truncate mt-0.5">
+          @if (likedCount() > 0) {
+            {{ likedCount() }} {{ likedCount() === 1 ? 'canción guardada' : 'canciones guardadas' }}
+          } @else {
+            Empieza marcando con un corazón ♥
+          }
+        </p>
+      </div>
+    </div>
+
+    <!-- Canciones Recientes con Me Gusta (mismo diseño que los items del Dashboard) -->
+    @for (song of recentSongs(); track song.videoId; let idx = $index) {
+      <div
+        class="group flex flex-col gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/25 transition-all cursor-pointer shadow-sm w-44 shrink-0"
+        (click)="playSong(song, idx)"
+      >
+        <!-- Miniatura con botón de reproducción flotante y LikeButton -->
+        <div class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 shadow-md">
+          @if (song.thumbnailUrl) {
+            <img
+              [src]="song.thumbnailUrl"
+              [alt]="song.name"
+              loading="lazy"
+              decoding="async"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          } @else {
+            <div class="w-full h-full flex items-center justify-center bg-white/5 text-neutral-500">
+              <svg lucideMusic class="w-8 h-8"></svg>
+            </div>
+          }
+
+          <!-- Botón de Like sobre la carátula -->
+          <div class="absolute top-2 right-2 z-10">
+            <app-like-button [song]="song" size="sm" [autoHide]="true" />
+          </div>
+
+          <!-- Botón de Play flotante al hacer hover -->
+          <div
+            class="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+          >
+            <div
+              class="w-10 h-10 rounded-full bg-[#8c25f5] text-white flex items-center justify-center shadow-lg shadow-purple-900/60 hover:scale-105 active:scale-95"
+            >
+              <svg lucidePlay class="w-4 h-4 fill-white text-white translate-x-0.5"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Título y Artista -->
+        <div class="min-w-0">
+          <h3
+            class="text-sm font-semibold text-neutral-100 truncate group-hover:text-purple-300 transition-colors"
+            [title]="song.name"
+          >
+            {{ song.name }}
+          </h3>
+          <p
+            class="text-xs text-neutral-400 truncate mt-0.5"
+            [title]="song.artist || 'Desconocido'"
+          >
+            {{ song.artist || 'Desconocido' }}
+          </p>
+        </div>
+      </div>
+    }
+  </div>
+</section>

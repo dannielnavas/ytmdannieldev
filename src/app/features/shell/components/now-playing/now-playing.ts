@@ -13,7 +13,11 @@ import { Router } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { AudioVisualizerService } from '../../../../core/services/audio-visualizer.service';
+import {
+  AudioVisualizerService,
+  VISUALIZER_STYLES,
+  VisualizerStyle,
+} from '../../../../core/services/audio-visualizer.service';
 import { LyricsPreferencesService } from '../../../../core/services/lyrics-preferences.service';
 import { LyricsService } from '../../../../core/services/lyrics.service';
 import { TrackMetadataService } from '../../../../core/services/track-metadata.service';
@@ -34,7 +38,14 @@ import {
   LucidePlus,
   LucideMinus,
   LucideRotateCcw,
+  LucideSparkles,
+  LucideMicVocal,
+  LucideVolume2,
+  LucideVolumeX,
+  LucideX,
+  LucideActivity,
 } from '@lucide/angular';
+import { LikeButton } from '../../../../shared/components/like-button/like-button';
 
 @Component({
   selector: 'app-now-playing',
@@ -52,6 +63,13 @@ import {
     LucidePlus,
     LucideMinus,
     LucideRotateCcw,
+    LucideSparkles,
+    LucideMicVocal,
+    LucideVolume2,
+    LucideVolumeX,
+    LucideX,
+    LucideActivity,
+    LikeButton,
   ],
   templateUrl: './now-playing.html',
   styleUrl: './now-playing.css',
@@ -72,16 +90,40 @@ export class NowPlaying {
   public visualizerCanvas = viewChild<ElementRef<HTMLCanvasElement>>('visualizer');
   /** False when Web Audio is unavailable: the canvas then stays empty. */
   public $visualizerActive = this._visualizer.$active;
+  public readonly visualizerStyles = VISUALIZER_STYLES;
+  public $visualizerStyle = this._visualizer.$style;
+  public visualizerStyleLabel = computed(() => {
+    const current = this._visualizer.$style();
+    return VISUALIZER_STYLES.find((item) => item.id === current)?.label || 'Ondas';
+  });
+
+  public cycleVisualizerStyle(): void {
+    this._visualizer.cycleStyle();
+  }
+
+  public $viewMode = signal<'cover' | 'lyrics'>('lyrics');
+  public $animateArtwork = signal<boolean>(true);
+  public $showRemainingTime = signal<boolean>(true);
+  public $showVolumePopup = signal<boolean>(false);
 
   public backgroundStyle = computed(() => {
     const color = this.$dominantColor();
     if (color) {
       const [r, g, b] = color;
       return {
-        background: `radial-gradient(circle at 50% 0%, rgba(${r}, ${g}, ${b}, 0.5) 0%, rgba(${r}, ${g}, ${b}, 0.1) 50%, #0c0a15 100%)`,
+        background: `radial-gradient(circle at 50% 30%, rgba(${r}, ${g}, ${b}, 0.35) 0%, rgba(${r}, ${g}, ${b}, 0.08) 55%, #08070d 100%)`,
       };
     }
-    return { background: '#0c0a15' };
+    return { background: '#08070d' };
+  });
+
+  public dominantRgbString = computed(() => {
+    const color = this.$dominantColor();
+    if (color) {
+      const [r, g, b] = color;
+      return `${r}, ${g}, ${b}`;
+    }
+    return '120, 80, 220';
   });
 
   // Metadata comes from the shared service: mounting this view used to fire a
@@ -94,6 +136,7 @@ export class NowPlaying {
   public trackAuthor = computed(
     () => this.playbackService.$currentTrack()?.artist || this.resourceMetadata().author || '',
   );
+  public trackAlbum = computed(() => this.playbackService.$sourceTitle() || '');
   public trackDuration = computed(() => {
     const live = this.playbackService.$duration();
     return live || this.playbackService.$effectiveDuration() || this.resourceMetadata().duration;
@@ -106,6 +149,23 @@ export class NowPlaying {
 
   public formattedCurrentTime = computed(() => formatTime(this.playbackService.$currentTime()));
   public formattedDuration = computed(() => formatTime(this.trackDuration()));
+  public formattedRemainingTime = computed(() => {
+    const live = this.playbackService.$duration();
+    const duration =
+      live || this.playbackService.$effectiveDuration() || this.resourceMetadata().duration || 0;
+    const current = this.playbackService.$currentTime();
+    const remaining = Math.max(0, duration - current);
+    return `-${formatTime(remaining)}`;
+  });
+  public displayDuration = computed(() =>
+    this.$showRemainingTime() ? this.formattedRemainingTime() : this.formattedDuration(),
+  );
+
+  public readonly waveformBars = [
+    30, 42, 58, 48, 75, 92, 85, 60, 72, 88, 52, 68, 86, 96, 74, 62, 78, 92, 68, 52, 42, 64, 82, 98,
+    88, 72, 64, 84, 94, 100, 78, 64, 52, 68, 84, 92, 72, 58, 68, 84, 88, 72, 54, 44, 62, 78, 52, 38,
+  ];
+
   public progressPercent = computed(() => this.playbackService.$progressPercent());
   public seekValueText = computed(
     () =>
@@ -241,6 +301,11 @@ export class NowPlaying {
       untracked(() => (canvas ? this._visualizer.attach(canvas) : this._visualizer.detach()));
     });
 
+    effect(() => {
+      const color = this.$dominantColor();
+      this._visualizer.setColor(color);
+    });
+
     this._destroyRef.onDestroy(() => this._visualizer.detach());
 
     effect(() => {
@@ -304,6 +369,35 @@ export class NowPlaying {
 
   public clearLyricsQuery(): void {
     this.$lyricsQuery.set('');
+  }
+
+  public toggleViewMode(mode?: 'cover' | 'lyrics'): void {
+    if (mode) {
+      this.$viewMode.set(mode);
+    } else {
+      this.$viewMode.update((curr) => (curr === 'cover' ? 'lyrics' : 'cover'));
+    }
+  }
+
+  public toggleAnimateArtwork(): void {
+    this.$animateArtwork.update((curr) => !curr);
+  }
+
+  public toggleTimeDisplay(): void {
+    this.$showRemainingTime.update((curr) => !curr);
+  }
+
+  public toggleMute(): void {
+    this.playbackService.toggleMute();
+  }
+
+  public onVolumeInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.playbackService.setVolume(Number(input.value) / 100);
+  }
+
+  public toggleVolumePopup(): void {
+    this.$showVolumePopup.update((v) => !v);
   }
 
   /**

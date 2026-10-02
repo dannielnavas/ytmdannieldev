@@ -64,4 +64,8 @@ export class Dashboard {
   public getAlbumById(albumId: string): Observable<AlbumResponse> {
     return this._http.get<AlbumResponse>(apiUrl('youtube', 'album', albumId));
   }
+
+  public myLikes(): Observable<[]> {
+    return this._http.get<[]>(apiUrl('likes'));
+  }
 }

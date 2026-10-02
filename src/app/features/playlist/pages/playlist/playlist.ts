@@ -3,23 +3,15 @@ import { Dashboard } from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
 import { Location } from '@angular/common';
-import { Search } from '../../../search/search';
 import { PlaylistModel, Song } from '../../../../core/models/playlist.model';
 import { DetailHero } from '../../../../shared/components/detail-hero/detail-hero';
 import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { LucideArrowLeft, LucideClock, LucideListMusic, LucideMusic } from '@lucide/angular';
+import { LucideClock, LucideListMusic, LucideMusic } from '@lucide/angular';
+import { Header } from '../../../../shared/components/header/header';
 
 @Component({
-  imports: [
-    Search,
-    DetailHero,
-    DetailSongRow,
-    LucideArrowLeft,
-    LucideListMusic,
-    LucideClock,
-    LucideMusic,
-  ],
+  imports: [DetailHero, DetailSongRow, LucideListMusic, LucideClock, LucideMusic, Header],
   selector: 'app-playlist',
   styleUrl: './playlist.css',
   templateUrl: './playlist.html',

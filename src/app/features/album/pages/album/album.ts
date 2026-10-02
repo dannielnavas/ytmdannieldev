@@ -1,25 +1,17 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { Location } from '@angular/common';
 import { Dashboard } from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
-import { Search } from '../../../search/search';
-import { Location } from '@angular/common';
 import { AlbumResponse, Song } from '../../../../core/models/album.model';
 import { DetailHero } from '../../../../shared/components/detail-hero/detail-hero';
 import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { LucideArrowLeft, LucideClock, LucideDisc, LucideMusic } from '@lucide/angular';
+import { LucideClock, LucideDisc, LucideMusic } from '@lucide/angular';
+import { Header } from '../../../../shared/components/header/header';
 
 @Component({
-  imports: [
-    Search,
-    DetailHero,
-    DetailSongRow,
-    LucideArrowLeft,
-    LucideDisc,
-    LucideClock,
-    LucideMusic,
-  ],
+  imports: [DetailHero, DetailSongRow, LucideDisc, LucideClock, LucideMusic, Header],
   selector: 'app-album',
   styleUrl: './album.css',
   templateUrl: './album.html',

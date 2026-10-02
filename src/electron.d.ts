@@ -1,9 +1,13 @@
 export interface WindowControlsAPI {
   minimize: () => void;
+  minimizeSystem?: () => void;
   maximize: () => void;
   close: () => void;
   isMaximized: () => Promise<boolean>;
   onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
+  toggleMiniPlayer: (enabled?: boolean) => void;
+  isMiniPlayer: () => Promise<boolean>;
+  onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
 }
 
 export interface UserData {

@@ -1,0 +1,19 @@
+.heart-glow {
+  filter: drop-shadow(0 0 12px rgba(244, 63, 94, 0.7));
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 3s ease-in-out infinite;
+}
+
+@keyframes pulseSubtle {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}

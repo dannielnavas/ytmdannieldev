@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { signal } from '@angular/core';
 import { Home } from './home';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
 import { Auth } from '../../core/services/auth/auth';
 import { UserModel } from '../../core/models/user.model';
+import { LikesService } from '../../core/services/likes.service';
 
 describe('Home', () => {
   let component: Home;
@@ -18,6 +20,17 @@ describe('Home', () => {
           useValue: {
             getDashboardData: () => of([]),
             getStreamUrl: (videoId: string) => `/youtube/stream/${videoId}`,
+          },
+        },
+        {
+          provide: LikesService,
+          useValue: {
+            $likedSongs: signal([]),
+            $likedCount: signal(0),
+            $likedIds: signal(new Set()),
+            fetchFavoritesFromBackend: () => of([]),
+            getListLikes: () => of([]),
+            isLiked: () => false,
           },
         },
         // Sin este mock, `resourceMe` haría un GET real a /users/me y el test
@@ -44,12 +57,8 @@ describe('Home', () => {
     await fixture.whenStable();
   });
 
-  it('should create', () => {
+  it('should create and have empty validSections by default', () => {
     expect(component).toBeTruthy();
-  });
-
-  it('derives up to two initials from the user name', async () => {
-    await fixture.whenStable();
-    expect(component.$lettersName()).toBe('DN');
+    expect(component.validSections()).toEqual([]);
   });
 });

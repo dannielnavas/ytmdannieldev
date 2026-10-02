@@ -1,0 +1,47 @@
+@let liked = isLiked();
+@let animating = isAnimating();
+
+<button
+  type="button"
+  (click)="onToggle($event)"
+  (keydown.space)="onToggle($event)"
+  (keydown.enter)="onToggle($event)"
+  class="relative inline-flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+  [class.p-1]="size() === 'xs'"
+  [class.p-1.5]="size() === 'sm'"
+  [class.p-2]="size() === 'md'"
+  [class.p-2.5]="size() === 'lg'"
+  [class.text-rose-500]="liked"
+  [class.hover:text-rose-400]="liked"
+  [class.hover:bg-rose-500/10]="liked"
+  [class.text-neutral-400]="!liked"
+  [class.hover:text-rose-300]="!liked"
+  [class.hover:bg-white/10]="!liked"
+  [class.opacity-0]="autoHide() && !liked"
+  [class.group-hover:opacity-100]="autoHide() && !liked"
+  [class.group-focus-within:opacity-100]="autoHide() && !liked"
+  [class.opacity-100]="!autoHide() || liked"
+  [class.pointer-events-auto]="true"
+  [attr.aria-label]="buttonAriaLabel()"
+  [attr.title]="buttonTitle()"
+  [attr.aria-pressed]="liked"
+>
+  <svg
+    lucideHeart
+    [class.w-3.5]="size() === 'xs'"
+    [class.h-3.5]="size() === 'xs'"
+    [class.w-4]="size() === 'sm'"
+    [class.h-4]="size() === 'sm'"
+    [class.w-5]="size() === 'md'"
+    [class.h-5]="size() === 'md'"
+    [class.w-6]="size() === 'lg'"
+    [class.h-6]="size() === 'lg'"
+    [class.fill-rose-500]="liked"
+    [class.stroke-rose-500]="liked"
+    [class.heart-glow]="liked"
+    [class.animate-heart-pop]="animating && liked"
+    [class.fill-transparent]="!liked"
+    [class.stroke-current]="!liked"
+    class="transition-transform duration-200 hover:scale-110 active:scale-90"
+  ></svg>
+</button>

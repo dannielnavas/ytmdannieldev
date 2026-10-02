@@ -106,7 +106,10 @@
   }
 
   <!-- Duration & Actions column -->
-  <div class="shrink-0 flex items-center gap-3">
+  <div class="shrink-0 flex items-center gap-2 sm:gap-3">
+    <!-- Heart / Like button -->
+    <app-like-button [song]="item" size="sm" [autoHide]="true" />
+
     @if (showDuration()) {
       <span
         class="text-xs font-mono text-neutral-400 group-hover:text-neutral-300 transition-colors"

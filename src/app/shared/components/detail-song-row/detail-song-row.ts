@@ -3,6 +3,7 @@ import { LucideLoader2, LucideMusic, LucidePause, LucidePlay } from '@lucide/ang
 import { PlaybackService } from '../../../core/services/playback.service';
 import { Thumbnail } from '../../../core/services/thumbnail';
 import { SourceSong } from '../../../core/models/youtube';
+import { LikeButton } from '../like-button/like-button';
 
 /**
  * Fila de canción para las páginas de detalle (álbum, playlist y resultados).
@@ -13,7 +14,7 @@ import { SourceSong } from '../../../core/models/youtube';
  * '--:--' cuando faltaba la duración.
  */
 @Component({
-  imports: [LucidePlay, LucidePause, LucideLoader2, LucideMusic, Thumbnail],
+  imports: [LucidePlay, LucidePause, LucideLoader2, LucideMusic, Thumbnail, LikeButton],
   selector: 'app-detail-song-row',
   templateUrl: './detail-song-row.html',
   styleUrl: './detail-song-row.css',

@@ -23,11 +23,31 @@ import { WindowControlsService } from '../../../core/services/window-controls.se
 
       <!-- Botones de Control de Ventana -->
       <div class="flex items-center h-full shrink-0" style="-webkit-app-region: no-drag;">
+        <!-- Mini Reproductor -->
+        <button
+          type="button"
+          class="h-full w-10 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
+          title="Modo Mini Reproductor"
+          aria-label="Modo Mini Reproductor"
+          (click)="controls.toggleMiniPlayer(true)"
+        >
+          <svg
+            class="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" fill-opacity="0.3" />
+          </svg>
+        </button>
+
         <!-- Minimizar -->
         <button
           type="button"
           class="h-full w-11 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition-colors focus:outline-none"
-          title="Minimizar"
+          title="Minimizar (Mini Reproductor)"
           (click)="controls.minimize()"
         >
           <svg

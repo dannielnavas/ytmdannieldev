@@ -33,6 +33,7 @@ export type DetailKind = 'ALBUM' | 'PLAYLIST';
     Thumbnail,
   ],
   selector: 'app-detail-hero',
+  styleUrl: './detail-hero.css',
   templateUrl: './detail-hero.html',
 })
 export class DetailHero {
@@ -99,6 +100,32 @@ export class DetailHero {
   public readonly playButtonStyle = computed(() =>
     this._palette.playButton(this.$color(), this.$colors()),
   );
+  public readonly playButtonGlassStyle = computed(() => {
+    const color = this.$color();
+    const colors = this.$colors();
+    if (color && colors.length > 1) {
+      const [r1, g1, b1] = color;
+      const [r2, g2, b2] = colors[1];
+      return {
+        background: `linear-gradient(135deg, rgba(${r1}, ${g1}, ${b1}, 0.62) 0%, rgba(${r2}, ${g2}, ${b2}, 0.38) 100%)`,
+        'box-shadow': `inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.4), 0 12px 28px -6px rgba(${r1}, ${g1}, ${b1}, 0.55)`,
+        'border-color': `rgba(${Math.min(255, r1 + 50)}, ${Math.min(255, g1 + 50)}, ${Math.min(255, b1 + 50)}, 0.45)`,
+      };
+    }
+    if (color) {
+      const [r, g, b] = color;
+      return {
+        background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.62) 0%, rgba(${r}, ${g}, ${b}, 0.32) 100%)`,
+        'box-shadow': `inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.4), 0 12px 28px -6px rgba(${r}, ${g}, ${b}, 0.55)`,
+        'border-color': `rgba(${Math.min(255, r + 50)}, ${Math.min(255, g + 50)}, ${Math.min(255, b + 50)}, 0.45)`,
+      };
+    }
+    return {
+      background: `linear-gradient(135deg, rgba(147, 51, 234, 0.65) 0%, rgba(79, 70, 229, 0.4) 100%)`,
+      'box-shadow': `inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.4), 0 12px 28px -6px rgba(147, 51, 234, 0.5)`,
+      'border-color': `rgba(192, 132, 252, 0.5)`,
+    };
+  });
   public readonly badgeStyle = computed(() => this._palette.badge(this.$color()));
 
   public onImageLoad(img: HTMLImageElement): void {

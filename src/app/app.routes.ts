@@ -38,6 +38,11 @@ export const routes: Routes = [
         canActivate: [authorizationGuard],
       },
       {
+        path: 'likes',
+        loadComponent: () => import('./features/list-likes/list-likes').then((m) => m.ListLikes),
+        canActivate: [authorizationGuard],
+      },
+      {
         path: 'now-playing',
         loadComponent: () =>
           import('./features/shell/components/now-playing/now-playing').then((m) => m.NowPlaying),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeImage, session, safeStorage } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeImage, session, safeStorage, screen } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -10,6 +10,101 @@ app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de cach
 
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
+
+let isMiniPlayer = false;
+let normalBounds = { width: 1280, height: 720, x: 0, y: 0 };
+let wasMaximized = false;
+
+function setMiniPlayerMode(win: BrowserWindow, enable: boolean): void {
+  if (isMiniPlayer === enable) return;
+  isMiniPlayer = enable;
+
+  if (enable) {
+    wasMaximized = win.isMaximized();
+    if (wasMaximized) {
+      win.unmaximize();
+    }
+    normalBounds = win.getBounds();
+    win.setAlwaysOnTop(true, 'floating');
+    if (process.platform === 'darwin') {
+      win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+    win.setMinimumSize(360, 160);
+    win.setSize(390, 175);
+    try {
+      const currentDisplay = screen.getDisplayMatching(normalBounds);
+      const { workArea } = currentDisplay;
+      const x = Math.round(workArea.x + workArea.width - 410);
+      const y = Math.round(workArea.y + workArea.height - 195);
+      win.setPosition(x, y);
+    } catch {
+      // Fallback si la detección de display falla
+    }
+  } else {
+    win.setAlwaysOnTop(false);
+    if (process.platform === 'darwin') {
+      win.setVisibleOnAllWorkspaces(false);
+    }
+    win.setMinimumSize(800, 500);
+    win.setBounds(normalBounds);
+    if (wasMaximized) {
+      win.maximize();
+    }
+  }
+
+  win.webContents.send('window-mini-player-change', isMiniPlayer);
+}
+
+function registerWindowIpcHandlers() {
+  ipcMain.on('window-minimize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      setMiniPlayerMode(win, true);
+    }
+  });
+
+  ipcMain.on('window-minimize-system', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.minimize();
+  });
+
+  ipcMain.on('window-toggle-mini-player', (event, enable?: boolean) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      const target = typeof enable === 'boolean' ? enable : !isMiniPlayer;
+      setMiniPlayerMode(win, target);
+    }
+  });
+
+  ipcMain.handle('window-is-mini-player', () => {
+    return isMiniPlayer;
+  });
+
+  ipcMain.on('window-maximize', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      if (isMiniPlayer) {
+        setMiniPlayerMode(win, false);
+        return;
+      }
+      if (win.isMaximized()) {
+        win.unmaximize();
+      } else {
+        win.maximize();
+      }
+    }
+  });
+
+  ipcMain.on('window-close', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.close();
+  });
+
+  ipcMain.handle('window-is-maximized', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return win ? win.isMaximized() : false;
+  });
+}
 
 const isPackaged = app.isPackaged; // Detecta si estamos en desarrollo o producción
 const isDev = !isPackaged;
@@ -75,34 +170,6 @@ function setupMacDockIcon(): void {
   if (!icon.isEmpty()) {
     app.dock.setIcon(icon);
   }
-}
-
-function registerWindowIpcHandlers() {
-  ipcMain.on('window-minimize', (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    win?.minimize();
-  });
-
-  ipcMain.on('window-maximize', (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    if (win) {
-      if (win.isMaximized()) {
-        win.unmaximize();
-      } else {
-        win.maximize();
-      }
-    }
-  });
-
-  ipcMain.on('window-close', (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    win?.close();
-  });
-
-  ipcMain.handle('window-is-maximized', (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender);
-    return win ? win.isMaximized() : false;
-  });
 }
 
 function registerAuthIpcHandlers() {

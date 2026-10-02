@@ -1,4 +1,4 @@
-import { Component, computed, inject, linkedSignal } from '@angular/core';
+import { Component, computed, effect, inject, linkedSignal } from '@angular/core';
 import { Search } from '../search/search';
 import { LucideCrown, LucidePlay } from '@lucide/angular';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
@@ -9,8 +9,10 @@ import { Auth } from '../../core/services/auth/auth';
 import { Router } from '@angular/router';
 import { PlaybackService } from '../../core/services/playback.service';
 import { QueueCandidate } from '../../core/models/youtube';
-import { UserModel } from '../../core/models/user.model';
 import { getHighResThumbnail } from '../../core/services/image-helper.service';
+import { BannerLikes } from '../../shared/components/banner-likes/banner-likes';
+import { LikesSection } from '../../shared/components/likes-section/likes-section';
+import { Header } from '../../shared/components/header/header';
 
 interface RenderedSection {
   title: string;
@@ -18,49 +20,20 @@ interface RenderedSection {
 }
 
 @Component({
-  imports: [Search, LucidePlay, LucideCrown, ThumbnailUrlPipe],
+  imports: [LucidePlay, ThumbnailUrlPipe, BannerLikes, LikesSection, Header],
   selector: 'app-home',
   styleUrl: './home.css',
   templateUrl: './home.html',
 })
 export class Home {
   private readonly _dashboard = inject(Dashboard);
-  private readonly _authService = inject(Auth);
+
   private readonly _router = inject(Router);
   private readonly _playbackService = inject(PlaybackService);
-
-  public resourceMe = rxResource({
-    stream: () => this._authService.getMe(),
-    defaultValue: {} as UserModel,
-  });
 
   public resourceDashboard = rxResource({
     stream: () => this._dashboard.getDashboardData(),
     defaultValue: [],
-  });
-
-  public $lettersName = computed(() => {
-    const name = this.resourceMe.value()?.full_name;
-    if (!name) {
-      return '';
-    }
-    return name
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
-  });
-
-  /**
-   * Se reinicia sola cuando cambia el usuario, así que un avatar que falló en
-   * una sesión no se queda roto para siempre.
-   */
-  public hasAvatarError = linkedSignal({
-    source: () => this.resourceMe.value()?.profile_image ?? null,
-    computation: () => false,
   });
 
   public validSections = computed<RenderedSection[]>(() => {

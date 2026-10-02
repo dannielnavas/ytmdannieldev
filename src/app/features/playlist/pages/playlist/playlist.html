@@ -1,43 +1,15 @@
 @let playlist = resourceGetPlaylist.value();
 @let isLoading = resourceGetPlaylist.isLoading();
 
-<section class="h-full flex flex-col overflow-hidden bg-[#0c0a15] text-neutral-100">
+<section class="h-full flex-1 min-h-0 flex flex-col overflow-hidden bg-[#0c0a15] text-neutral-100">
   <!-- Header: Search bar & Back Navigation -->
-  <header
-    class="shrink-0 px-6 pt-3 pb-3 flex flex-col gap-3 border-b border-white/5 bg-[#0c0a15]/90 backdrop-blur-md z-20"
-  >
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3 w-full max-w-xl">
-        <button
-          type="button"
-          (click)="goBack()"
-          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors border border-white/5 shrink-0 flex items-center justify-center cursor-pointer"
-          title="Volver atrás"
-          aria-label="Volver atrás"
-        >
-          <svg lucideArrowLeft class="w-4 h-4"></svg>
-        </button>
-        <app-search class="w-full" />
-      </div>
-
-      <!-- User avatar / profile button -->
-      <div class="flex items-center gap-3 shrink-0">
-        <button
-          type="button"
-          class="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-200 flex items-center justify-center text-xs font-semibold hover:bg-purple-600/40 transition-colors shadow-sm cursor-pointer"
-          title="Perfil de Usuario"
-        >
-          DN
-        </button>
-      </div>
-    </div>
-  </header>
+  <app-header [$showBack]="true" />
 
   <!-- Scrollable Playlist Content -->
-  <div class="flex-1 overflow-y-auto custom-scrollbar">
+  <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
     @if (isLoading) {
       <!-- Skeleton Loading State -->
-      <div class="animate-pulse p-6 md:p-8 space-y-8">
+      <div class="animate-pulse p-6 md:p-8 space-y-8 pb-32">
         <div class="flex flex-col sm:flex-row items-center sm:items-end gap-6">
           <div
             class="w-44 h-44 sm:w-52 sm:h-52 rounded-2xl bg-white/5 border border-white/10"
@@ -83,7 +55,7 @@
       />
 
       <!-- Songs List Section -->
-      <div class="px-4 md:px-8 py-6">
+      <div class="px-4 md:px-8 pt-6 pb-32">
         <!-- Table Column Headers -->
         <div
           class="flex items-center gap-4 px-4 pb-2 mb-2 border-b border-white/5 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider select-none"

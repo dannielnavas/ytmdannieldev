@@ -2,14 +2,19 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 export interface WindowControlsAPI {
   minimize: () => void;
+  minimizeSystem?: () => void;
   maximize: () => void;
   close: () => void;
   isMaximized: () => Promise<boolean>;
   onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void;
+  toggleMiniPlayer: (enabled?: boolean) => void;
+  isMiniPlayer: () => Promise<boolean>;
+  onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
 }
 
 const windowControls: WindowControlsAPI = {
   minimize: () => ipcRenderer.send('window-minimize'),
+  minimizeSystem: () => ipcRenderer.send('window-minimize-system'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
   isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
@@ -19,6 +24,15 @@ const windowControls: WindowControlsAPI = {
     ipcRenderer.on('window-maximized-change', listener);
     return () => {
       ipcRenderer.removeListener('window-maximized-change', listener);
+    };
+  },
+  toggleMiniPlayer: (enabled?: boolean) => ipcRenderer.send('window-toggle-mini-player', enabled),
+  isMiniPlayer: () => ipcRenderer.invoke('window-is-mini-player'),
+  onMiniPlayerChange: (callback: (isMini: boolean) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, isMini: boolean) => callback(isMini);
+    ipcRenderer.on('window-mini-player-change', listener);
+    return () => {
+      ipcRenderer.removeListener('window-mini-player-change', listener);
     };
   },
 };
