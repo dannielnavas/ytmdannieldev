@@ -1,5 +1,10 @@
 import { Component, computed, inject, input } from '@angular/core';
-import { Dashboard } from '../../../../core/services/dashboard/dashboard';
+import {
+  Dashboard,
+  extractMixVideoId,
+  isMixId,
+  isVideoId,
+} from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
 import { Location } from '@angular/common';
@@ -7,11 +12,26 @@ import { PlaylistModel, Song } from '../../../../core/models/playlist.model';
 import { DetailHero } from '../../../../shared/components/detail-hero/detail-hero';
 import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
-import { LucideClock, LucideListMusic, LucideMusic } from '@lucide/angular';
+import {
+  LucideClock,
+  LucideListMusic,
+  LucideMusic,
+  LucidePlay,
+  LucideSparkles,
+} from '@lucide/angular';
 import { Header } from '../../../../shared/components/header/header';
 
 @Component({
-  imports: [DetailHero, DetailSongRow, LucideListMusic, LucideClock, LucideMusic, Header],
+  imports: [
+    DetailHero,
+    DetailSongRow,
+    LucideListMusic,
+    LucideClock,
+    LucideMusic,
+    LucidePlay,
+    LucideSparkles,
+    Header,
+  ],
   selector: 'app-playlist',
   styleUrl: './playlist.css',
   templateUrl: './playlist.html',
@@ -26,24 +46,30 @@ export class Playlist {
 
   public readonly $playlistId = computed(() => this.playlistId().replace(/^RDAM(?:VM|PL)/, ''));
 
+  public readonly isMix = computed(() => isMixId(this.playlistId()));
+
+  public readonly mixVideoId = computed(() => extractMixVideoId(this.playlistId()));
+
   public resourceGetPlaylist = rxResource({
-    params: () => this.$playlistId(),
+    params: () => this.playlistId() || this.$playlistId(),
     stream: ({ params: id }) => {
       if (!id) {
         return of({} as unknown as PlaylistModel);
       }
+
+      const normalized = this.$playlistId();
+
       return this._youtubeService.getPlaylist(id).pipe(
         tap((res) => {
-          if (!res?.songsList?.length) {
-            this.fallbackPlayTrack(id);
+          if (!res?.songsList?.length && isVideoId(normalized)) {
+            this.fallbackPlayTrack(normalized);
           }
         }),
         catchError((err) => {
-          console.error(
-            'El servicio de playlist falló, intentando reproducir canción con el id de la ruta:',
-            err,
-          );
-          this.fallbackPlayTrack(id);
+          console.warn('[Playlist] No se pudo obtener la lista de reproducción:', err);
+          if (isVideoId(normalized)) {
+            this.fallbackPlayTrack(normalized);
+          }
           return of({} as unknown as PlaylistModel);
         }),
       );
@@ -52,8 +78,15 @@ export class Playlist {
   });
 
   public fallbackPlayTrack(playlistId: string): void {
-    if (!playlistId) return;
+    if (!playlistId || !isVideoId(playlistId)) return;
     this._playbackService.playSingle({ videoId: playlistId, name: '', artist: '', thumbnail: '' });
+  }
+
+  public playMixBaseTrack(): void {
+    const videoId = this.mixVideoId();
+    if (videoId) {
+      this.fallbackPlayTrack(videoId);
+    }
   }
 
   public goBack(): void {

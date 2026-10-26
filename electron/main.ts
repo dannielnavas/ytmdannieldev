@@ -2,11 +2,12 @@ import { app, BrowserWindow, ipcMain, nativeImage, session, safeStorage, screen 
 import * as path from 'path';
 import * as fs from 'fs';
 
-app.setName('Sonara');
+app.setName('Pulso');
 
 // Optimización de caché de red de Chromium para imágenes y multimedia
 app.commandLine.appendSwitch('disk-cache-size', '1073741824'); // 1 GB de caché en disco
 app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de caché multimedia
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
@@ -180,7 +181,7 @@ function registerAuthIpcHandlers() {
       const iconPath = getWindowIconPath();
 
       authWindow = new BrowserWindow({
-        title: 'Iniciar sesión con Google - Sonara',
+        title: 'Iniciar sesión con Google - Pulso',
         width: 500,
         height: 600,
         parent: mainWindow ?? undefined,
@@ -263,6 +264,18 @@ function registerAuthIpcHandlers() {
         }
       });
     });
+  });
+
+  ipcMain.handle('auth:logout', async () => {
+    try {
+      await session.defaultSession.clearStorageData({
+        storages: ['cookies', 'localstorage'],
+      });
+      return true;
+    } catch (err) {
+      console.error('Error clearing session cookies on logout:', err);
+      return false;
+    }
   });
 }
 
@@ -392,47 +405,67 @@ function setupImageOptimization(): void {
   };
 
   // 1. Enmascarar peticiones salientes con cabeceras de cliente oficial
-  session.defaultSession.webRequest.onBeforeSendHeaders(googleFilter, (details, callback) => {
-    const requestHeaders = { ...details.requestHeaders };
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: [...googleFilter.urls, ...streamFilter.urls] },
+    (details, callback) => {
+      const requestHeaders = { ...details.requestHeaders };
 
-    requestHeaders['Referer'] = 'https://music.youtube.com/';
-    requestHeaders['Origin'] = 'https://music.youtube.com';
+      if (details.url.startsWith(API_ORIGIN)) {
+        // En producción (empaquetado con file://), Chromium envía Origin: file:// o null.
+        // El backend NestJS en producción solo acepta 'http://localhost:4200' en su lista
+        // de CORS, rechazando cualquier otro origen con un error 500 ('No permitido por CORS').
+        // Forzando el origen a 'http://localhost:4200', el backend siempre aceptará la petición.
+        requestHeaders['Origin'] = 'http://localhost:4200';
+      } else {
+        requestHeaders['Referer'] = 'https://music.youtube.com/';
+        requestHeaders['Origin'] = 'https://music.youtube.com';
 
-    // Normalizar User-Agent removiendo Electron para evitar rate-limits de bot
-    const userAgent = requestHeaders['User-Agent'] || requestHeaders['user-agent'];
-    if (userAgent && userAgent.includes('Electron')) {
-      requestHeaders['User-Agent'] = userAgent.replace(/Electron\/[0-9.]+\s?/, '');
-    }
+        // Normalizar User-Agent removiendo Electron para evitar rate-limits de bot
+        const userAgent = requestHeaders['User-Agent'] || requestHeaders['user-agent'];
+        if (userAgent && userAgent.includes('Electron')) {
+          requestHeaders['User-Agent'] = userAgent.replace(/Electron\/[0-9.]+\s?/, '');
+        }
+      }
 
-    callback({ requestHeaders });
-  });
+      callback({ requestHeaders });
+    },
+  );
 
   // 2. Interceptar respuestas para habilitar CORS y asegurar almacenamiento en disco.
   //
   // Un solo listener para los dos filtros: Electron solo atiende el último
   // `onHeadersReceived` que se registra en la sesión, así que registrar dos
-  // dejaba el primero (el de las imágenes) sin efecto. Y sin este `*` las
-  // imágenes con `crossorigin="anonymous"` no cargan: el `Origin` del punto 1 es
-  // reescrito a `https://music.youtube.com` y Google lo refleja en
-  // `access-control-allow-origin`, que entonces no coincide con el origen real
-  // de la app y el navegador rechaza la imagen con `net::ERR_FAILED`.
+  // dejaba el primero (el de las imágenes) sin efecto.
   session.defaultSession.webRequest.onHeadersReceived(
     { urls: [...googleFilter.urls, ...streamFilter.urls] },
     (details, callback) => {
       const responseHeaders = { ...details.responseHeaders };
 
-      // Permitir CORS para ColorThief y canvas sin restricciones
-      responseHeaders['access-control-allow-origin'] = ['*'];
-      responseHeaders['access-control-allow-methods'] = ['GET, HEAD, OPTIONS'];
-      responseHeaders['access-control-allow-headers'] = ['*'];
-
       if (details.url.startsWith(API_ORIGIN)) {
         // El audio no debe quedar cacheado: la cola puede repetir la misma pista.
         responseHeaders['cache-control'] = ['no-store'];
-      } else if (details.statusCode >= 200 && details.statusCode < 300) {
-        // Si la imagen cargó con éxito (2xx), forzar almacenamiento persistente
-        // en caché de disco.
-        responseHeaders['cache-control'] = ['public, max-age=2592000, immutable'];
+
+        // Permitir acceso desde cualquier origen (tanto dev http://localhost:4200 como
+        // producción file://). Si se usa '*', la especificación Fetch exige eliminar
+        // 'access-control-allow-credentials' para evitar que Chromium bloquee la respuesta.
+        responseHeaders['access-control-allow-origin'] = ['*'];
+        delete responseHeaders['access-control-allow-credentials'];
+        delete responseHeaders['Access-Control-Allow-Credentials'];
+        responseHeaders['access-control-allow-methods'] = [
+          'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD',
+        ];
+        responseHeaders['access-control-allow-headers'] = ['*'];
+      } else {
+        // Permitir CORS para ColorThief y canvas sin restricciones
+        responseHeaders['access-control-allow-origin'] = ['*'];
+        responseHeaders['access-control-allow-methods'] = ['GET, HEAD, OPTIONS'];
+        responseHeaders['access-control-allow-headers'] = ['*'];
+
+        if (details.statusCode >= 200 && details.statusCode < 300) {
+          // Si la imagen cargó con éxito (2xx), forzar almacenamiento persistente
+          // en caché de disco.
+          responseHeaders['cache-control'] = ['public, max-age=2592000, immutable'];
+        }
       }
 
       callback({ responseHeaders });
@@ -452,7 +485,7 @@ function isAppOrigin(url: string): boolean {
  * Chromium exige el permiso `speaker-selection` para que
  * `HTMLMediaElement.setSinkId()` funcione y para que
  * `navigator.mediaDevices.enumerateDevices()` devuelva los nombres de los
- * dispositivos. Sonara solo necesita elegir la salida de audio, así que ese es el
+ * dispositivos. Pulso solo necesita elegir la salida de audio, así que ese es el
  * único permiso concedido y todo lo demás se rechaza: sin cámara, micrófono,
  * ubicación ni notificaciones.
  */
@@ -472,7 +505,7 @@ function createWindow() {
   const iconPath = getWindowIconPath();
 
   mainWindow = new BrowserWindow({
-    title: 'Sonara',
+    title: 'Pulso',
     width: 1280,
     height: 720,
     frame: false, // Opcional: útil si vas a usar tu propia barra de título personalizada

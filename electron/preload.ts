@@ -10,6 +10,7 @@ export interface WindowControlsAPI {
   toggleMiniPlayer: (enabled?: boolean) => void;
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
+  platform?: string;
 }
 
 const windowControls: WindowControlsAPI = {
@@ -35,6 +36,7 @@ const windowControls: WindowControlsAPI = {
       ipcRenderer.removeListener('window-mini-player-change', listener);
     };
   },
+  platform: process.platform,
 };
 
 /**
@@ -70,6 +72,7 @@ contextBridge.exposeInMainWorld('windowControls', windowControls);
 contextBridge.exposeInMainWorld('safeStorage', safeStorageAPI);
 contextBridge.exposeInMainWorld('electronAPI', {
   loginWithGoogle: () => ipcRenderer.invoke('auth:login-google'),
+  logout: () => ipcRenderer.invoke('auth:logout'),
   getUserData: () => ipcRenderer.invoke('auth:get-user-data'),
   safeStorage: safeStorageAPI,
   windowControls,

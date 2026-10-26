@@ -62,4 +62,41 @@ describe('Playlist', () => {
 
     expect(playSingleSpy).not.toHaveBeenCalled();
   });
+
+  it('does not attempt playback if playlistId is not a valid 11-char videoId', () => {
+    const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
+
+    // Passing a playlist or mix ID should NOT trigger playSingle
+    component.fallbackPlayTrack('RDTMAK5uy_abcdef123456');
+    component.fallbackPlayTrack('PL1234567890abcdef');
+
+    expect(playSingleSpy).not.toHaveBeenCalled();
+  });
+
+  it('identifies mixes and extracts mixVideoId properly', () => {
+    fixture.componentRef.setInput('playlistId', 'RDAMVMdQw4w9WgXcQ');
+    expect(component.isMix()).toBe(true);
+    expect(component.mixVideoId()).toBe('dQw4w9WgXcQ');
+
+    fixture.componentRef.setInput('playlistId', 'RDTMAK5uy_abc');
+    expect(component.isMix()).toBe(true);
+    expect(component.mixVideoId()).toBeNull();
+
+    fixture.componentRef.setInput('playlistId', 'PLcustomList123');
+    expect(component.isMix()).toBe(false);
+  });
+
+  it('playMixBaseTrack triggers playback of seed track when available', () => {
+    const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
+    fixture.componentRef.setInput('playlistId', 'RDAMVMdQw4w9WgXcQ');
+
+    component.playMixBaseTrack();
+
+    expect(playSingleSpy).toHaveBeenCalledWith({
+      videoId: 'dQw4w9WgXcQ',
+      name: '',
+      artist: '',
+      thumbnail: '',
+    });
+  });
 });

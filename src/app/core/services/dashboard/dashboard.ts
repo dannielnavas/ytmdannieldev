@@ -24,6 +24,56 @@ export function normalizeBrowseId(id: string | null | undefined): string {
   return (id ?? '').replace(BROWSE_ID_PREFIX, '');
 }
 
+/** Comprueba si una cadena tiene el formato de videoId de YouTube (11 caracteres alfanuméricos, guiones o guiones bajos). */
+export function isVideoId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  return /^[a-zA-Z0-9_-]{11}$/.test(id.trim());
+}
+
+/**
+ * Identifica si un ID corresponde a un Mix o Radio dinámica de YouTube Music
+ * (los cuales no son playlists estáticas y no pueden consultarse en /youtube/playlist/:id).
+ */
+export function isMixId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  const clean = id.trim();
+  if (clean.startsWith('RDAMVM')) return true;
+  if (clean.startsWith('RDTMAK')) return true;
+  if (clean.startsWith('RDCLAK')) return true;
+  if (clean.startsWith('RDEM')) return true;
+  if (clean.startsWith('RD') && !clean.startsWith('RDAMPL')) return true;
+  return false;
+}
+
+/**
+ * Extrae el videoId de un mix basado en pista si está disponible (ej. RDAMVM<videoId>).
+ */
+export function extractMixVideoId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const clean = id.trim();
+  if (clean.startsWith('RDAMVM')) {
+    const candidate = clean.replace(/^RDAMVM/, '');
+    return isVideoId(candidate) ? candidate : null;
+  }
+  return isVideoId(clean) ? clean : null;
+}
+
+/**
+ * Normaliza un ID de playlist asegurando que preserve o normalice prefijos válidos de YouTube.
+ */
+export function normalizePlaylistId(id: string | null | undefined): string {
+  if (!id) return '';
+  const clean = id.trim();
+  if (clean.startsWith('RDAMPL')) {
+    const stripped = clean.replace(/^RDAMPL/, '');
+    if (stripped.startsWith('PL') || stripped.startsWith('VLPL') || stripped.startsWith('OLAK')) {
+      return stripped;
+    }
+    return `PL${stripped}`;
+  }
+  return clean;
+}
+
 @Service()
 export class Dashboard {
   private readonly _http = inject(HttpClient);

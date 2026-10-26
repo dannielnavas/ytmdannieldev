@@ -171,7 +171,12 @@
           >
             {{ trackTitle() || 'Cargando...' }}
           </h1>
-          <app-like-button [song]="playbackService.$currentTrack()" size="lg" class="shrink-0" />
+          <app-like-button
+            [song]="playbackService.$currentTrack()"
+            [thumbnail]="currentArtworkUrl()"
+            size="lg"
+            class="shrink-0"
+          />
         </div>
         <h2
           class="text-base sm:text-xl lg:text-2xl text-white/80 font-semibold mt-1 drop-shadow-lg truncate"
@@ -239,6 +244,7 @@
           </div>
           <app-like-button
             [song]="playbackService.$currentTrack()"
+            [thumbnail]="currentArtworkUrl()"
             size="md"
             class="shrink-0 mt-1"
           />
@@ -505,7 +511,12 @@
         </button>
 
         <!-- Like button -->
-        <app-like-button [song]="playbackService.$currentTrack()" size="md" class="shrink-0" />
+        <app-like-button
+          [song]="playbackService.$currentTrack()"
+          [thumbnail]="currentArtworkUrl()"
+          size="md"
+          class="shrink-0"
+        />
       </div>
 
       <!-- Row 2: Timeline, Progress Bar & Volume -->

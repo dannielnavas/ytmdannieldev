@@ -13,36 +13,45 @@ export interface ThumbnailItem {
 export function getHighResThumbnail(url: string | null | undefined, size = 800): string {
   if (!url) return '';
 
+  let normalized = url.trim();
+  if (normalized.startsWith('//')) {
+    normalized = `https:${normalized}`;
+  } else if (normalized.startsWith('http://')) {
+    normalized = normalized.replace(/^http:\/\//i, 'https://');
+  }
+
   // URLs de Google User Content y GGPHT (YouTube Music álbumes, artistas, canciones)
-  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+  if (normalized.includes('googleusercontent.com') || normalized.includes('ggpht.com')) {
     // Si ya contiene =w...-h...
-    if (/=w\d+-h\d+/.test(url)) {
-      return url.replace(/=w\d+-h\d+[^?&=]*/, `=w${size}-h${size}-l90-rj`);
+    if (/=w\d+-h\d+/.test(normalized)) {
+      return normalized.replace(/=w\d+-h\d+[^?&=]*/, `=w${size}-h${size}-l90-rj`);
     }
     // Si contiene =s...
-    if (/=s\d+/.test(url)) {
-      return url.replace(/=s\d+[^?&=]*/, `=s${size}-c-k-c0x00ffffff-no-rj`);
+    if (/=s\d+/.test(normalized)) {
+      return normalized.replace(/=s\d+[^?&=]*/, `=s${size}-c-k-c0x00ffffff-no-rj`);
     }
     // Si no contiene modificador de tamaño al final, agregar el parámetro
-    if (!url.includes('=')) {
-      return `${url}=w${size}-h${size}-l90-rj`;
+    if (!normalized.includes('=')) {
+      return `${normalized}=w${size}-h${size}-l90-rj`;
     }
   }
 
   // Miniaturas estándar de videos de YouTube (i.ytimg.com o img.youtube.com)
-  if (url.includes('ytimg.com') || url.includes('youtube.com')) {
-    if (url.includes('/hqdefault.jpg')) {
-      return url.replace('/hqdefault.jpg', '/maxresdefault.jpg');
-    }
-    if (url.includes('/mqdefault.jpg')) {
-      return url.replace('/mqdefault.jpg', '/maxresdefault.jpg');
-    }
-    if (url.includes('/default.jpg')) {
-      return url.replace('/default.jpg', '/maxresdefault.jpg');
+  if (normalized.includes('ytimg.com') || normalized.includes('youtube.com')) {
+    if (size > 480) {
+      if (normalized.includes('/hqdefault.jpg')) {
+        return normalized.replace('/hqdefault.jpg', '/maxresdefault.jpg');
+      }
+      if (normalized.includes('/mqdefault.jpg')) {
+        return normalized.replace('/mqdefault.jpg', '/maxresdefault.jpg');
+      }
+      if (normalized.includes('/default.jpg')) {
+        return normalized.replace('/default.jpg', '/maxresdefault.jpg');
+      }
     }
   }
 
-  return url;
+  return normalized;
 }
 
 @Injectable({

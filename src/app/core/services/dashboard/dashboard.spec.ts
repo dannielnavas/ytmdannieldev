@@ -1,7 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Dashboard, normalizeBrowseId } from './dashboard';
+import {
+  Dashboard,
+  extractMixVideoId,
+  isMixId,
+  isVideoId,
+  normalizeBrowseId,
+  normalizePlaylistId,
+} from './dashboard';
 import { API_BASE_URL } from '../../config/api.config';
 import { DashboardResponse, PersonalDashboardData } from '../../models/dashboard';
 
@@ -31,6 +38,36 @@ describe('Dashboard', () => {
     expect(normalizeBrowseId('PLcustom123')).toBe('PLcustom123');
   });
 
+  it('isVideoId should correctly validate 11-char YouTube video IDs', () => {
+    expect(isVideoId('dQw4w9WgXcQ')).toBe(true);
+    expect(isVideoId('4tr_IG0Xb-4')).toBe(true);
+    expect(isVideoId('short')).toBe(false);
+    expect(isVideoId('toolongvideoidentifier123')).toBe(false);
+    expect(isVideoId(null)).toBe(false);
+  });
+
+  it('isMixId should identify YouTube Music mix and radio IDs', () => {
+    expect(isMixId('RDAMVMdQw4w9WgXcQ')).toBe(true);
+    expect(isMixId('RDTMAK5uy_abc')).toBe(true);
+    expect(isMixId('RDCLAK5uy_def')).toBe(true);
+    expect(isMixId('RDEMxyz')).toBe(true);
+    expect(isMixId('PL1234567890')).toBe(false);
+    expect(isMixId('VLPL1234567890')).toBe(false);
+  });
+
+  it('extractMixVideoId should extract video ID from RDAMVM mix', () => {
+    expect(extractMixVideoId('RDAMVMdQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+    expect(extractMixVideoId('dQw4w9WgXcQ')).toBe('dQw4w9WgXcQ');
+    expect(extractMixVideoId('RDTMAK5uy_abc')).toBeNull();
+    expect(extractMixVideoId('')).toBeNull();
+  });
+
+  it('normalizePlaylistId should format playlist IDs properly', () => {
+    expect(normalizePlaylistId('RDAMPLPL123')).toBe('PL123');
+    expect(normalizePlaylistId('RDAMPLabc')).toBe('PLabc');
+    expect(normalizePlaylistId('PLcustom')).toBe('PLcustom');
+  });
+
   it('getDashboard should call /dashboard with query options', () => {
     const mockResponse: DashboardResponse = {
       hasPersonalData: true,
@@ -57,10 +94,11 @@ describe('Dashboard', () => {
       expect(res.activeView).toBe('personal');
     });
 
-    const req = httpTesting.expectOne((r) =>
-      r.url === `${API_BASE_URL}/dashboard` &&
-      r.params.get('includeYoutube') === 'true' &&
-      r.params.get('refresh') === 'false',
+    const req = httpTesting.expectOne(
+      (r) =>
+        r.url === `${API_BASE_URL}/dashboard` &&
+        r.params.get('includeYoutube') === 'true' &&
+        r.params.get('refresh') === 'false',
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockResponse);
@@ -127,4 +165,3 @@ describe('Dashboard', () => {
     req.flush([{ title: 'Pop Trends', contents: [] }]);
   });
 });
-

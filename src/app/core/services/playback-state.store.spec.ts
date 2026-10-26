@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { PlaybackStateStore, PLAYBACK_STATE_VERSION } from './playback-state.store';
+import {
+  PlaybackStateStore,
+  PLAYBACK_STATE_VERSION,
+  STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
+} from './playback-state.store';
 import { PersistedQueueItem } from '../models/queue.model';
 
 const QUEUE: PersistedQueueItem[] = [
@@ -59,27 +64,27 @@ describe('PlaybackStateStore', () => {
     });
 
     it('discards a snapshot from another version', () => {
-      localStorage.setItem('sonara.playback-state.v1', JSON.stringify(state({ version: 99 })));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state({ version: 99 })));
 
       expect(store.load()).toBeNull();
-      expect(localStorage.getItem('sonara.playback-state.v1')).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('discards malformed JSON', () => {
-      localStorage.setItem('sonara.playback-state.v1', '{not json');
+      localStorage.setItem(STORAGE_KEY, '{not json');
 
       expect(store.load()).toBeNull();
     });
 
     it('discards a snapshot without a queue', () => {
-      localStorage.setItem('sonara.playback-state.v1', JSON.stringify(state({ queue: [] })));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state({ queue: [] })));
 
       expect(store.load()).toBeNull();
     });
 
     it('discards a queue with no playable entry', () => {
       localStorage.setItem(
-        'sonara.playback-state.v1',
+        STORAGE_KEY,
         JSON.stringify(state({ queue: [{ name: 'Sin videoId' }] })),
       );
 
@@ -88,7 +93,7 @@ describe('PlaybackStateStore', () => {
 
     it('clamps out-of-range values instead of applying them', () => {
       localStorage.setItem(
-        'sonara.playback-state.v1',
+        STORAGE_KEY,
         JSON.stringify(
           state({
             currentIndex: 99,
@@ -111,7 +116,7 @@ describe('PlaybackStateStore', () => {
 
     it('falls back to defaults for missing fields', () => {
       localStorage.setItem(
-        'sonara.playback-state.v1',
+        STORAGE_KEY,
         JSON.stringify({ version: PLAYBACK_STATE_VERSION, queue: QUEUE }),
       );
 
@@ -121,6 +126,12 @@ describe('PlaybackStateStore', () => {
       expect(loaded?.rate).toBe(1);
       expect(loaded?.shuffle).toBe(false);
       expect(loaded?.sourceTitle).toBe('');
+    });
+
+    it('restores a snapshot from legacy storage key', () => {
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state({ position: 25 })));
+
+      expect(store.load()?.position).toBe(25);
     });
   });
 
@@ -132,11 +143,11 @@ describe('PlaybackStateStore', () => {
       store.save(state({ position: 2 }));
       store.save(state({ position: 3 }));
 
-      expect(localStorage.getItem('sonara.playback-state.v1')).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
 
       vi.advanceTimersByTime(500);
 
-      expect(JSON.parse(localStorage.getItem('sonara.playback-state.v1')!).position).toBe(3);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).position).toBe(3);
     });
 
     it('writes the latest snapshot after a new debounce window', () => {
@@ -147,19 +158,19 @@ describe('PlaybackStateStore', () => {
       store.save(state({ position: 2 }));
       vi.advanceTimersByTime(500);
 
-      expect(JSON.parse(localStorage.getItem('sonara.playback-state.v1')!).position).toBe(2);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).position).toBe(2);
     });
 
     it('flush writes immediately', () => {
       store.save(state({ position: 7 }));
       store.flush();
 
-      expect(JSON.parse(localStorage.getItem('sonara.playback-state.v1')!).position).toBe(7);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).position).toBe(7);
     });
 
     it('flush without a pending write does nothing', () => {
       store.flush();
-      expect(localStorage.getItem('sonara.playback-state.v1')).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('a pending debounce is cancelled by flush', () => {
@@ -169,7 +180,7 @@ describe('PlaybackStateStore', () => {
       store.flush();
       vi.advanceTimersByTime(1000);
 
-      expect(JSON.parse(localStorage.getItem('sonara.playback-state.v1')!).position).toBe(1);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).position).toBe(1);
     });
 
     it('clear removes the snapshot and the pending write', () => {
@@ -179,13 +190,13 @@ describe('PlaybackStateStore', () => {
       store.flush();
       store.clear();
 
-      expect(localStorage.getItem('sonara.playback-state.v1')).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
 
       store.save(state({ position: 9 }));
       store.clear();
       vi.advanceTimersByTime(1000);
 
-      expect(localStorage.getItem('sonara.playback-state.v1')).toBeNull();
+      expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
 
     it('survives a storage that throws', () => {

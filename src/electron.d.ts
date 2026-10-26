@@ -8,6 +8,7 @@ export interface WindowControlsAPI {
   toggleMiniPlayer: (enabled?: boolean) => void;
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
+  platform?: string;
 }
 
 export interface UserData {
@@ -41,6 +42,7 @@ declare global {
       isMaximized?: () => Promise<boolean>;
       onMaximizedChange?: (callback: (isMaximized: boolean) => void) => () => void;
       loginWithGoogle: () => Promise<string>;
+      logout?: () => Promise<boolean>;
       getUserData?: () => Promise<UserData>;
       safeStorage?: SafeStorageAPI;
     };

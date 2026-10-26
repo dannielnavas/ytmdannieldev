@@ -26,9 +26,26 @@ export class LikesSection implements OnInit {
   /** Miniaturas de las canciones favoritas para la portada del hero card */
   public readonly recentThumbnails = computed(() =>
     this.likedSongs()
-      .map((s) => s.thumbnailUrl)
+      .map((s) => s.thumbnailUrl || (s.videoId ? `https://i.ytimg.com/vi/${s.videoId}/hqdefault.jpg` : ''))
       .filter((url): url is string => Boolean(url)),
   );
+
+  public getSongThumbnail(song: LikedSong): string {
+    return (
+      song.thumbnailUrl ||
+      (song.videoId ? `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` : '')
+    );
+  }
+
+  public onSongImageError(event: Event, videoId?: string): void {
+    const img = event.target as HTMLImageElement;
+    if (img && videoId) {
+      const fallback = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+      if (img.src !== fallback) {
+        img.src = fallback;
+      }
+    }
+  }
 
   /** Indica si actualmente se reproduce la lista de Tus Me Gusta */
   public readonly isPlayingLikes = computed(

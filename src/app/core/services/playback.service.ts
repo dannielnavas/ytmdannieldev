@@ -132,9 +132,6 @@ export class PlaybackService {
   public constructor() {
     this._audio = this._createAudio();
     this._audio.preload = 'metadata';
-    // The stream is cross-origin. Without CORS the element refuses to load it
-    // at all when this attribute is present, so `electron/main.ts` injects
-    // `access-control-allow-origin` for the API origin.
     this._audio.crossOrigin = 'anonymous';
     this._registerListeners();
     this._restoreSession();

@@ -271,6 +271,7 @@
       @if (song?.videoId) {
         <app-like-button
           [song]="playbackService.$currentTrack() || song"
+          [thumbnail]="currentArtworkUrl()"
           size="sm"
           class="shrink-0"
         />

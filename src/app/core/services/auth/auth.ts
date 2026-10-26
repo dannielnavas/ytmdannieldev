@@ -37,8 +37,16 @@ export class Auth {
     return this._safeStorage.getItem(TOKEN_KEY);
   }
 
-  public logout(): Promise<boolean> {
-    return this._safeStorage.removeItem(TOKEN_KEY);
+  public async logout(): Promise<boolean> {
+    const removed = await this._safeStorage.removeItem(TOKEN_KEY);
+    if (typeof window !== 'undefined' && window.electronAPI?.logout) {
+      try {
+        await window.electronAPI.logout();
+      } catch (err) {
+        console.warn('[Auth] Error al limpiar cookies de sesión en Electron:', err);
+      }
+    }
+    return removed;
   }
 
   public getMe(): Observable<UserModel> {

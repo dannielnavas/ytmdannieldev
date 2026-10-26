@@ -42,8 +42,7 @@ export class MiniPlayerComponent {
   public $dominantColor = signal<Rgb | null>(null);
 
   public trackTitle = computed(
-    () =>
-      this.playbackService.$currentTrack()?.name || this._metadata.$metadata().title || 'Sonara',
+    () => this.playbackService.$currentTrack()?.name || this._metadata.$metadata().title || 'Pulso',
   );
 
   public trackAuthor = computed(

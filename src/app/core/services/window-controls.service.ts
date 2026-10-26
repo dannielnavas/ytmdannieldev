@@ -1,4 +1,6 @@
-import { Injectable, signal, inject, NgZone } from '@angular/core';
+import { Injectable, signal, computed, inject, NgZone } from '@angular/core';
+
+export type PlatformType = 'darwin' | 'win32' | 'linux';
 
 @Injectable({
   providedIn: 'root',
@@ -8,6 +10,26 @@ export class WindowControlsService {
   readonly isMaximized = signal(false);
   readonly isMiniPlayer = signal(false);
   readonly isElectron = typeof window !== 'undefined' && !!window.windowControls;
+  readonly platform = signal<PlatformType>(this._detectPlatform());
+  readonly isMac = computed(() => this.platform() === 'darwin');
+  readonly isWindows = computed(() => this.platform() === 'win32');
+  readonly isLinux = computed(() => this.platform() === 'linux');
+
+  private _detectPlatform(): PlatformType {
+    if (this.isElectron && window.windowControls?.platform) {
+      const p = window.windowControls.platform;
+      if (p === 'darwin' || p === 'win32' || p === 'linux') {
+        return p as PlatformType;
+      }
+    }
+    if (typeof navigator !== 'undefined') {
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes('mac')) return 'darwin';
+      if (ua.includes('win')) return 'win32';
+      if (ua.includes('linux')) return 'linux';
+    }
+    return 'win32';
+  }
 
   constructor() {
     if (this.isElectron && window.windowControls) {

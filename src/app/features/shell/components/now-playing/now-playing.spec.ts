@@ -180,7 +180,7 @@ describe('NowPlaying lyrics', () => {
     });
 
     it('ignores a corrupted preference', () => {
-      localStorage.setItem('sonara.lyrics-preferences.v1', '{not json');
+      localStorage.setItem('pulso.lyrics-preferences.v1', '{not json');
       expect(new LyricsPreferencesService().$offset()).toBe(0);
     });
   });

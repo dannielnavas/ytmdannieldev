@@ -1,7 +1,6 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { LucideSearch } from '@lucide/angular';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { Dashboard } from '../../core/services/dashboard/dashboard';
 import { SearchStore } from '../../core/store/search-store';
 import { Router } from '@angular/router';
 
@@ -12,12 +11,20 @@ import { Router } from '@angular/router';
   templateUrl: './search.html',
 })
 export class Search implements OnInit {
-  private readonly _youtubeService = inject(Dashboard);
   private readonly _formBuilder = inject(FormBuilder);
   private readonly _searchStore = inject(SearchStore);
   private readonly _router = inject(Router);
 
   public form!: FormGroup<{ query: FormControl<string | null> }>;
+
+  constructor() {
+    effect(() => {
+      const q = this._searchStore.currentQuery();
+      if (this.form && q !== (this.form.controls.query.value ?? '')) {
+        this.form.controls.query.setValue(q, { emitEvent: false });
+      }
+    });
+  }
 
   public ngOnInit(): void {
     this.initForm();
@@ -25,22 +32,18 @@ export class Search implements OnInit {
 
   private initForm(): void {
     this.form = this._formBuilder.group({
-      query: ['', []],
+      query: [this._searchStore.currentQuery() || '', []],
     });
   }
 
   public onSubmit(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    const { query } = this.form.value;
+    const query = this.form.value.query?.trim();
     if (!query) {
       return;
     }
-    this._youtubeService.searchSongs(query).subscribe({
-      next: (res) => {
-        this._searchStore.set(res);
-        this._router.navigate(['/search']);
-      },
-    });
+    this._searchStore.search(query).subscribe();
+    this._router.navigate(['/search'], { queryParams: { q: query } });
   }
 }

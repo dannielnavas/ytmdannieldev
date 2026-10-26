@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { Home } from './home';
@@ -7,6 +8,8 @@ import { Auth } from '../../core/services/auth/auth';
 import { UserModel } from '../../core/models/user.model';
 import { LikesService } from '../../core/services/likes.service';
 import { DashboardResponse } from '../../core/models/dashboard';
+import { SearchStore } from '../../core/store/search-store';
+import { PlaybackService } from '../../core/services/playback.service';
 
 describe('Home', () => {
   let component: Home;
@@ -29,6 +32,9 @@ describe('Home', () => {
             getDashboard: () => of(defaultMockDashboard),
             getDashboardData: () => of(defaultMockDashboard),
             getStreamUrl: (videoId: string) => `/youtube/stream/${videoId}`,
+            searchSongs: vi
+              .fn()
+              .mockReturnValue(of({ artists: [], songs: [], albums: [], playlists: [] })),
           },
         },
         {
@@ -55,6 +61,18 @@ describe('Home', () => {
                 is_youtube_premium: true,
                 youtube_connected_at: new Date(),
               } satisfies UserModel),
+          },
+        },
+        {
+          provide: SearchStore,
+          useValue: {
+            result: signal(null),
+            currentQuery: signal(''),
+            isLoading: signal(false),
+            error: signal(null),
+            search: vi.fn().mockReturnValue(of(null)),
+            set: vi.fn(),
+            clear: vi.fn(),
           },
         },
       ],
@@ -156,5 +174,117 @@ describe('Home', () => {
     expect(component.recentLikes().length).toBe(1);
     expect(component.activeTab()).toBe('hybrid');
   });
-});
 
+  it('should trigger search and navigate on exploreRecommendation', () => {
+    const searchStore = TestBed.inject(SearchStore);
+    const router = TestBed.inject(Router);
+    const navSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.exploreRecommendation({ name: 'The Weeknd', sourceArtist: 'Daft Punk' });
+
+    expect(searchStore.search).toHaveBeenCalledWith('The Weeknd');
+    expect(navSpy).toHaveBeenCalledWith(['/search'], { queryParams: { q: 'The Weeknd' } });
+  });
+
+  it('should fallback to YouTube cover when recent track lacks thumbnail', () => {
+    const trackWithThumb = {
+      youtubeId: 'abc123',
+      title: 'Song',
+      artist: 'Artist',
+      thumbnailUrl: 'https://thumb.jpg',
+    };
+    const trackWithoutThumb = { youtubeId: 'xyz789', title: 'Song 2', artist: 'Artist 2' };
+
+    expect(component.getRecentLikeCover(trackWithThumb)).toBe('https://thumb.jpg');
+    expect(component.getRecentLikeCover(trackWithoutThumb)).toBe(
+      'https://i.ytimg.com/vi/xyz789/hqdefault.jpg',
+    );
+  });
+
+  it('should resolve artist image from dynamic cache, valid imageUrl, or liked song cover', () => {
+    // 1. Dynamic cache
+    component.artistAvatars.set({ Coldplay: 'https://yt.com/coldplay_avatar.jpg' });
+    expect(
+      component.getArtistImage({
+        name: 'Coldplay',
+        likesCount: 3,
+        totalDurationSeconds: 600,
+      }),
+    ).toBe('https://yt.com/coldplay_avatar.jpg');
+
+    // 2. Direct valid imageUrl
+    expect(
+      component.getArtistImage({
+        name: 'Radiohead',
+        likesCount: 5,
+        totalDurationSeconds: 1200,
+        imageUrl: 'https://cdn.example.com/radiohead.jpg',
+      }),
+    ).toBe('https://cdn.example.com/radiohead.jpg');
+
+    // 3. Last.fm placeholder should be discarded
+    expect(
+      component.getArtistImage({
+        name: 'Unknown Band',
+        likesCount: 1,
+        totalDurationSeconds: 180,
+        imageUrl:
+          'https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png',
+      }),
+    ).toBe('');
+  });
+
+  it('should fallback to liked song cover on image error', () => {
+    const likesService = TestBed.inject(LikesService);
+    (likesService.$likedSongs as any).set([
+      {
+        videoId: 'song123',
+        name: 'Yellow',
+        artist: 'Coldplay',
+        thumbnailUrl: 'https://i.ytimg.com/vi/song123/hqdefault.jpg',
+      },
+    ]);
+
+    const fakeImg = document.createElement('img');
+    fakeImg.src = 'https://broken.example.com/avatar.jpg';
+    const fakeEvent = { target: fakeImg } as unknown as Event;
+
+    component.onArtistImageError(fakeEvent, {
+      name: 'Coldplay',
+      likesCount: 1,
+      totalDurationSeconds: 200,
+    });
+
+    expect(fakeImg.src).toBe('https://i.ytimg.com/vi/song123/hqdefault.jpg');
+  });
+
+  it('should navigate to playlist on playItem with regular playlist', () => {
+    const router = TestBed.inject(Router);
+    const navSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.playItem({
+      type: 'PLAYLIST',
+      playlistId: 'PL1234567890',
+      name: 'Pop Hits',
+      artist: { name: 'Various', artistId: null },
+      thumbnails: [],
+    });
+
+    expect(navSpy).toHaveBeenCalledWith(['/playlist', 'PL1234567890']);
+  });
+
+  it('should navigate to playlist on playItem when item is a mix', () => {
+    const router = TestBed.inject(Router);
+    const navSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.playItem({
+      type: 'PLAYLIST',
+      playlistId: 'RDAMVMdQw4w9WgXcQ',
+      name: 'Never Gonna Give You Up Mix',
+      artist: { name: 'Rick Astley', artistId: null },
+      thumbnails: [],
+    });
+
+    expect(navSpy).toHaveBeenCalledWith(['/playlist', 'RDAMVMdQw4w9WgXcQ']);
+  });
+});

@@ -57,6 +57,7 @@
                   <img
                     [src]="thumb"
                     alt="Portada reciente"
+                    (error)="onThumbnailError($event)"
                     class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 }
@@ -98,7 +99,7 @@
             </h1>
 
             <div class="flex items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm text-neutral-400 font-medium">
-              <span class="text-neutral-200 font-semibold">Sonara</span>
+              <span class="text-neutral-200 font-semibold">Pulso</span>
               <span>•</span>
               <span>{{ total }} {{ total === 1 ? 'canción' : 'canciones' }}</span>
               @if (formattedTotalDuration()) {

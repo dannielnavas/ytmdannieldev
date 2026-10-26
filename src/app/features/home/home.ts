@@ -1,4 +1,4 @@
-import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
 import {
@@ -32,6 +32,8 @@ import { QueueItem } from '../../core/models/queue.model';
 import { getHighResThumbnail } from '../../core/services/image-helper.service';
 import { Header } from '../../shared/components/header/header';
 import { LikeButton } from '../../shared/components/like-button/like-button';
+import { SearchStore } from '../../core/store/search-store';
+import { LikesService } from '../../core/services/likes.service';
 
 interface RenderedSection {
   title: string;
@@ -93,9 +95,32 @@ export class Home {
   private readonly _dashboard = inject(Dashboard);
   private readonly _router = inject(Router);
   private readonly _playbackService = inject(PlaybackService);
+  private readonly _searchStore = inject(SearchStore);
+  private readonly _likesService = inject(LikesService);
 
   public readonly refreshTrigger = signal(0);
   public readonly isRefreshing = signal(false);
+
+  /** Caché reactivo de imágenes de artistas obtenidas de YouTube Music */
+  public readonly artistAvatars = signal<Record<string, string>>({});
+  private readonly _loadingArtists = new Set<string>();
+
+  constructor() {
+    effect(() => {
+      const artists = this.topArtists();
+      const recs = this.recommendations();
+      const allNames = [
+        ...artists.map((a) => a.name),
+        ...recs.slice(0, 4).map((r) => r.name),
+      ].filter(Boolean);
+
+      for (const name of allNames) {
+        if (!this.artistAvatars()[name] && !this._loadingArtists.has(name)) {
+          this._loadArtistAvatar(name);
+        }
+      }
+    });
+  }
 
   public readonly resourceDashboard = rxResource({
     stream: () => {
@@ -204,7 +229,7 @@ export class Home {
     }
 
     if (item.type === 'PLAYLIST') {
-      const playlistId = item.playlistId || item.albumId;
+      const playlistId = item.playlistId || item.albumId || item.videoId;
       if (playlistId) {
         this._router.navigate(['/playlist', playlistId]);
       }
@@ -233,12 +258,233 @@ export class Home {
 
   public exploreArtist(artistName: string): void {
     if (!artistName) return;
+    this._searchStore.search(artistName).subscribe();
     this._router.navigate(['/search'], { queryParams: { q: artistName } });
   }
 
   public exploreRecommendation(rec: RecommendedArtistItem): void {
     if (!rec?.name) return;
+    this._searchStore.search(rec.name).subscribe();
     this._router.navigate(['/search'], { queryParams: { q: rec.name } });
+  }
+
+  public getRecentLikeCover(track: PersonalRecentTrack): string {
+    const raw =
+      track.thumbnailUrl ||
+      (track as any).thumbnail_url ||
+      (track as any).thumbnail ||
+      (track as any).imageUrl ||
+      (track as any).coverUrl;
+    if (raw) return raw;
+    const id = track.youtubeId || (track as any).videoId;
+    return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '';
+  }
+
+  public onRecentLikeImageError(event: Event, track: PersonalRecentTrack): void {
+    const img = event.target as HTMLImageElement;
+    const id = track.youtubeId || (track as any).videoId;
+    if (img && id) {
+      const fallback = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+      if (img.src !== fallback) {
+        img.src = fallback;
+      }
+    }
+  }
+
+  /**
+   * Obtiene la mejor imagen disponible para un artista principal:
+   * 1. Avatar dinámico enriquecido de YouTube Music
+   * 2. Imagen enviada por el backend si es válida
+   * 3. Portada de alguna canción del usuario perteneciente a este artista
+   */
+  public getArtistImage(artist: EnrichedArtistItem): string {
+    const dynamic = this.artistAvatars()[artist.name];
+    if (dynamic) return dynamic;
+
+    const direct = this._extractValidImageUrl(artist);
+    if (direct) return direct;
+
+    const fromSong = this._findSongCoverForArtist(artist.name);
+    if (fromSong) return fromSong;
+
+    return '';
+  }
+
+  public getRecommendationImage(rec: RecommendedArtistItem): string {
+    const dynamic = this.artistAvatars()[rec.name];
+    if (dynamic) return dynamic;
+
+    const direct = this._extractValidImageUrl(rec);
+    if (direct) return direct;
+
+    const fromSource = this._findSongCoverForArtist(rec.sourceArtist);
+    if (fromSource) return fromSource;
+
+    return '';
+  }
+
+  public onArtistImageError(event: Event, artist: EnrichedArtistItem): void {
+    const img = event.target as HTMLImageElement;
+    if (!img) return;
+    const fallback = this._findSongCoverForArtist(artist.name);
+    if (fallback && img.src !== fallback) {
+      img.src = fallback;
+    } else {
+      img.style.display = 'none';
+    }
+  }
+
+  public onRecommendationImageError(event: Event, rec: RecommendedArtistItem): void {
+    const img = event.target as HTMLImageElement;
+    if (!img) return;
+    const fallback = this._findSongCoverForArtist(rec.sourceArtist);
+    if (fallback && img.src !== fallback) {
+      img.src = fallback;
+    } else {
+      img.style.display = 'none';
+    }
+  }
+
+  private _loadArtistAvatar(name: string): void {
+    if (typeof this._dashboard?.searchSongs !== 'function') return;
+    this._loadingArtists.add(name);
+    this._dashboard.searchSongs(name).subscribe({
+      next: (res) => {
+        const norm = name.trim().toLowerCase();
+        let avatarUrl = '';
+
+        const matchedArtist =
+          res?.artists?.find(
+            (a) =>
+              a.name &&
+              (a.name.toLowerCase() === norm ||
+                a.name.toLowerCase().includes(norm) ||
+                norm.includes(a.name.toLowerCase())),
+          ) || res?.artists?.[0];
+
+        if (matchedArtist?.thumbnails?.length) {
+          const last = matchedArtist.thumbnails[matchedArtist.thumbnails.length - 1];
+          avatarUrl = last?.url ? getHighResThumbnail(last.url, 400) : '';
+        }
+
+        if (!avatarUrl && res?.songs?.length) {
+          const songMatch =
+            res.songs.find(
+              (s) =>
+                s.artist?.name &&
+                (s.artist.name.toLowerCase().includes(norm) ||
+                  norm.includes(s.artist.name.toLowerCase())),
+            ) || res.songs[0];
+          if (songMatch?.thumbnails?.length) {
+            const last = songMatch.thumbnails[songMatch.thumbnails.length - 1];
+            avatarUrl = last?.url ? getHighResThumbnail(last.url, 400) : '';
+          }
+          if (!avatarUrl && songMatch?.videoId) {
+            avatarUrl = `https://i.ytimg.com/vi/${songMatch.videoId}/hqdefault.jpg`;
+          }
+        }
+
+        if (!avatarUrl && res?.albums?.length) {
+          const albumMatch =
+            res.albums.find(
+              (a) =>
+                a.artist?.name &&
+                (a.artist.name.toLowerCase().includes(norm) ||
+                  norm.includes(a.artist.name.toLowerCase())),
+            ) || res.albums[0];
+          if (albumMatch?.thumbnails?.length) {
+            const last = albumMatch.thumbnails[albumMatch.thumbnails.length - 1];
+            avatarUrl = last?.url ? getHighResThumbnail(last.url, 400) : '';
+          }
+        }
+
+        if (avatarUrl) {
+          this.artistAvatars.update((map) => ({ ...map, [name]: avatarUrl }));
+        }
+      },
+      error: () => {
+        // En caso de fallo o desconexión, se mantiene el fallback local
+      },
+    });
+  }
+
+  private _findSongCoverForArtist(artistName: string): string {
+    if (!artistName) return '';
+    const norm = artistName.trim().toLowerCase();
+
+    // 1. Buscar en canciones favoritas locales
+    const liked = this._likesService.$likedSongs();
+    const likedMatch = liked.find(
+      (s) =>
+        s.artist &&
+        (s.artist.toLowerCase().includes(norm) || norm.includes(s.artist.toLowerCase())),
+    );
+    if (likedMatch?.thumbnailUrl) {
+      return likedMatch.thumbnailUrl;
+    }
+    if (likedMatch?.videoId) {
+      return `https://i.ytimg.com/vi/${likedMatch.videoId}/hqdefault.jpg`;
+    }
+
+    // 2. Buscar en recentLikes
+    const recent = this.recentLikes();
+    const recentMatch = recent.find(
+      (t) =>
+        t.artist &&
+        (t.artist.toLowerCase().includes(norm) || norm.includes(t.artist.toLowerCase())),
+    );
+    if (recentMatch) {
+      return this.getRecentLikeCover(recentMatch);
+    }
+
+    // 3. Buscar en secciones de YouTube cargadas
+    for (const section of this.validSections()) {
+      for (const item of section.contents) {
+        if (
+          item.artist?.name &&
+          (item.artist.name.toLowerCase().includes(norm) ||
+            norm.includes(item.artist.name.toLowerCase()))
+        ) {
+          const thumb = this.getThumbnailUrl(item);
+          if (thumb) return thumb;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  private _extractValidImageUrl(item: any): string {
+    if (!item) return '';
+    const raw: any = item;
+    let url = '';
+
+    if (typeof raw.imageUrl === 'string' && raw.imageUrl.trim()) {
+      url = raw.imageUrl.trim();
+    } else if (typeof raw.image_url === 'string' && raw.image_url.trim()) {
+      url = raw.image_url.trim();
+    } else if (typeof raw.image === 'string' && raw.image.trim()) {
+      url = raw.image.trim();
+    } else if (Array.isArray(raw.image) && raw.image.length > 0) {
+      const last = raw.image[raw.image.length - 1];
+      url = last?.['#text'] || last?.url || (typeof last === 'string' ? last : '');
+    } else if (typeof raw.picture === 'string' && raw.picture.trim()) {
+      url = raw.picture.trim();
+    } else if (typeof raw.avatar === 'string' && raw.avatar.trim()) {
+      url = raw.avatar.trim();
+    } else if (Array.isArray(raw.thumbnails) && raw.thumbnails.length > 0) {
+      url = raw.thumbnails[raw.thumbnails.length - 1]?.url || '';
+    }
+
+    // Descartar placeholders genéricos de Last.fm que vienen sin imagen real
+    if (
+      url &&
+      (url.includes('2a96cbd8b46e442fc41c2b86b821562f') || url.endsWith('/default_artist.png'))
+    ) {
+      return '';
+    }
+
+    return url;
   }
 
   public goToLikes(): void {
@@ -269,4 +515,3 @@ export class Home {
     return items.flatMap((item) => (item.type === 'SONG' ? [item] : []));
   }
 }
-

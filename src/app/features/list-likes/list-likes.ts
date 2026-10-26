@@ -63,13 +63,27 @@ export class ListLikes {
 
   /** Canciones normalizadas a `SourceSong` para usar con `DetailSongRow` y la cola */
   public readonly allSourceSongs = computed<SourceSong[]>(() => {
-    return this.baseLikedSongs().map((item) => ({
-      videoId: item.videoId,
-      name: item.name || 'Canción sin título',
-      artist: item.artist ? { name: item.artist, artistId: null } : null,
-      duration: item.duration ?? null,
-      thumbnails: item.thumbnailUrl ? [{ url: item.thumbnailUrl, width: 300, height: 300 }] : null,
-    }));
+    return this.baseLikedSongs().map((item) => {
+      const fallbackUrl = item.videoId
+        ? `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`
+        : '';
+      const mainUrl = item.thumbnailUrl || fallbackUrl;
+      const thumbnails = [];
+      if (fallbackUrl) {
+        thumbnails.push({ url: fallbackUrl, width: 480, height: 360 });
+      }
+      if (mainUrl && mainUrl !== fallbackUrl) {
+        thumbnails.push({ url: mainUrl, width: 800, height: 800 });
+      }
+
+      return {
+        videoId: item.videoId,
+        name: item.name || 'Canción sin título',
+        artist: item.artist ? { name: item.artist, artistId: null } : null,
+        duration: item.duration ?? null,
+        thumbnails: thumbnails.length > 0 ? thumbnails : null,
+      };
+    });
   });
 
   /** Canciones filtradas por el término de búsqueda */
@@ -108,10 +122,17 @@ export class ListLikes {
   /** Miniaturas de las canciones favoritas más recientes para el mosaico del hero */
   public readonly recentThumbnails = computed(() => {
     return this.allSourceSongs()
-      .map((s) => s.thumbnails?.[0]?.url)
+      .map((s) => s.thumbnails?.[s.thumbnails.length - 1]?.url || s.thumbnails?.[0]?.url)
       .filter((url): url is string => Boolean(url))
       .slice(0, 4);
   });
+
+  public onThumbnailError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.opacity = '0.5';
+    }
+  }
 
   /** Indica si la cola actual reproduciéndose proviene de Tus Me Gusta */
   public readonly isPlayingLikes = computed(() => {

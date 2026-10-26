@@ -7,7 +7,7 @@ import { FakeAudioElement, createFakeAudioFactory } from '../testing/fake-audio-
 import { QueueItem } from '../models/queue.model';
 import { PLAYBACK_STATE_VERSION } from './playback-state.store';
 
-const STORAGE_KEY = 'sonara.playback-state.v1';
+const STORAGE_KEY = 'pulso.playback-state.v1';
 
 function storedState(): Record<string, unknown> | null {
   const raw = localStorage.getItem(STORAGE_KEY);

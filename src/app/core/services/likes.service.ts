@@ -25,55 +25,79 @@ export function toLikedSong(
     | {
         videoId?: string;
         youtubeId?: string;
+        youtube_id?: string;
         name?: string;
         title?: string;
         artist?: any;
         thumbnail?: string;
         thumbnailUrl?: string;
+        thumbnail_url?: string;
         thumbnails?: any[];
         duration?: number | string | null;
         albumId?: string | null;
         likedAt?: number;
         createdAt?: string | Date;
+        created_at?: string | Date;
       },
 ): LikedSong {
+  const raw: any = input || {};
+
   const videoId =
-    ('videoId' in input && typeof input.videoId === 'string' && input.videoId) ||
-    ('youtubeId' in input &&
-      typeof (input as { youtubeId?: string }).youtubeId === 'string' &&
-      (input as { youtubeId?: string }).youtubeId) ||
+    (typeof raw.videoId === 'string' && raw.videoId) ||
+    (typeof raw.youtubeId === 'string' && raw.youtubeId) ||
+    (typeof raw.youtube_id === 'string' && raw.youtube_id) ||
     '';
-  const name =
-    input.name ||
-    ('title' in input && typeof input.title === 'string' ? input.title : '') ||
-    'Canción sin título';
+
+  const name = raw.name || (typeof raw.title === 'string' ? raw.title : '') || 'Canción sin título';
 
   let artistName = '';
-  if (typeof input.artist === 'string') {
-    artistName = input.artist;
-  } else if (input.artist && typeof input.artist === 'object' && 'name' in input.artist) {
-    artistName = String(input.artist.name);
+  if (typeof raw.artist === 'string') {
+    artistName = raw.artist;
+  } else if (raw.artist && typeof raw.artist === 'object' && 'name' in raw.artist) {
+    artistName = String(raw.artist.name);
+  } else if (typeof raw.author === 'string') {
+    artistName = raw.author;
+  } else if (typeof raw.channel === 'string') {
+    artistName = raw.channel;
   }
 
   let thumbnailUrl = '';
-  if ('thumbnailUrl' in input && typeof input.thumbnailUrl === 'string') {
-    thumbnailUrl = input.thumbnailUrl;
-  } else if ('thumbnail' in input && typeof input.thumbnail === 'string') {
-    thumbnailUrl = input.thumbnail;
-  } else if (
-    'thumbnails' in input &&
-    Array.isArray(input.thumbnails) &&
-    input.thumbnails.length > 0
-  ) {
-    const last = input.thumbnails[input.thumbnails.length - 1];
-    thumbnailUrl = last?.url || '';
+  if (typeof raw.thumbnailUrl === 'string' && raw.thumbnailUrl.trim()) {
+    thumbnailUrl = raw.thumbnailUrl.trim();
+  } else if (typeof raw.thumbnail_url === 'string' && raw.thumbnail_url.trim()) {
+    thumbnailUrl = raw.thumbnail_url.trim();
+  } else if (typeof raw.thumbnail === 'string' && raw.thumbnail.trim()) {
+    thumbnailUrl = raw.thumbnail.trim();
+  } else if (typeof raw.imageUrl === 'string' && raw.imageUrl.trim()) {
+    thumbnailUrl = raw.imageUrl.trim();
+  } else if (typeof raw.image_url === 'string' && raw.image_url.trim()) {
+    thumbnailUrl = raw.image_url.trim();
+  } else if (typeof raw.image === 'string' && raw.image.trim()) {
+    thumbnailUrl = raw.image.trim();
+  } else if (typeof raw.coverUrl === 'string' && raw.coverUrl.trim()) {
+    thumbnailUrl = raw.coverUrl.trim();
+  } else if (typeof raw.cover === 'string' && raw.cover.trim()) {
+    thumbnailUrl = raw.cover.trim();
+  } else if (Array.isArray(raw.thumbnails) && raw.thumbnails.length > 0) {
+    const last = raw.thumbnails[raw.thumbnails.length - 1];
+    thumbnailUrl = last?.url || (typeof last === 'string' ? last : '');
+  }
+
+  // Fallback garantizado: si no hay carátula pero tenemos videoId de YouTube
+  if (!thumbnailUrl && videoId) {
+    thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
   }
 
   let likedAt = Date.now();
-  if ('likedAt' in input && typeof input.likedAt === 'number') {
-    likedAt = input.likedAt;
-  } else if ('createdAt' in input && input.createdAt) {
-    const parsed = new Date(input.createdAt).getTime();
+  if ('likedAt' in raw && typeof raw.likedAt === 'number') {
+    likedAt = raw.likedAt;
+  } else if (raw.createdAt) {
+    const parsed = new Date(raw.createdAt).getTime();
+    if (!Number.isNaN(parsed)) {
+      likedAt = parsed;
+    }
+  } else if (raw.created_at) {
+    const parsed = new Date(raw.created_at).getTime();
     if (!Number.isNaN(parsed)) {
       likedAt = parsed;
     }
@@ -84,14 +108,14 @@ export function toLikedSong(
     name,
     artist: artistName,
     thumbnailUrl,
-    duration: input.duration ?? null,
-    albumId: 'albumId' in input ? (input.albumId ?? null) : null,
+    duration: raw.duration ?? null,
+    albumId: raw.albumId ?? null,
     likedAt,
   };
 }
 
 /**
- * Servicio centralizado para gestionar canciones favoritas / likes en Sonara.
+ * Servicio centralizado para gestionar canciones favoritas / likes en Pulso.
  * Sincronizado completamente con el backend NestJS (LikesController):
  * - POST /likes/toggle (ToggleLikeDto) -> { isLiked: boolean }
  * - GET  /likes                        -> Track[]

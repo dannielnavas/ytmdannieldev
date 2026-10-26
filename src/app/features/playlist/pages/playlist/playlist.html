@@ -91,6 +91,50 @@
           }
         </div>
       </div>
+    } @else if (isMix()) {
+      <!-- Mix / Radio State -->
+      <div
+        class="h-full flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto"
+      >
+        <div
+          class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 mb-5 shadow-xl shadow-purple-950/50"
+        >
+          <svg lucideSparkles class="w-8 h-8 text-purple-300"></svg>
+        </div>
+        <span
+          class="text-[11px] font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full mb-3"
+        >
+          Mix de YouTube Music
+        </span>
+        <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">
+          No pudimos sintonizar el Mix
+        </h2>
+        <p class="text-sm text-neutral-300 mb-2 leading-relaxed">
+          Hubo un problema al cargar las canciones de esta radio o mix dinámico de YouTube Music.
+        </p>
+        <p class="text-xs text-neutral-400 mb-7 leading-relaxed">
+          Verifica tu conexión a internet o reproduce la pista base si está disponible.
+        </p>
+        <div class="flex items-center gap-3">
+          @if (mixVideoId()) {
+            <button
+              type="button"
+              (click)="playMixBaseTrack()"
+              class="px-5 py-2.5 rounded-full bg-[#8c25f5] hover:bg-[#7b1fe0] active:scale-95 text-white font-semibold text-xs transition-all shadow-lg shadow-purple-950/60 cursor-pointer flex items-center gap-2"
+            >
+              <svg lucidePlay class="w-3.5 h-3.5 fill-white"></svg>
+              <span>Reproducir Pista</span>
+            </button>
+          }
+          <button
+            type="button"
+            (click)="goBack()"
+            class="px-5 py-2.5 rounded-full bg-white/10 hover:bg-white/15 active:scale-95 text-white font-medium text-xs border border-white/10 transition-all cursor-pointer"
+          >
+            Regresar
+          </button>
+        </div>
+      </div>
     } @else {
       <!-- Empty / Error state -->
       <div class="h-full flex flex-col items-center justify-center py-20 px-6 text-center">

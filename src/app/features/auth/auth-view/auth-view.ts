@@ -52,13 +52,13 @@ import { Auth } from '../../../core/services/auth/auth';
         <div class="flex flex-col items-center text-center">
           <img
             [ngSrc]="'logo.png'"
-            alt="Logo Sonara"
+            alt="Logo Pulso"
             width="92"
             height="92"
             priority
             class="mb-3 drop-shadow-sm"
           />
-          <h2 class="text-3xl font-extrabold tracking-tight text-text-primary">SONARA</h2>
+          <h2 class="text-3xl font-extrabold tracking-tight text-text-primary">PULSO</h2>
           <p class="text-sm font-medium text-text-secondary mt-1">
             Tu reproductor personal de YouTube Music
           </p>

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, linkedSignal, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { CoverPalette } from '../../../../core/services/cover-palette.service';
@@ -53,14 +53,27 @@ export class ListSearch {
   private readonly _cover = inject(CoverPalette);
   private readonly _imageHelper = inject(ImageHelperService);
 
+  /** Parámetro de consulta en la URL (?q=...), enlazado por withComponentInputBinding() */
+  public readonly q = input<string>('');
+
   /** Resultado tipado, no `Record<string, any>`. */
   public readonly $searchResult = this._searchStore.result;
+  public readonly $isLoading = this._searchStore.isLoading;
+  public readonly $currentQuery = this._searchStore.currentQuery;
 
   constructor() {
+    effect(() => {
+      const query = this.q()?.trim();
+      if (query && query !== this._searchStore.currentQuery()) {
+        this._searchStore.search(query).subscribe();
+      }
+    });
+
     effect(() => {
       if (this.$searchResult()) {
         // Las URLs marcadas como fallidas caducan al cambiar de búsqueda.
         this._imageHelper.reset();
+        this.selectedArtistIndex.set(0);
       }
     });
   }

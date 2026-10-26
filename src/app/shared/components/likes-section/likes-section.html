@@ -113,12 +113,14 @@
         <div
           class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 shadow-md"
         >
-          @if (song.thumbnailUrl) {
+          @let thumb = getSongThumbnail(song);
+          @if (thumb) {
             <img
-              [src]="song.thumbnailUrl"
+              [src]="thumb"
               [alt]="song.name"
               loading="lazy"
               decoding="async"
+              (error)="onSongImageError($event, song.videoId)"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
           } @else {

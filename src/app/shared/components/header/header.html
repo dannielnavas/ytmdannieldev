@@ -13,73 +13,257 @@
 
     <app-search class="w-full max-w-md md:max-w-lg" />
 
-    <!-- User avatar / profile button -->
-    <div class="flex items-center gap-3 shrink-0">
+    <!-- User avatar / profile button container -->
+    <div class="relative flex items-center gap-3 shrink-0">
       @if (isUserLoading) {
-      <!-- Skeleton state while loading user -->
-      <div class="flex items-center gap-2.5 animate-pulse">
-        <div class="w-8 h-8 rounded-full bg-white/10"></div>
-        <div class="hidden md:flex flex-col gap-1.5">
-          <div class="w-20 h-3 bg-white/10 rounded"></div>
-          <div class="w-14 h-2.5 bg-white/5 rounded"></div>
+        <!-- Skeleton state while loading user -->
+        <div class="flex items-center gap-2.5 animate-pulse">
+          <div class="w-8 h-8 rounded-full bg-white/10"></div>
+          <div class="hidden md:flex flex-col gap-1.5">
+            <div class="w-20 h-3 bg-white/10 rounded"></div>
+            <div class="w-14 h-2.5 bg-white/5 rounded"></div>
+          </div>
         </div>
-      </div>
       } @else {
-      <!-- Premium badge if user has YouTube Music Premium -->
-      @if (user.is_youtube_premium) {
-      <div
-        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/15 border border-amber-500/30 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.12)] select-none"
-        title="Suscripción Premium Activa">
-        <svg lucideCrown class="w-3.5 h-3.5 fill-amber-400/20 text-amber-400"></svg>
-        <span>Premium</span>
-      </div>
-      }
-
-      <!-- User profile chip -->
-      <button type="button"
-        class="flex items-center gap-2.5 py-1 px-1.5 md:pr-3 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/30 transition-all duration-200 cursor-pointer select-none group shadow-sm text-left"
-        [title]="
-                user.full_name
-                  ? user.full_name +
-                    (user.youtube_handle ? ' (' + user.youtube_handle + ')' : '') +
-                    (user.email ? ' • ' + user.email : '')
-                  : 'Perfil de Usuario'
-              ">
-        <!-- Avatar -->
-        <div
-          class="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-purple-500/30 bg-purple-600/20 text-purple-200 flex items-center justify-center shadow-inner">
-          @if (user.profile_image && !hasAvatarError()) {
-          <img [src]="user.profile_image" [alt]="user.full_name || 'Foto de perfil'" referrerpolicy="no-referrer"
-            (error)="hasAvatarError.set(true)" class="w-full h-full object-cover" />
-          } @else {
-          <span class="text-xs font-semibold">
-            {{ $lettersName() || 'U' }}
-          </span>
-          }
-
-          @if (user.is_youtube_premium) {
-          <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#0c0a15]"
-            title="Premium"></span>
-          }
-        </div>
-
-        <!-- User Name & Handle / Email -->
-        @if (user.full_name || user.youtube_handle || user.email) {
-        <div class="hidden md:flex flex-col text-left min-w-0 max-w-[140px] lg:max-w-[180px] leading-tight">
-          @if (user.full_name) {
-          <span class="text-xs font-semibold text-neutral-100 truncate group-hover:text-purple-300 transition-colors">
-            {{ user.full_name }}
-          </span>
-          }
-          @if (user.youtube_handle || user.email) {
-          <span class="text-[10px] text-neutral-400 truncate">
-            {{ user.youtube_handle || user.email }}
-          </span>
-          }
-        </div>
+        <!-- Premium badge if user has YouTube Music Premium -->
+        @if (user.is_youtube_premium) {
+          <div
+            class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-amber-500/15 border border-amber-500/30 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.12)] select-none"
+            title="Suscripción Premium Activa"
+          >
+            <svg lucideCrown class="w-3.5 h-3.5 fill-amber-400/20 text-amber-400"></svg>
+            <span>Premium</span>
+          </div>
         }
-      </button>
+
+        <!-- User profile chip trigger -->
+        <button
+          type="button"
+          (click)="toggleMenu()"
+          [attr.aria-expanded]="isMenuOpen()"
+          aria-haspopup="true"
+          class="flex items-center gap-2.5 py-1 px-1.5 md:pr-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/30 transition-all duration-200 cursor-pointer select-none group shadow-sm text-left"
+          [class.border-purple-500/50]="isMenuOpen()"
+          [class.bg-white/[0.08]]="isMenuOpen()"
+          [title]="
+            user.full_name
+              ? user.full_name +
+                (user.youtube_handle ? ' (' + user.youtube_handle + ')' : '') +
+                (user.email ? ' • ' + user.email : '')
+              : 'Perfil de Usuario'
+          "
+        >
+          <!-- Avatar -->
+          <div
+            class="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-purple-500/30 bg-purple-600/20 text-purple-200 flex items-center justify-center shadow-inner"
+          >
+            @if (user.profile_image && !hasAvatarError()) {
+              <img
+                [src]="user.profile_image"
+                [alt]="user.full_name || 'Foto de perfil'"
+                referrerpolicy="no-referrer"
+                (error)="hasAvatarError.set(true)"
+                class="w-full h-full object-cover"
+              />
+            } @else {
+              <span class="text-xs font-semibold">
+                {{ $lettersName() || 'U' }}
+              </span>
+            }
+
+            @if (user.is_youtube_premium) {
+              <span
+                class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#0c0a15]"
+                title="Premium"
+              ></span>
+            }
+          </div>
+
+          <!-- User Name & Handle / Email -->
+          @if (user.full_name || user.youtube_handle || user.email) {
+            <div class="hidden md:flex flex-col text-left min-w-0 max-w-[140px] lg:max-w-[180px] leading-tight">
+              @if (user.full_name) {
+                <span class="text-xs font-semibold text-neutral-100 truncate group-hover:text-purple-300 transition-colors">
+                  {{ user.full_name }}
+                </span>
+              }
+              @if (user.youtube_handle || user.email) {
+                <span class="text-[10px] text-neutral-400 truncate">
+                  {{ user.youtube_handle || user.email }}
+                </span>
+              }
+            </div>
+          }
+
+          <!-- Chevron indicator -->
+          <svg
+            lucideChevronDown
+            class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-transform duration-200 shrink-0"
+            [class.rotate-180]="isMenuOpen()"
+          ></svg>
+        </button>
+
+        <!-- Click outside backdrop for dropdown -->
+        @if (isMenuOpen()) {
+          <div class="fixed inset-0 z-40" (click)="closeMenu()"></div>
+        }
+
+        <!-- Dropdown Menu -->
+        @if (isMenuOpen()) {
+          <div
+            class="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-[#13111f]/95 border border-white/10 p-2 shadow-2xl shadow-purple-950/50 backdrop-blur-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1"
+            role="menu"
+            aria-label="Menú de usuario"
+          >
+            <!-- User summary inside dropdown -->
+            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
+              <div
+                class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 border border-purple-500/40 bg-purple-600/20 text-purple-200 flex items-center justify-center font-bold text-sm shadow-inner"
+              >
+                @if (user.profile_image && !hasAvatarError()) {
+                  <img
+                    [src]="user.profile_image"
+                    [alt]="user.full_name || 'Foto'"
+                    class="w-full h-full object-cover"
+                    referrerpolicy="no-referrer"
+                  />
+                } @else {
+                  <span>{{ $lettersName() || 'U' }}</span>
+                }
+                @if (user.is_youtube_premium) {
+                  <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#13111f]"></span>
+                }
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-bold text-white truncate" [title]="user.full_name || 'Usuario'">
+                  {{ user.full_name || 'Usuario' }}
+                </p>
+                @if (user.youtube_handle || user.email) {
+                  <p class="text-[11px] text-neutral-400 truncate" [title]="user.youtube_handle || user.email">
+                    {{ user.youtube_handle || user.email }}
+                  </p>
+                }
+                @if (user.is_youtube_premium) {
+                  <span
+                    class="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded-full"
+                  >
+                    <svg lucideCrown class="w-2.5 h-2.5 fill-amber-400 text-amber-400"></svg>
+                    Premium
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Action: Mis Me Gusta -->
+            <button
+              type="button"
+              (click)="goToLikes()"
+              class="flex items-center gap-3 w-full p-2.5 rounded-xl text-neutral-300 hover:text-white hover:bg-white/[0.06] transition-colors text-left text-xs font-medium cursor-pointer"
+              role="menuitem"
+            >
+              <div
+                class="w-7 h-7 rounded-lg bg-pink-500/15 border border-pink-500/25 text-pink-400 flex items-center justify-center shrink-0"
+              >
+                <svg lucideHeart class="w-3.5 h-3.5 fill-pink-400/40"></svg>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-semibold text-neutral-200">Mis Me Gusta</span>
+                <span class="text-[10px] text-neutral-400">Ver canciones guardadas</span>
+              </div>
+            </button>
+
+            <div class="h-px bg-white/10 my-0.5"></div>
+
+            <!-- Action: Cerrar sesión -->
+            <button
+              type="button"
+              (click)="requestLogout()"
+              class="flex items-center gap-3 w-full p-2.5 rounded-xl text-rose-300 hover:text-rose-100 hover:bg-rose-500/15 transition-colors text-left text-xs font-medium cursor-pointer group/logout"
+              role="menuitem"
+            >
+              <div
+                class="w-7 h-7 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-400 group-hover/logout:text-rose-300 flex items-center justify-center shrink-0"
+              >
+                <svg lucideLogOut class="w-3.5 h-3.5"></svg>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="font-semibold text-rose-300 group-hover/logout:text-rose-200">Cerrar sesión</span>
+                <span class="text-[10px] text-rose-400/70">Salir de esta cuenta</span>
+              </div>
+            </button>
+          </div>
+        }
       }
     </div>
   </div>
 </header>
+
+<!-- Modal de confirmación de cierre de sesión -->
+@if (showConfirmModal()) {
+  <div
+    class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="logout-dialog-title"
+  >
+    <div
+      class="w-full max-w-sm rounded-3xl bg-[#141126] border border-white/15 p-6 shadow-2xl shadow-purple-950/40 space-y-5 text-center relative overflow-hidden animate-in zoom-in-95 duration-150"
+    >
+      <!-- Ambient decorative glow -->
+      <div class="absolute -top-12 -left-12 w-36 h-36 bg-rose-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Close button -->
+      <button
+        type="button"
+        (click)="cancelLogout()"
+        class="absolute top-4 right-4 text-neutral-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+        aria-label="Cerrar modal"
+      >
+        <svg lucideX class="w-4 h-4"></svg>
+      </button>
+
+      <!-- Icon -->
+      <div
+        class="w-14 h-14 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto shadow-inner"
+      >
+        <svg lucideLogOut class="w-7 h-7"></svg>
+      </div>
+
+      <!-- Content -->
+      <div class="space-y-1.5">
+        <h3 id="logout-dialog-title" class="text-lg font-bold text-white tracking-tight">
+          ¿Cerrar sesión?
+        </h3>
+        <p class="text-xs text-neutral-300 leading-relaxed">
+          Se cerrará la sesión de tu cuenta en Pulso. Para volver a escuchar tu música tendrás que iniciar sesión nuevamente con Google.
+        </p>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex items-center gap-3 pt-1">
+        <button
+          type="button"
+          (click)="cancelLogout()"
+          [disabled]="isLoggingOut()"
+          class="flex-1 py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white text-xs font-semibold transition-all border border-white/10 cursor-pointer disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          (click)="confirmLogout()"
+          [disabled]="isLoggingOut()"
+          class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold shadow-lg shadow-rose-900/40 hover:shadow-rose-800/60 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          @if (isLoggingOut()) {
+            <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            <span>Cerrando...</span>
+          } @else {
+            <svg lucideLogOut class="w-3.5 h-3.5"></svg>
+            <span>Cerrar sesión</span>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

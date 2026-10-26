@@ -5,7 +5,7 @@ import { LikesService } from '../../../core/services/likes.service';
 /**
  * Botón interactivo de corazón para dar like / guardar canciones en favoritos.
  *
- * Sigue fielmente la estética de Sonara:
+ * Sigue fielmente la estética de Pulso:
  * - Outline neutral y hover en escala cuando no está marcado.
  * - Relleno vibrante en color rosa/rose con brillo (glow) y animación de 'pop' al marcarlo.
  * - Modo `autoHide` para listas/filas: oculto por defecto, visible al hacer hover sobre la fila o si ya tiene like.
@@ -32,6 +32,9 @@ export class LikeButton {
   /** Artista opcional si no viene en `song`. */
   public readonly artist = input<string | null>(null);
 
+  /** Carátula opcional si se conoce (para enviarla al backend al guardar). */
+  public readonly thumbnail = input<string | null>(null);
+
   /** Tamaño visual del botón: xs (3.5), sm (4), md (5), lg (6). */
   public readonly size = input<'xs' | 'sm' | 'md' | 'lg'>('md');
 
@@ -50,7 +53,7 @@ export class LikeButton {
 
   /** ID efectivo de la canción. */
   public readonly effectiveVideoId = computed(() => {
-    return this.videoId() || this.song()?.videoId || '';
+    return this.videoId() || this.song()?.videoId || this.song()?.youtubeId || '';
   });
 
   /** Indica si la canción actual tiene like. */
@@ -75,11 +78,26 @@ export class LikeButton {
     const id = this.effectiveVideoId();
     if (!id) return;
 
-    const target = this.song() || {
-      videoId: id,
-      name: this.name() || '',
-      artist: this.artist() || '',
-    };
+    const currentSong = this.song();
+    const thumb =
+      this.thumbnail() ||
+      (currentSong && typeof currentSong === 'object'
+        ? currentSong.thumbnailUrl || currentSong.thumbnail
+        : null) ||
+      `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
+    const target = currentSong
+      ? {
+          ...(typeof currentSong === 'object' ? currentSong : {}),
+          videoId: id,
+          thumbnailUrl: thumb,
+        }
+      : {
+          videoId: id,
+          name: this.name() || '',
+          artist: this.artist() || '',
+          thumbnailUrl: thumb,
+        };
 
     const nextState = this._likesService.toggleLike(target);
 

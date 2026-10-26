@@ -1,11 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { of } from 'rxjs';
 import { SearchStore } from './search-store';
+import { Dashboard } from '../services/dashboard/dashboard';
 
 describe('SearchStore', () => {
   let store: SearchStore;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), SearchStore],
+    });
     store = TestBed.inject(SearchStore);
   });
 
@@ -46,5 +52,20 @@ describe('SearchStore', () => {
     store.clear();
 
     expect(store.result()).toBeNull();
+    expect(store.currentQuery()).toBe('');
+    expect(store.isLoading()).toBe(false);
+  });
+
+  it('performs search and updates loading and result states', () => {
+    const dashboard = TestBed.inject(Dashboard);
+    const mockResult = { songs: [], playlists: [], artists: [], albums: [] };
+    vi.spyOn(dashboard, 'searchSongs').mockReturnValue(of(mockResult as any));
+
+    store.search('Dua Lipa').subscribe();
+
+    expect(dashboard.searchSongs).toHaveBeenCalledWith('Dua Lipa');
+    expect(store.currentQuery()).toBe('Dua Lipa');
+    expect(store.result()).toBe(mockResult as any);
+    expect(store.isLoading()).toBe(false);
   });
 });

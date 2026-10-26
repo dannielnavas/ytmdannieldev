@@ -5,7 +5,8 @@ import { RepeatMode } from './playback.service';
 /** Bumped whenever the shape changes, so old payloads are discarded. */
 export const PLAYBACK_STATE_VERSION = 1;
 
-const STORAGE_KEY = 'sonara.playback-state.v1';
+export const STORAGE_KEY = 'pulso.playback-state.v1';
+export const LEGACY_STORAGE_KEY = 'sonara.playback-state.v1';
 
 /** Minimum interval between position writes, in ms. */
 const SAVE_DEBOUNCE_MS = 400;
@@ -71,7 +72,10 @@ export class PlaybackStateStore {
   public load(): PersistedPlaybackState | null {
     let raw: string | null = null;
     try {
-      raw = globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
+      raw =
+        globalThis.localStorage?.getItem(STORAGE_KEY) ??
+        globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY) ??
+        null;
     } catch {
       // Private mode or storage disabled: session restore simply does not work.
       return null;
@@ -132,6 +136,7 @@ export class PlaybackStateStore {
     this._pending = null;
     try {
       globalThis.localStorage?.removeItem(STORAGE_KEY);
+      globalThis.localStorage?.removeItem(LEGACY_STORAGE_KEY);
     } catch {
       /* ignore */
     }

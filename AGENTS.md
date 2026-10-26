@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Electron desktop app "Sonara" (YouTube Music player): Angular 22 renderer + Electron main process. The Angular CLI output dir is `dist/ytmdannieldev/browser/`; the compiled Electron main runs from `dist-electron/`.
+Electron desktop app "Pulso" (YouTube Music player): Angular 22 renderer + Electron main process. The Angular CLI output dir is `dist/ytmdannieldev/browser/`; the compiled Electron main runs from `dist-electron/`.
 
 ## Commands
 

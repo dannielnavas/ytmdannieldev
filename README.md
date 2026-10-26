@@ -1,4 +1,4 @@
-# Sonara
+# Pulso
 
 Reproductor de YouTube Music para escritorio. Electron 39 + Angular 22.
 
@@ -128,7 +128,7 @@ También funciona arrastrando.
 ### Estado y reanudación
 
 La cola, el índice, la posición, el volumen, la velocidad y los modos se guardan
-en `localStorage` (`sonara.playback-state.v1`) y se restauran al reabrir la app.
+en `localStorage` (`pulso.playback-state.v1`) y se restauran al reabrir la app.
 No es un secreto, por eso no pasa por `safeStorage`: la cookie de sesión sigue
 cifrada aparte. No se intenta el autoplay; la pista queda cargada y la posición
 se aplica en el primer play.

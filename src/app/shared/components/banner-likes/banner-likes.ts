@@ -50,11 +50,22 @@ export class BannerLikes {
   /** Portadas de canciones favoritas para mostrar en el preview */
   public readonly recentThumbnails = computed(() => {
     return this.likedSongs()
-      .map((s) => s.thumbnailUrl)
+      .map(
+        (s) =>
+          s.thumbnailUrl ||
+          (s.videoId ? `https://i.ytimg.com/vi/${s.videoId}/hqdefault.jpg` : ''),
+      )
       .filter((url): url is string => Boolean(url))
       .slice(-3)
       .reverse();
   });
+
+  public onThumbnailError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.style.display = 'none';
+    }
+  }
 
   public goToMyLikes(): void {
     this._router.navigate(['/likes']);

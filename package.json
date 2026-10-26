@@ -1,9 +1,9 @@
 {
-  "name": "Sonara",
-  "desktopName": "sonara.desktop",
+  "name": "Pulso",
+  "desktopName": "pulso.desktop",
   "version": "0.1.0",
   "description": "Modern YouTube Music Desktop Player",
-  "author": "Sonara Developers <contact@dannieldev.dev>",
+  "author": "Pulso Developers <contact@dannieldev.dev>",
   "main": "dist-electron/main.js",
   "scripts": {
     "ng": "ng",
@@ -55,8 +55,8 @@
     "wait-on": "^9.1.0"
   },
   "build": {
-    "appId": "dev.dannieldev.sonara",
-    "productName": "Sonara",
+    "appId": "dev.dannieldev.pulso",
+    "productName": "Pulso",
     "directories": {
       "output": "dist-release"
     },
@@ -126,7 +126,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Sonara"
+      "shortcutName": "Pulso"
     },
     "linux": {
       "syncDesktopName": true,
@@ -138,9 +138,9 @@
         }
       ],
       "category": "AudioVideo;Audio;Player;",
-      "maintainer": "Sonara Developers <contact@dannieldev.dev>",
+      "maintainer": "Pulso Developers <contact@dannieldev.dev>",
       "synopsis": "Modern YouTube Music Desktop Player",
-      "description": "Sonara is a sleek, modern desktop YouTube Music player built with Angular and Electron.",
+      "description": "Pulso is a sleek, modern desktop YouTube Music player built with Angular and Electron.",
       "target": [
         {
           "target": "pacman",

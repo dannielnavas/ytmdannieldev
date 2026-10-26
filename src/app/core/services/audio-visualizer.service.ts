@@ -64,7 +64,7 @@ export class AudioVisualizerService {
   public setStyle(style: VisualizerStyle): void {
     this.$style.set(style);
     try {
-      localStorage.setItem('sonara.visualizer-style', style);
+      localStorage.setItem('pulso.visualizer-style', style);
     } catch {
       // Ignorar en entornos sin localStorage
     }
@@ -80,7 +80,9 @@ export class AudioVisualizerService {
 
   private _loadStyle(): VisualizerStyle {
     try {
-      const saved = localStorage.getItem('sonara.visualizer-style');
+      const saved =
+        localStorage.getItem('pulso.visualizer-style') ??
+        localStorage.getItem('sonara.visualizer-style');
       if (saved === 'waves' || saved === 'bars' || saved === 'mirror' || saved === 'pulse') {
         return saved;
       }

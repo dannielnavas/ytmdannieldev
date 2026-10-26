@@ -17,7 +17,7 @@ export class MainLayout {
   private readonly _router = inject(Router);
   public readonly controls = inject(WindowControlsService);
 
-  public $title = signal('Sonara');
+  public $title = signal('Pulso');
   public $isNowPlaying = signal<boolean>(this._router.url.includes('/now-playing'));
   public $isMiniPlayer = this.controls.isMiniPlayer;
 

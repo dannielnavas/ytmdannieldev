@@ -65,6 +65,7 @@
                 <img
                   [src]="recentThumbnails()[0]"
                   alt="Última canción favorita guardada"
+                  (error)="onThumbnailError($event)"
                   class="w-full h-full object-cover rounded-xl brightness-90 group-hover/badge:scale-105 transition-transform duration-300"
                 />
                 <!-- Floating Mini Heart badge overlay -->

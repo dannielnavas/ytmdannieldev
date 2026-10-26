@@ -1,6 +1,7 @@
 import { Service, signal } from '@angular/core';
 
-const STORAGE_KEY = 'sonara.lyrics-preferences.v1';
+const STORAGE_KEY = 'pulso.lyrics-preferences.v1';
+const LEGACY_STORAGE_KEY = 'sonara.lyrics-preferences.v1';
 
 /** Bumped whenever the shape changes, so old payloads are discarded. */
 export const LYRICS_PREFERENCES_VERSION = 1;
@@ -68,7 +69,9 @@ export class LyricsPreferencesService {
 
   private _load(): number {
     try {
-      const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
+      const raw =
+        globalThis.localStorage?.getItem(STORAGE_KEY) ??
+        globalThis.localStorage?.getItem(LEGACY_STORAGE_KEY);
       if (!raw) return 0;
       const parsed = JSON.parse(raw) as PersistedLyricsPreferences;
       if (parsed?.version !== LYRICS_PREFERENCES_VERSION) return 0;
