@@ -43,10 +43,30 @@
         [class.shadow-md]="$viewMode() === 'cover'"
         [class.text-white/70]="$viewMode() !== 'cover'"
         [class.hover:text-white]="$viewMode() !== 'cover'"
-        aria-label="Ver solo portada inmersiva"
+        aria-label="Ver tocadiscos con vinilo"
       >
-        <svg lucideMusic class="w-3.5 h-3.5"></svg>
-        <span>Portada</span>
+        <svg lucideDisc class="w-3.5 h-3.5"></svg>
+        <span>Vinilo</span>
+      </button>
+
+      <!-- iPod mode button -->
+      <button
+        type="button"
+        (click)="toggleViewMode('ipod')"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-white/80"
+        [class.bg-white]="$viewMode() === 'ipod'"
+        [class.text-black]="$viewMode() === 'ipod'"
+        [class.shadow-md]="$viewMode() === 'ipod'"
+        [class.text-white/70]="$viewMode() !== 'ipod'"
+        [class.hover:text-white]="$viewMode() !== 'ipod'"
+        aria-label="Ver reproductor clásico estilo iPod"
+      >
+        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="3"></rect>
+          <rect x="8" y="5" width="8" height="6" rx="1"></rect>
+          <circle cx="12" cy="16" r="3"></circle>
+        </svg>
+        <span>iPod</span>
       </button>
 
       <button
@@ -184,101 +204,95 @@
 
   <!-- Main Content Area -->
   <main class="relative z-10 flex-1 min-h-0 px-6 lg:px-12 flex flex-col justify-between pb-28">
-    <!-- VIEW 1: FULL HERO COVER MODE (Matching the screenshot layout) -->
+    <!-- VIEW 1: FULL HERO VINYL RECORD MODE (Tal cual un vinilo con la portada en el centro) -->
     <div
       [class.hidden]="$viewMode() !== 'cover'"
       class="flex-1 min-h-0 flex flex-col items-center justify-center relative w-full max-w-5xl mx-auto"
     >
-      <!-- Integrated Seamless Artwork Stage -->
+      <!-- Integrated Seamless Turntable Stage -->
       <div
-        class="relative w-full h-[54vh] sm:h-[58vh] max-h-[480px] flex items-center justify-center py-4"
+        class="relative w-full h-[54vh] sm:h-[58vh] max-h-[500px] flex items-center justify-center py-4"
       >
         @if (currentArtworkUrl()) {
-          <!-- Ambient blurred halo behind image (audio-reactive breathing) -->
+          <!-- Ambient blurred halo behind vinyl (audio-reactive breathing) -->
           <div
-            class="ambient-cover-glow absolute w-[75%] max-w-[460px] aspect-square rounded-full blur-[100px] pointer-events-none transition-all duration-700"
+            class="ambient-cover-glow absolute w-[75%] max-w-[480px] aspect-square rounded-full blur-[110px] pointer-events-none transition-all duration-700"
             [class.animate-glow-pulse]="playbackService.$isPlaying()"
-            [style.background-color]="'rgba(' + dominantRgbString() + ', 0.55)'"
+            [style.background-color]="'rgba(' + dominantRgbString() + ', 0.6)'"
           ></div>
 
           <!-- Concentric Acoustic Soundwave Rings (pulse when playing) -->
           @if (playbackService.$isPlaying()) {
             <div
-              class="concentric-ring-1 absolute w-[340px] sm:w-[420px] aspect-square rounded-full border pointer-events-none"
+              class="concentric-ring-1 absolute w-[360px] sm:w-[440px] aspect-square rounded-full border pointer-events-none"
               [style.border-color]="'rgba(' + dominantRgbString() + ', 0.35)'"
             ></div>
             <div
-              class="concentric-ring-2 absolute w-[420px] sm:w-[500px] aspect-square rounded-full border pointer-events-none"
+              class="concentric-ring-2 absolute w-[440px] sm:w-[530px] aspect-square rounded-full border pointer-events-none"
               [style.border-color]="'rgba(' + dominantRgbString() + ', 0.2)'"
             ></div>
           }
 
-          <!-- Deluxe Artwork & Vinyl Stage Container -->
+          <!-- Turntable Platter Base & Vinyl Container -->
           <div
-            class="artwork-stage-container relative flex items-center justify-center max-w-[620px] w-full h-full select-none cursor-pointer group/art"
-            (click)="playbackService.togglePlay()"
-            [title]="playbackService.$isPlaying() ? 'Pausar reproducción' : 'Continuar reproducción'"
+            #turntableStage
+            class="turntable-stage relative flex items-center justify-center w-full max-w-[480px] sm:max-w-[500px] aspect-square select-none cursor-pointer group/art"
+            (click)="onPlatterClick($event)"
+            title="Haz clic en el vinilo o arrastra la aguja para cambiar el momento"
           >
-            <!-- Spinning Vinyl Record (Slides out from behind sleeve when playing) -->
+            <!-- Platter shadow & edge -->
             <div
-              class="vinyl-disc absolute aspect-square w-[75%] max-w-[380px] rounded-full transition-transform duration-700 ease-out z-0 shadow-2xl flex items-center justify-center"
-              [class.vinyl-playing]="playbackService.$isPlaying()"
-              [class.vinyl-paused]="!playbackService.$isPlaying()"
+              class="absolute inset-1 sm:inset-2 rounded-full pointer-events-none"
+              [style.box-shadow]="'0 30px 80px -15px rgba(0,0,0,0.95), 0 0 55px -10px rgba(' + dominantRgbString() + ', 0.45)'"
+            ></div>
+
+            <!-- THE VINYL RECORD LP (Full size with circular album cover in the center) -->
+            <div
+              class="vinyl-lp relative w-[88%] sm:w-[90%] aspect-square rounded-full overflow-hidden flex items-center justify-center transition-all duration-700 shadow-2xl"
+              [class.vinyl-lp-playing]="playbackService.$isPlaying()"
+              [class.vinyl-lp-paused]="!playbackService.$isPlaying()"
             >
-              <!-- Vinyl Grooves Sheen Overlay -->
-              <div class="vinyl-grooves absolute inset-0 rounded-full"></div>
-              <!-- Vinyl Specular Light Reflection -->
-              <div class="vinyl-reflection absolute inset-0 rounded-full"></div>
-              <!-- Center Album Label -->
+              <!-- Vinyl Grooves Pattern -->
+              <div class="vinyl-grooves absolute inset-0 rounded-full pointer-events-none"></div>
+
+              <!-- Vinyl Specular Light Beams (4-point cross reflections) -->
+              <div class="vinyl-light-reflection absolute inset-0 rounded-full pointer-events-none"></div>
+
+              <!-- Outer Run-out Groove Edge Ring -->
+              <div class="absolute inset-[26%] rounded-full border border-white/[0.08] pointer-events-none"></div>
+
+              <!-- CENTER ALBUM COVER LABEL (Tal cual los vinilos reales) -->
               <div
-                class="relative w-[34%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-inner z-10 flex items-center justify-center bg-black"
+                class="center-album-label relative w-[42%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-2xl flex items-center justify-center bg-black z-10"
               >
+                <!-- Album cover image cropped circularly -->
                 <img
+                  #artImg
+                  crossorigin="anonymous"
                   [src]="currentArtworkUrl()"
                   [alt]="trackTitle()"
-                  class="w-full h-full object-cover select-none"
+                  (load)="onImageLoad(artImg)"
+                  (error)="playbackService.reportArtworkError()"
+                  class="w-full h-full object-cover select-none pointer-events-none"
                 />
-                <!-- Spindle Center Hole -->
+
+                <!-- Label circular inner paper gloss & border ring -->
+                <div class="absolute inset-0 rounded-full border border-black/40 shadow-inner pointer-events-none"></div>
+
+                <!-- Center Spindle Hole (metallic grommet + dark center hole) -->
                 <div
-                  class="absolute w-3.5 h-3.5 rounded-full bg-neutral-900 border-2 border-neutral-400 shadow-md"
-                ></div>
+                  class="center-spindle absolute w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-neutral-900 border-2 border-neutral-300 shadow-md flex items-center justify-center pointer-events-none z-20"
+                >
+                  <div class="w-1.5 h-1.5 rounded-full bg-neutral-950"></div>
+                </div>
               </div>
-            </div>
 
-            <!-- Deluxe Album Jacket (Cover) -->
-            <div
-              class="album-jacket relative aspect-square w-[78%] max-w-[390px] rounded-3xl overflow-hidden z-10 border border-white/20 transition-all duration-500"
-              [class.jacket-playing]="playbackService.$isPlaying()"
-              [style.box-shadow]="
-                '0 28px 65px -12px rgba(0,0,0,0.85), 0 0 45px -5px rgba(' +
-                dominantRgbString() +
-                ', 0.45)'
-              "
-            >
-              <img
-                #artImg
-                crossorigin="anonymous"
-                [src]="currentArtworkUrl()"
-                [alt]="trackTitle()"
-                (load)="onImageLoad(artImg)"
-                (error)="playbackService.reportArtworkError()"
-                class="w-full h-full object-cover select-none"
-              />
-
-              <!-- Specular Light Sheen Beam Sweep -->
-              <div class="jacket-sheen absolute inset-0 pointer-events-none"></div>
-
-              <!-- Inner Bevel Glass Border Highlight -->
+              <!-- Play/Pause Indicator Overlay on hover -->
               <div
-                class="absolute inset-0 rounded-3xl border border-white/25 pointer-events-none"
-              ></div>
-
-              <!-- Play/Pause Indicator on hover -->
-              <div
-                class="absolute inset-0 bg-black/30 opacity-0 group-hover/art:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20"
+                class="absolute inset-0 bg-black/35 opacity-0 group-hover/art:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-30"
               >
                 <div
-                  class="w-14 h-14 rounded-full bg-white/90 text-neutral-950 flex items-center justify-center shadow-xl backdrop-blur-md transform scale-90 group-hover/art:scale-100 transition-transform"
+                  class="w-14 h-14 rounded-full bg-white/90 text-neutral-950 flex items-center justify-center shadow-2xl backdrop-blur-md transform scale-90 group-hover/art:scale-100 transition-transform"
                 >
                   @if (playbackService.$isPlaying()) {
                     <svg lucidePause class="w-6 h-6 fill-current"></svg>
@@ -288,10 +302,200 @@
                 </div>
               </div>
             </div>
+
+            <!-- Realistic Integrated Turntable Tonearm (Brazo y aguja 100% unificados) -->
+            <div
+              class="turntable-tonearm absolute -top-3 sm:-top-5 -right-1 sm:right-1 w-36 sm:w-44 h-72 sm:h-88 pointer-events-none z-40 select-none"
+              [class.tonearm-playing]="playbackService.$isPlaying()"
+              [class.tonearm-paused]="!playbackService.$isPlaying()"
+            >
+              <svg
+                viewBox="0 0 160 320"
+                class="w-full h-full drop-shadow-2xl overflow-visible pointer-events-none"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <!-- Pivot Base Radial Gradient -->
+                  <radialGradient id="pivotBaseGrad" cx="35%" cy="30%" r="65%">
+                    <stop offset="0%" stop-color="#ffffff" />
+                    <stop offset="35%" stop-color="#cbd5e1" />
+                    <stop offset="70%" stop-color="#64748b" />
+                    <stop offset="100%" stop-color="#1e293b" />
+                  </radialGradient>
+
+                  <!-- Gimbal Ring Metallic Gradient -->
+                  <linearGradient id="gimbalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f1f5f9" />
+                    <stop offset="45%" stop-color="#94a3b8" />
+                    <stop offset="100%" stop-color="#334155" />
+                  </linearGradient>
+
+                  <!-- Wand Tube Cylindrical Metallic Gradient -->
+                  <linearGradient id="wandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#e2e8f0" />
+                    <stop offset="30%" stop-color="#ffffff" />
+                    <stop offset="70%" stop-color="#94a3b8" />
+                    <stop offset="100%" stop-color="#475569" />
+                  </linearGradient>
+
+                  <!-- Counterweight Gradient -->
+                  <linearGradient id="counterweightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#f8fafc" />
+                    <stop offset="35%" stop-color="#cbd5e1" />
+                    <stop offset="70%" stop-color="#64748b" />
+                    <stop offset="100%" stop-color="#1e293b" />
+                  </linearGradient>
+
+                  <!-- Amber Stylus LED Glow -->
+                  <filter id="amberNeedleGlow" x="-60%" y="-60%" width="220%" height="220%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#f59e0b" flood-opacity="0.95" />
+                  </filter>
+
+                  <!-- Tonearm Ambient Drop Shadow onto Vinyl -->
+                  <filter id="tonearmShadow" x="-30%" y="-20%" width="160%" height="150%">
+                    <feDropShadow dx="-6" dy="12" stdDeviation="6" flood-color="#000000" flood-opacity="0.65" />
+                  </filter>
+                </defs>
+
+                <!-- FIXED BASE (Gimbal base plate & parking rest) -->
+                <circle cx="124" cy="48" r="26" fill="url(#pivotBaseGrad)" stroke="#475569" stroke-width="1.5" />
+                <circle cx="124" cy="48" r="19" fill="#0f172a" stroke="#334155" stroke-width="1.5" />
+                <circle cx="124" cy="48" r="14" fill="#020617" stroke="#475569" stroke-width="1" />
+
+                <!-- Tonearm Rest Post & Safety Clip (outside vinyl edge) -->
+                <g class="tonearm-rest-post" opacity="0.9">
+                  <rect x="135" y="148" width="5" height="18" rx="1.5" fill="#475569" stroke="#1e293b" stroke-width="0.5" />
+                  <path d="M 132 148 C 132 153, 143 153, 143 148" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+                </g>
+
+                <!-- ROTATING ASSEMBLY: Wand + Headshell + Needle (Rotates dynamically following song progress or user dragging) -->
+                <g
+                  class="tonearm-assembly"
+                  [class.tonearm-animated]="!$isDraggingTonearm()"
+                  [class.tonearm-dragging]="$isDraggingTonearm()"
+                  [style.transform]="'rotate(' + tonearmAngle() + 'deg) ' + ((playbackService.$isPlaying() || $isDraggingTonearm()) ? 'translateY(0)' : 'translateY(-4px)')"
+                  filter="url(#tonearmShadow)"
+                >
+                  <!-- Rear Counterweight Stub -->
+                  <path d="M 124 48 L 132 20" stroke="#64748b" stroke-width="4.5" stroke-linecap="round" />
+                  <!-- Counterweight Cylinder -->
+                  <g transform="translate(132, 20) rotate(16)">
+                    <rect x="-11" y="-8" width="22" height="16" rx="2.5" fill="url(#counterweightGrad)" stroke="#334155" stroke-width="1" />
+                    <line x1="-11" y1="-2" x2="11" y2="-2" stroke="#020617" stroke-width="1.5" />
+                    <line x1="-8" y1="2" x2="8" y2="2" stroke="#f8fafc" stroke-width="1" />
+                    <circle cx="0" cy="-8" r="3" fill="#0f172a" stroke="#475569" stroke-width="0.8" />
+                  </g>
+
+                  <!-- Gimbal Pivot Sphere & Bearing -->
+                  <circle cx="124" cy="48" r="10.5" fill="url(#gimbalGrad)" stroke="#475569" stroke-width="1" />
+                  <circle cx="124" cy="48" r="5" fill="#0f172a" stroke="#94a3b8" stroke-width="1" />
+                  <circle cx="124" cy="48" r="2" fill="#f8fafc" />
+
+                  <!-- Cueing Lift Lever -->
+                  <path d="M 116 44 L 105 38" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+                  <circle cx="105" cy="38" r="2" fill="#ef4444" />
+
+                  <!-- THE S-SHAPED METALLIC WAND (EL BASTÓN) -->
+                  <!-- Continuous curved tube seamlessly linking pivot (124, 48) to headshell (54, 258) -->
+                  <path
+                    d="M 124 48 C 122 105, 126 150, 110 195 C 98 226, 78 244, 54 258"
+                    fill="none"
+                    stroke="#020617"
+                    stroke-width="5.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M 124 48 C 122 105, 126 150, 110 195 C 98 226, 78 244, 54 258"
+                    fill="none"
+                    stroke="url(#wandGrad)"
+                    stroke-width="4.2"
+                    stroke-linecap="round"
+                  />
+                  <!-- Specular Tube Reflection Highlight -->
+                  <path
+                    d="M 123 48 C 121 105, 125 150, 109 195 C 97 226, 77 244, 53 258"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.75)"
+                    stroke-width="1.2"
+                    stroke-linecap="round"
+                  />
+
+                  <!-- UNIFIED HEADSHELL & NEEDLE CARTRIDGE (CABEZAL Y AGUJA FUSIONADOS) -->
+                  <!-- Anchored directly at the tip of the wand (54, 258), interactive grab handle -->
+                  <g
+                    transform="translate(54, 258) rotate(30)"
+                    class="tonearm-grab-handle cursor-grab active:cursor-grabbing pointer-events-auto"
+                    (pointerdown)="startTonearmDrag($event)"
+                    title="Arrastra la aguja a lo largo del vinilo para saltar al momento deseado"
+                  >
+                    <!-- Invisible enlarged grab radius for effortless mouse & touch drag -->
+                    <circle cx="0" cy="22" r="28" fill="transparent" />
+
+                    <!-- Locking Collar attaching wand directly to headshell -->
+                    <rect x="-4.5" y="-3" width="9" height="5" rx="1" fill="#64748b" stroke="#334155" stroke-width="0.8" />
+                    <line x1="-4" y1="-0.5" x2="4" y2="-0.5" stroke="#0f172a" stroke-width="1" />
+
+                    <!-- Main Headshell Body (anodized matte black) -->
+                    <path
+                      d="M -5 2 L 5 2 L 6 32 C 6 34, 4 35, 2 35 L -2 35 C -4 35, -5 34, -5 32 Z"
+                      fill="#0f172a"
+                      stroke="#475569"
+                      stroke-width="1"
+                    />
+                    <!-- Headshell weight-reduction styling slots -->
+                    <rect x="-2" y="7" width="4" height="6" rx="1" fill="#020617" stroke="#334155" stroke-width="0.5" />
+                    <rect x="-2" y="16" width="4" height="6" rx="1" fill="#020617" stroke="#334155" stroke-width="0.5" />
+
+                    <!-- Cartridge Body -->
+                    <path
+                      d="M -4 22 L 4 22 L 4.5 35 L -4.5 35 Z"
+                      fill="#1e293b"
+                      stroke="#64748b"
+                      stroke-width="0.8"
+                    />
+
+                    <!-- Needle Stylus Indicator with Amber LED Glow -->
+                    <rect
+                      x="-2"
+                      y="25"
+                      width="4"
+                      height="8"
+                      rx="1"
+                      fill="#f59e0b"
+                      filter="url(#amberNeedleGlow)"
+                    />
+                    <!-- Stylus Diamond Tip at the record groove contact point -->
+                    <polygon points="0,38 -1.5,35 1.5,35" fill="#fef08a" />
+                    <circle cx="0" cy="38.5" r="1" fill="#ffffff" filter="url(#amberNeedleGlow)" />
+
+                    <!-- Metal Finger Lift Lever on right side -->
+                    <path
+                      d="M 5 10 C 13 10, 17 14, 17 22"
+                      fill="none"
+                      stroke="#f1f5f9"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                    />
+                    <circle cx="17" cy="22" r="1.5" fill="#ffffff" />
+                  </g>
+                </g>
+              </svg>
+            </div>
+
+            <!-- Dragging Live Time Indicator Tooltip -->
+            @if ($isDraggingTonearm()) {
+              <div
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1.5 rounded-full bg-black/90 backdrop-blur-md border border-amber-400 text-amber-300 text-xs font-mono font-bold shadow-[0_0_25px_rgba(251,191,36,0.6)] pointer-events-none z-50 flex items-center gap-2 scale-110 transition-transform"
+              >
+                <svg lucideDisc class="w-4 h-4 text-amber-400 animate-spin"></svg>
+                <span>{{ dragTimeFormatted() }}</span>
+              </div>
+            }
           </div>
         } @else {
           <div class="w-full h-full flex items-center justify-center">
-            <svg lucideMusic class="w-28 h-28 text-white/20"></svg>
+            <svg lucideDisc class="w-28 h-28 text-white/20 animate-spin"></svg>
           </div>
         }
       </div>
@@ -348,6 +552,215 @@
       </div>
     </div>
 
+    <!-- VIEW: IPOD CLASSIC MODE (iPod Classic con pantalla a color y Click Wheel interactiva) -->
+    <div
+      [class.hidden]="$viewMode() !== 'ipod'"
+      class="flex-1 min-h-0 flex flex-col items-center justify-center relative w-full max-w-4xl mx-auto py-2"
+    >
+      <!-- Ambient halo glow behind iPod -->
+      <div
+        class="ambient-cover-glow absolute w-[320px] sm:w-[400px] aspect-square rounded-full blur-[100px] pointer-events-none transition-all duration-700"
+        [class.animate-glow-pulse]="playbackService.$isPlaying()"
+        [style.background-color]="'rgba(' + dominantRgbString() + ', 0.45)'"
+      ></div>
+
+      <!-- IPOD CLASSIC DEVICE CHASSIS -->
+      <div
+        class="ipod-device relative w-[290px] sm:w-[325px] h-[480px] sm:h-[530px] rounded-[36px] sm:rounded-[42px] p-4 sm:p-5 flex flex-col justify-between select-none shadow-[0_30px_90px_-15px_rgba(0,0,0,0.95)] border border-white/30"
+      >
+        <!-- Chrome Bevel Specular Sheen Rim -->
+        <div class="ipod-chrome-rim absolute inset-0 rounded-[36px] sm:rounded-[42px] pointer-events-none"></div>
+
+        <!-- Gloss Highlight Across Top-Left of Device -->
+        <div class="ipod-body-sheen absolute inset-0 rounded-[36px] sm:rounded-[42px] pointer-events-none"></div>
+
+        <!-- 1. COLOR LCD SCREEN -->
+        <div
+          class="ipod-screen relative w-full h-[210px] sm:h-[235px] rounded-[18px] sm:rounded-[20px] bg-neutral-950 border-2 border-neutral-700/80 overflow-hidden flex flex-col shadow-inner z-10"
+        >
+          <!-- Glass Screen Reflection Glare -->
+          <div class="ipod-screen-glass absolute inset-0 pointer-events-none z-30"></div>
+
+          <!-- LCD Top Header Bar -->
+          <div
+            class="ipod-lcd-header relative z-10 h-6 sm:h-7 px-2.5 sm:px-3 flex items-center justify-between text-[11px] font-semibold text-neutral-800 border-b border-neutral-400/40 select-none"
+          >
+            <!-- Left: Play/Pause State Icon -->
+            <div class="flex items-center gap-1.5">
+              @if (playbackService.$isPlaying()) {
+                <svg viewBox="0 0 24 24" class="w-3 h-3 fill-emerald-600 text-emerald-600">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              } @else {
+                <div class="flex items-center gap-0.5">
+                  <span class="w-1 h-2.5 bg-amber-600 rounded-xs"></span>
+                  <span class="w-1 h-2.5 bg-amber-600 rounded-xs"></span>
+                </div>
+              }
+            </div>
+
+            <!-- Center: Title -->
+            <div class="text-[10px] sm:text-[11px] font-bold tracking-tight text-neutral-900 drop-shadow-xs">
+              Now Playing
+            </div>
+
+            <!-- Right: Battery Indicator -->
+            <div class="flex items-center gap-1">
+              <div class="w-4 h-2.5 rounded-xs border border-neutral-800 p-0.5 flex items-center">
+                <div class="w-full h-full bg-emerald-500 rounded-2xs"></div>
+              </div>
+              <div class="w-0.5 h-1 bg-neutral-800 rounded-r-xs"></div>
+            </div>
+          </div>
+
+          <!-- LCD Now Playing Screen Body -->
+          <div
+            class="ipod-lcd-body relative z-10 flex-1 p-2.5 sm:p-3 flex flex-col justify-between bg-gradient-to-b from-neutral-900 via-neutral-950 to-black text-white"
+          >
+            <!-- Track Info & Artwork Section -->
+            <div class="flex items-center gap-2.5 sm:gap-3 flex-1 min-h-0">
+              <!-- Album Artwork with 3D Bevel & Floor Reflection -->
+              <div class="relative shrink-0 w-22 h-22 sm:w-26 sm:h-26">
+                @if (currentArtworkUrl()) {
+                  <img
+                    [src]="currentArtworkUrl()"
+                    [alt]="trackTitle()"
+                    class="w-full h-full object-cover rounded-md border border-white/20 shadow-md"
+                  />
+                  <!-- Under-Cover Floor Reflection -->
+                  <div
+                    class="absolute -bottom-3 left-0 right-0 h-3 rounded-md overflow-hidden opacity-30 transform scale-y-[-1] blur-[1px] pointer-events-none"
+                  >
+                    <img [src]="currentArtworkUrl()" alt="" class="w-full h-full object-cover" />
+                  </div>
+                } @else {
+                  <div
+                    class="w-full h-full rounded-md bg-neutral-800 border border-white/10 flex items-center justify-center text-neutral-400"
+                  >
+                    <svg lucideMusic class="w-8 h-8"></svg>
+                  </div>
+                }
+              </div>
+
+              <!-- Metadata Columns -->
+              <div class="flex-1 min-w-0 flex flex-col justify-center">
+                <!-- Track Position (e.g. 1 de 12) -->
+                @if ($queue().length > 0) {
+                  <span class="text-[9px] sm:text-[10px] font-mono text-purple-300 font-semibold tracking-wider uppercase mb-0.5">
+                    {{ ($currentIndex() ?? 0) + 1 }} de {{ $queue().length }}
+                  </span>
+                }
+                <!-- Song Title -->
+                <h4 class="text-xs sm:text-sm font-bold text-white truncate drop-shadow-sm leading-tight">
+                  {{ trackTitle() || 'Sin reproducción' }}
+                </h4>
+                <!-- Artist -->
+                <p class="text-[11px] sm:text-xs text-neutral-300 truncate mt-0.5">
+                  {{ trackAuthor() || 'Artista desconocido' }}
+                </p>
+                <!-- Album -->
+                @if (trackAlbum()) {
+                  <p class="text-[10px] sm:text-[11px] text-neutral-400 truncate mt-0.5">
+                    {{ trackAlbum() }}
+                  </p>
+                }
+                <!-- Star Rating -->
+                <div class="flex items-center gap-0.5 text-amber-400 text-[10px] sm:text-xs mt-1">
+                  <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Scrubber Progress Bar Section -->
+            <div class="mt-2 pt-1 border-t border-white/10 flex flex-col gap-1">
+              <!-- Slider Track -->
+              <div class="relative w-full h-2.5 rounded-full bg-neutral-800 border border-neutral-700 overflow-hidden">
+                <div
+                  class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-150"
+                  [style.width.%]="progressPercent()"
+                ></div>
+              </div>
+              <!-- Timers -->
+              <div class="flex items-center justify-between text-[9px] sm:text-[10px] font-mono text-neutral-300 font-medium px-0.5">
+                <span>{{ formattedCurrentTime() }}</span>
+                <span>{{ formattedDuration() }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. THE CLICK WHEEL (Interactive) -->
+        <div class="flex items-center justify-center my-auto py-2 z-10">
+          <div
+            class="ipod-click-wheel relative w-36 h-36 sm:w-42 sm:h-42 rounded-full flex items-center justify-center shadow-lg"
+          >
+            <!-- MENU (Top) -->
+            <button
+              type="button"
+              (click)="onIpodMenuClick()"
+              class="ipod-wheel-btn absolute top-2.5 sm:top-3.5 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs font-bold text-neutral-600 hover:text-neutral-900 active:scale-90 transition cursor-pointer select-none tracking-wider"
+              title="Volver a Vinilo (MENU)"
+              aria-label="Menú / Volver a vista Vinilo"
+            >
+              MENU
+            </button>
+
+            <!-- PREVIOUS / REWIND (Left) -->
+            <button
+              type="button"
+              (click)="playbackService.previous()"
+              class="ipod-wheel-btn absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 p-1 text-neutral-600 hover:text-neutral-900 active:scale-90 transition cursor-pointer select-none"
+              title="Pista anterior"
+              aria-label="Pista anterior"
+            >
+              <svg viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5 fill-current">
+                <path d="M19 20L9 12l10-8v16zM5 19V5h2v14H5z"></path>
+              </svg>
+            </button>
+
+            <!-- NEXT / FAST FORWARD (Right) -->
+            <button
+              type="button"
+              (click)="playbackService.playNext()"
+              class="ipod-wheel-btn absolute right-2.5 sm:right-3.5 top-1/2 -translate-y-1/2 p-1 text-neutral-600 hover:text-neutral-900 active:scale-90 transition cursor-pointer select-none"
+              title="Pista siguiente"
+              aria-label="Pista siguiente"
+            >
+              <svg viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5 fill-current">
+                <path d="M5 4l10 8-10 8V4zm14 1v14h-2V5h2z"></path>
+              </svg>
+            </button>
+
+            <!-- PLAY / PAUSE (Bottom) -->
+            <button
+              type="button"
+              (click)="playbackService.togglePlay()"
+              class="ipod-wheel-btn absolute bottom-2.5 sm:bottom-3.5 left-1/2 -translate-x-1/2 p-1 text-neutral-600 hover:text-neutral-900 active:scale-90 transition cursor-pointer select-none"
+              [title]="playbackService.$isPlaying() ? 'Pausar' : 'Reproducir'"
+              aria-label="Reproducir o pausar"
+            >
+              <svg viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5 fill-current">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z M4 5l6 7-6 7V5z"></path>
+              </svg>
+            </button>
+
+            <!-- CENTER BUTTON (Select) -->
+            <button
+              type="button"
+              (click)="playbackService.togglePlay()"
+              class="ipod-center-btn relative w-13 h-13 sm:w-15 sm:h-15 rounded-full border border-neutral-300/80 shadow-md active:scale-95 transition-transform flex items-center justify-center cursor-pointer select-none group"
+              title="Botón central: Reproducir / Pausar"
+              aria-label="Seleccionar o pausar"
+            >
+              <div class="w-full h-full rounded-full bg-gradient-to-br from-neutral-100 via-neutral-200 to-neutral-300 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-neutral-400/40 group-hover:bg-neutral-500/60 transition"></div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- VIEW 2: LYRICS MODE (With the seamlessly integrated artwork on left / backdrop) -->
     <div
       [class.hidden]="$viewMode() !== 'lyrics'"
@@ -371,51 +784,44 @@
               [style.background-color]="'rgba(' + dominantRgbString() + ', 0.55)'"
             ></div>
 
-            <!-- Spinning Vinyl Record (Lyrics View) -->
+            <!-- THE VINYL RECORD LP (Lyrics Desktop View) -->
             <div
-              class="vinyl-disc absolute aspect-square w-[75%] rounded-full transition-transform duration-700 ease-out z-0 shadow-2xl flex items-center justify-center"
-              [class.vinyl-playing]="playbackService.$isPlaying()"
-              [class.vinyl-paused]="!playbackService.$isPlaying()"
+              class="vinyl-lp relative w-[88%] aspect-square rounded-full overflow-hidden flex items-center justify-center transition-all duration-700 shadow-2xl"
+              [class.vinyl-lp-playing]="playbackService.$isPlaying()"
+              [class.vinyl-lp-paused]="!playbackService.$isPlaying()"
             >
-              <div class="vinyl-grooves absolute inset-0 rounded-full"></div>
-              <div class="vinyl-reflection absolute inset-0 rounded-full"></div>
+              <!-- Vinyl Grooves Pattern -->
+              <div class="vinyl-grooves absolute inset-0 rounded-full pointer-events-none"></div>
+
+              <!-- Vinyl Specular Light Beams -->
+              <div class="vinyl-light-reflection absolute inset-0 rounded-full pointer-events-none"></div>
+
+              <!-- Outer Run-out Groove Edge Ring -->
+              <div class="absolute inset-[26%] rounded-full border border-white/[0.08] pointer-events-none"></div>
+
+              <!-- CENTER ALBUM COVER LABEL (Tal cual los vinilos) -->
               <div
-                class="relative w-[34%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-inner z-10 flex items-center justify-center bg-black"
+                class="center-album-label relative w-[44%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-2xl flex items-center justify-center bg-black z-10"
               >
                 <img
+                  #artImgLyrics
+                  crossorigin="anonymous"
                   [src]="currentArtworkUrl()"
                   [alt]="trackTitle()"
-                  class="w-full h-full object-cover select-none"
+                  (load)="onImageLoad(artImgLyrics)"
+                  (error)="playbackService.reportArtworkError()"
+                  class="w-full h-full object-cover select-none pointer-events-none"
                 />
-                <div
-                  class="absolute w-3 h-3 rounded-full bg-neutral-900 border-2 border-neutral-400 shadow-md"
-                ></div>
-              </div>
-            </div>
 
-            <!-- Deluxe Album Jacket -->
-            <div
-              class="album-jacket relative aspect-square w-[78%] rounded-3xl overflow-hidden z-10 border border-white/20 transition-all duration-500"
-              [class.jacket-playing]="playbackService.$isPlaying()"
-              [style.box-shadow]="
-                '0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px -5px rgba(' +
-                dominantRgbString() +
-                ', 0.4)'
-              "
-            >
-              <img
-                #artImgLyrics
-                crossorigin="anonymous"
-                [src]="currentArtworkUrl()"
-                [alt]="trackTitle()"
-                (load)="onImageLoad(artImgLyrics)"
-                (error)="playbackService.reportArtworkError()"
-                class="w-full h-full object-cover select-none"
-              />
-              <div class="jacket-sheen absolute inset-0 pointer-events-none"></div>
-              <div
-                class="absolute inset-0 rounded-3xl border border-white/25 pointer-events-none"
-              ></div>
+                <div class="absolute inset-0 rounded-full border border-black/40 shadow-inner pointer-events-none"></div>
+
+                <!-- Spindle Center Hole -->
+                <div
+                  class="center-spindle absolute w-4 h-4 rounded-full bg-neutral-900 border-2 border-neutral-300 shadow-md flex items-center justify-center pointer-events-none z-20"
+                >
+                  <div class="w-1.5 h-1.5 rounded-full bg-neutral-950"></div>
+                </div>
+              </div>
             </div>
           } @else {
             <div

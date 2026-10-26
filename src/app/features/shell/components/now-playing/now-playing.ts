@@ -46,6 +46,7 @@ import {
   LucideActivity,
   LucideListMusic,
   LucideClock,
+  LucideDisc,
   LucideTrash2,
 } from '@lucide/angular';
 import { LikeButton } from '../../../../shared/components/like-button/like-button';
@@ -62,6 +63,7 @@ import { LikeButton } from '../../../../shared/components/like-button/like-butto
     LucideRepeat,
     LucideRepeat1,
     LucideMusic,
+    LucideDisc,
     LucideSearch,
     LucidePlus,
     LucideMinus,
@@ -109,7 +111,29 @@ export class NowPlaying {
     this._visualizer.cycleStyle();
   }
 
-  public $viewMode = signal<'cover' | 'lyrics' | 'queue'>('lyrics');
+  public turntableStage = viewChild<ElementRef<HTMLElement>>('turntableStage');
+  public $isDraggingTonearm = signal<boolean>(false);
+  public $dragProgressPercent = signal<number>(0);
+  public $dragTonearmAngle = signal<number>(6);
+
+  public readonly tonearmAngle = computed(() => {
+    if (this.$isDraggingTonearm()) {
+      return this.$dragTonearmAngle();
+    }
+    if (!this.playbackService.$currentTrack()) {
+      return 21;
+    }
+    const pct = Math.max(0, Math.min(100, this.progressPercent()));
+    return 6 - (pct / 100) * 18;
+  });
+
+  public readonly dragTimeFormatted = computed(() => {
+    const totalSecs = this.trackDuration();
+    const targetSecs = (this.$dragProgressPercent() / 100) * totalSecs;
+    return `${formatTime(targetSecs)} / ${formatTime(totalSecs)}`;
+  });
+
+  public $viewMode = signal<'cover' | 'ipod' | 'lyrics' | 'queue'>('cover');
   public $animateArtwork = signal<boolean>(true);
   public $showRemainingTime = signal<boolean>(true);
   public $showVolumePopup = signal<boolean>(false);
@@ -440,15 +464,109 @@ export class NowPlaying {
     this.$lyricsQuery.set('');
   }
 
-  public toggleViewMode(mode?: 'cover' | 'lyrics' | 'queue'): void {
+  public toggleViewMode(mode?: 'cover' | 'ipod' | 'lyrics' | 'queue'): void {
     if (mode) {
       this.$viewMode.set(mode);
     } else {
       this.$viewMode.update((curr) => {
-        if (curr === 'cover') return 'lyrics';
+        if (curr === 'cover') return 'ipod';
+        if (curr === 'ipod') return 'lyrics';
         if (curr === 'lyrics') return 'queue';
         return 'cover';
       });
+    }
+  }
+
+  public onIpodMenuClick(): void {
+    this.toggleViewMode('cover');
+  }
+
+  public startTonearmDrag(event: PointerEvent): void {
+    event.stopPropagation();
+    event.preventDefault();
+    const target = event.currentTarget as HTMLElement | SVGElement;
+    if (target?.setPointerCapture) {
+      try {
+        target.setPointerCapture(event.pointerId);
+      } catch {}
+    }
+
+    this.$isDraggingTonearm.set(true);
+    this.updateTonearmFromPointer(event);
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!this.$isDraggingTonearm()) return;
+      this.updateTonearmFromPointer(e);
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!this.$isDraggingTonearm()) return;
+      this.finishTonearmDrag();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  }
+
+  public updateTonearmFromPointer(e: PointerEvent): void {
+    const el = this.turntableStage()?.nativeElement;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    const r = Math.sqrt(dx * dx + dy * dy);
+
+    const rOuter = (rect.width * 0.88) / 2;
+    const rInner = (rect.width * 0.42) / 2;
+
+    const percent = ((rOuter - r) / (rOuter - rInner)) * 100;
+    const clampedPercent = Math.max(0, Math.min(100, percent));
+    const angle = 6 - (clampedPercent / 100) * 18;
+
+    this.$dragProgressPercent.set(clampedPercent);
+    this.$dragTonearmAngle.set(angle);
+  }
+
+  public finishTonearmDrag(): void {
+    this.$isDraggingTonearm.set(false);
+    const targetPercent = this.$dragProgressPercent();
+    this.playbackService.seekToPercent(targetPercent);
+  }
+
+  public onPlatterClick(e: MouseEvent): void {
+    if (this.$isDraggingTonearm()) return;
+    const el = this.turntableStage()?.nativeElement;
+    if (!el) {
+      this.playbackService.togglePlay();
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    const r = Math.sqrt(dx * dx + dy * dy);
+
+    const rOuter = (rect.width * 0.88) / 2;
+    const rInner = (rect.width * 0.42) / 2;
+
+    if (r <= rInner * 1.05) {
+      this.playbackService.togglePlay();
+      return;
+    }
+
+    if (r <= rOuter * 1.08) {
+      const percent = ((rOuter - r) / (rOuter - rInner)) * 100;
+      const clampedPercent = Math.max(0, Math.min(100, percent));
+      this.playbackService.seekToPercent(clampedPercent);
+    } else {
+      this.playbackService.togglePlay();
     }
   }
 

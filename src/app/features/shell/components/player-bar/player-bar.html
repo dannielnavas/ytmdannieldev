@@ -214,73 +214,73 @@
       <button
         type="button"
         (click)="openNowPlaying()"
-        class="vt-artwork player-bar-art-btn relative w-12 h-12 rounded-2xl shrink-0 group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 select-none"
-        title="Abrir pantalla completa"
-        aria-label="Abrir pantalla completa de la pista"
+        class="vt-artwork player-bar-art-btn relative w-12 h-12 rounded-full shrink-0 group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 select-none flex items-center justify-center p-0"
+        title="Abrir reproductor en pantalla completa"
+        aria-label="Abrir reproductor en pantalla completa"
       >
         <!-- Pulsing Ambient Underglow matching track palette -->
         <div
-          class="absolute -inset-1 rounded-2xl blur-md transition-opacity duration-500 pointer-events-none"
+          class="absolute -inset-1 rounded-full blur-md transition-opacity duration-500 pointer-events-none"
           [class.opacity-90]="$isPlaying()"
           [class.opacity-25]="!$isPlaying()"
           [style.background-color]="'rgba(' + dominantRgbString() + ', 0.7)'"
         ></div>
 
-        <!-- Mini Vinyl Record Peeking out & Spinning when playing -->
-        @if (currentArtworkUrl()) {
-          <div
-            class="mini-vinyl absolute right-0 top-1 w-10 h-10 rounded-full bg-neutral-950 border border-white/20 transition-all duration-500 flex items-center justify-center pointer-events-none shadow-md z-0"
-            [class.mini-vinyl-playing]="$isPlaying()"
-          >
-            <!-- Grooves -->
-            <div class="absolute inset-0 rounded-full border border-white/10 opacity-60"></div>
-            <!-- Mini Label -->
-            <div class="w-3.5 h-3.5 rounded-full overflow-hidden border border-white/30 bg-black">
-              <img [src]="currentArtworkUrl()" alt="" class="w-full h-full object-cover" />
-            </div>
-          </div>
-        }
-
-        <!-- The Main Thumbnail Jacket -->
+        <!-- The Mini Vinyl Record LP -->
         <div
-          class="relative w-full h-full rounded-2xl overflow-hidden border border-white/20 bg-neutral-900 z-10 shadow-md group-hover:scale-105 transition-transform"
+          class="mini-vinyl-lp relative w-full h-full rounded-full overflow-hidden border border-white/20 bg-neutral-950 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center"
+          [class.mini-vinyl-playing]="$isPlaying()"
+          [class.mini-vinyl-paused]="!$isPlaying()"
         >
+          <!-- Vinyl Realistic Grooves -->
+          <div class="mini-vinyl-grooves absolute inset-0 rounded-full pointer-events-none"></div>
+
+          <!-- Specular Light Reflection Cones -->
+          <div class="mini-vinyl-reflection absolute inset-0 rounded-full pointer-events-none"></div>
+
+          <!-- Circular Center Album Cover Label -->
           @if (currentArtworkUrl()) {
-            <img
-              #artImg
-              crossorigin="anonymous"
-              [src]="currentArtworkUrl()"
-              [alt]="trackTitle() || 'Carátula'"
-              decoding="async"
-              (load)="onImageLoad(artImg)"
-              (error)="onArtworkError()"
-              class="w-full h-full object-cover group-hover:brightness-85 transition-all"
-            />
-            <!-- Specular Light Sheen -->
-            <div class="mini-jacket-sheen absolute inset-0 pointer-events-none"></div>
+            <div
+              class="relative w-[52%] h-[52%] rounded-full overflow-hidden border border-white/30 shadow-md z-10 flex items-center justify-center bg-black"
+            >
+              <img
+                #artImg
+                crossorigin="anonymous"
+                [src]="currentArtworkUrl()"
+                [alt]="trackTitle() || 'Carátula'"
+                decoding="async"
+                (load)="onImageLoad(artImg)"
+                (error)="onArtworkError()"
+                class="w-full h-full object-cover group-hover:brightness-85 transition-all"
+              />
+              <!-- Spindle Hole -->
+              <div
+                class="absolute w-2 h-2 rounded-full bg-neutral-950 border border-white/40 shadow-inner z-20 pointer-events-none"
+              ></div>
+            </div>
 
             <!-- Mini Live Soundwave Badge in bottom-right corner when playing -->
             @if ($isPlaying()) {
               <div
-                class="absolute bottom-1 right-1 px-1 py-0.5 rounded-md bg-black/75 backdrop-blur-md flex items-end gap-0.5 border border-white/15 shadow-sm pointer-events-none"
+                class="absolute bottom-0 right-0 px-1 py-0.5 rounded-full bg-black/80 backdrop-blur-md flex items-end gap-0.5 border border-white/15 shadow-sm pointer-events-none z-30"
                 aria-hidden="true"
               >
-                <span class="w-0.5 h-2 bg-purple-300 rounded-full animate-pb-wave-1"></span>
-                <span class="w-0.5 h-3 bg-purple-400 rounded-full animate-pb-wave-2"></span>
-                <span class="w-0.5 h-2 bg-purple-300 rounded-full animate-pb-wave-3"></span>
+                <span class="w-0.5 h-1.5 bg-purple-300 rounded-full animate-pb-wave-1"></span>
+                <span class="w-0.5 h-2.5 bg-purple-400 rounded-full animate-pb-wave-2"></span>
+                <span class="w-0.5 h-1.5 bg-purple-300 rounded-full animate-pb-wave-3"></span>
               </div>
             }
 
             <div
-              class="absolute inset-0 hidden group-hover:flex items-center justify-center pointer-events-none bg-black/20"
+              class="absolute inset-0 rounded-full hidden group-hover:flex items-center justify-center pointer-events-none bg-black/30 z-30"
             >
-              <svg lucideChevronDown class="w-5 h-5 text-white rotate-180 drop-shadow-md"></svg>
+              <svg lucideChevronDown class="w-4 h-4 text-white rotate-180 drop-shadow-md"></svg>
             </div>
           } @else {
             <div
-              class="w-full h-full flex items-center justify-center bg-purple-950/40 text-purple-400"
+              class="w-[52%] h-[52%] rounded-full flex items-center justify-center bg-purple-950/40 text-purple-400 border border-white/20 z-10"
             >
-              <svg lucideMusic class="w-5 h-5"></svg>
+              <svg lucideMusic class="w-3.5 h-3.5"></svg>
             </div>
           }
         </div>
