@@ -900,7 +900,51 @@ describe('PlaybackService session restore', () => {
     build();
     expect(service.$queue()).toEqual([]);
   });
+
+  describe('Sleep Timer', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('sets timer and counts down, pausing on zero', () => {
+      build();
+      service.setSleepTimer('15m');
+      expect(service.$sleepTimerPreset()).toBe('15m');
+      expect(service.$sleepTimerRemaining()).toBe(15 * 60);
+
+      vi.advanceTimersByTime(10000);
+      expect(service.$sleepTimerRemaining()).toBe(15 * 60 - 10);
+
+      vi.advanceTimersByTime((15 * 60 - 10) * 1000);
+      expect(service.$sleepTimerRemaining()).toBeNull();
+      expect(service.$sleepTimerPreset()).toBeNull();
+      expect(service.$isPlaying()).toBe(false);
+    });
+
+    it('handles end-of-song preset and pauses on track ended', () => {
+      build();
+      service.setSleepTimer('end-of-song');
+      expect(service.$sleepTimerPreset()).toBe('end-of-song');
+      expect(service.$sleepTimerRemaining()).toBeNull();
+
+      service.onTrackEnded();
+      expect(service.$sleepTimerPreset()).toBeNull();
+      expect(service.$isPlaying()).toBe(false);
+    });
+
+    it('clears timer on demand', () => {
+      build();
+      service.setSleepTimer('30m');
+      service.clearSleepTimer();
+      expect(service.$sleepTimerPreset()).toBeNull();
+      expect(service.$sleepTimerRemaining()).toBeNull();
+    });
+  });
 });
+
 
 describe('parseDuration', () => {
   it('keeps finite numbers', () => {

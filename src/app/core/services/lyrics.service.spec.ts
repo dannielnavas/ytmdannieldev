@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { LyricsService } from './lyrics.service';
+import { LyricsService, cleanLyricsSearchQuery } from './lyrics.service';
 
 describe('LyricsService', () => {
   let service: LyricsService;
@@ -26,6 +26,19 @@ describe('LyricsService', () => {
       );
       expect(req.request.params.get('track_name')).toBe('Hello & Goodbye');
       expect(req.request.params.get('artist_name')).toBe('A/B Artist');
+      expect(req.request.params.has('duration')).toBe(false);
+      req.flush({});
+    });
+
+    it('includes duration in query string when provided and positive', () => {
+      service.getLyrics('Track A', 'Artist B', 215.8).subscribe();
+
+      const req = httpTesting.expectOne(
+        (r) => r.url === 'https://ytmdannieldev-back.vercel.app/youtube/lyrics',
+      );
+      expect(req.request.params.get('track_name')).toBe('Track A');
+      expect(req.request.params.get('artist_name')).toBe('Artist B');
+      expect(req.request.params.get('duration')).toBe('216');
       req.flush({});
     });
 
@@ -84,6 +97,24 @@ describe('LyricsService', () => {
       expect(result).toEqual([{ time: 5, text: 'Real line' }]);
     });
 
+    it('applies the [offset:ms] header to all timestamps', () => {
+      const positiveResult = service.parseSyncedLyrics(
+        '[offset: 500]\n[00:02.00] Line one\n[00:04.00] Line two',
+      );
+      expect(positiveResult).toEqual([
+        { time: 2.5, text: 'Line one' },
+        { time: 4.5, text: 'Line two' },
+      ]);
+
+      const negativeResult = service.parseSyncedLyrics(
+        '[offset:-300]\n[00:02.00] Line one\n[00:00.10] Early line',
+      );
+      expect(negativeResult).toEqual([
+        { time: 0, text: 'Early line' }, // clamped at 0
+        { time: 1.7, text: 'Line one' },
+      ]);
+    });
+
     it('skips lines without a timestamp', () => {
       const result = service.parseSyncedLyrics('[00:05.00] Synced\nJust plain text');
 
@@ -94,4 +125,22 @@ describe('LyricsService', () => {
       expect(service.parseSyncedLyrics('[00:05.00]')).toEqual([{ time: 5, text: '' }]);
     });
   });
+
+  describe('cleanLyricsSearchQuery', () => {
+    it('strips YouTube official video noise and feature tags', () => {
+      const res = cleanLyricsSearchQuery(
+        'Dua Lipa - Levitating (Official Music Video) [feat. DaBaby]',
+        'Dua Lipa - Topic',
+      );
+      expect(res.trackName).toBe('Levitating');
+      expect(res.artistName).toBe('Dua Lipa');
+    });
+
+    it('extracts artist and title from combined title if artist is empty', () => {
+      const res = cleanLyricsSearchQuery('Queen - Bohemian Rhapsody (Audio Oficial)', '');
+      expect(res.trackName).toBe('Bohemian Rhapsody');
+      expect(res.artistName).toBe('Queen');
+    });
+  });
 });
+

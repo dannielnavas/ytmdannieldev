@@ -38,6 +38,11 @@ export const routes: Routes = [
         canActivate: [authorizationGuard],
       },
       {
+        path: 'library',
+        loadComponent: () => import('./features/library/library').then((m) => m.Library),
+        canActivate: [authorizationGuard],
+      },
+      {
         path: 'likes',
         loadComponent: () => import('./features/list-likes/list-likes').then((m) => m.ListLikes),
         canActivate: [authorizationGuard],

@@ -1,8 +1,32 @@
-import { app, BrowserWindow, ipcMain, nativeImage, session, safeStorage, screen } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeImage,
+  session,
+  safeStorage,
+  screen,
+  Tray,
+  Menu,
+} from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 
 app.setName('Pulso');
+
+// Asegurar instancia única
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      if (!mainWindow.isVisible()) mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
 
 // Optimización de caché de red de Chromium para imágenes y multimedia
 app.commandLine.appendSwitch('disk-cache-size', '1073741824'); // 1 GB de caché en disco
@@ -11,6 +35,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
 
 let isMiniPlayer = false;
 let normalBounds = { width: 1280, height: 720, x: 0, y: 0 };
@@ -501,6 +527,65 @@ function setupPermissions(window: BrowserWindow): void {
   });
 }
 
+function setupTray(): void {
+  const iconPath = getWindowIconPath();
+  if (!iconPath) return;
+
+  const trayImage = nativeImage.createFromPath(iconPath);
+  if (trayImage.isEmpty()) return;
+
+  const resizedIcon = trayImage.resize({ width: 18, height: 18 });
+  tray = new Tray(resizedIcon);
+  tray.setToolTip('Pulso');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Mostrar Pulso',
+      click: () => {
+        if (!mainWindow) {
+          createWindow();
+        } else {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+    },
+    {
+      label: 'Alternar Mini Reproductor',
+      click: () => {
+        if (mainWindow) {
+          setMiniPlayerMode(mainWindow, !isMiniPlayer);
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Salir de Pulso',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+  tray.on('click', () => {
+    if (!mainWindow) {
+      createWindow();
+    } else if (mainWindow.isVisible()) {
+      if (mainWindow.isFocused()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.focus();
+      }
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 function createWindow() {
   const iconPath = getWindowIconPath();
 
@@ -544,6 +629,14 @@ function createWindow() {
     mainWindow?.webContents.send('window-maximized-change', false);
   });
 
+  // En lugar de destruir la ventana al cerrar, ocultar a la bandeja si no estamos saliendo
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
   if (isDev) {
     // En desarrollo, carga la URL local de Angular (por defecto el puerto 4200)
     mainWindow.loadURL('http://localhost:4200');
@@ -566,9 +659,14 @@ function createWindow() {
   });
 }
 
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.whenReady().then(async () => {
   setupMacDockIcon();
   setupImageOptimization();
+  setupTray();
   registerWindowIpcHandlers();
   registerAuthIpcHandlers();
   registerSafeStorageIpcHandlers();
@@ -578,6 +676,9 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
 });

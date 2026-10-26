@@ -10,6 +10,7 @@ import {
   LucideChevronDown,
   LucideCrown,
   LucideHeart,
+  LucideLibrary,
   LucideLogOut,
   LucideX,
 } from '@lucide/angular';
@@ -25,6 +26,7 @@ import { SearchStore } from '../../../core/store/search-store';
     LucideChevronDown,
     LucideLogOut,
     LucideHeart,
+    LucideLibrary,
     LucideX,
   ],
   selector: 'app-header',
@@ -91,6 +93,16 @@ export class Header {
     } else if (this.isMenuOpen()) {
       this.closeMenu();
     }
+  }
+
+  public goToHome(): void {
+    this.closeMenu();
+    this._router.navigate(['/home']);
+  }
+
+  public goToLibrary(): void {
+    this.closeMenu();
+    this._router.navigate(['/library']);
   }
 
   public goToLikes(): void {

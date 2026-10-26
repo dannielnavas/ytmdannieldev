@@ -24,6 +24,7 @@ import {
 import { Thumbnail } from '../../../../core/services/thumbnail';
 import { DetailSongRow } from '../../../../shared/components/detail-song-row/detail-song-row';
 import { PlaybackService } from '../../../../core/services/playback.service';
+import { LikesService } from '../../../../core/services/likes.service';
 import { Header } from '../../../../shared/components/header/header';
 
 @Component({
@@ -53,6 +54,8 @@ export class ListSearch {
   private readonly _cover = inject(CoverPalette);
   private readonly _imageHelper = inject(ImageHelperService);
 
+  private readonly _likesService = inject(LikesService);
+
   /** Parámetro de consulta en la URL (?q=...), enlazado por withComponentInputBinding() */
   public readonly q = input<string>('');
 
@@ -74,6 +77,18 @@ export class ListSearch {
         // Las URLs marcadas como fallidas caducan al cambiar de búsqueda.
         this._imageHelper.reset();
         this.selectedArtistIndex.set(0);
+
+        const songs = this.$searchResult()?.songs ?? [];
+        if (songs.length) {
+          const ids = songs.map((s) => s.videoId).filter(Boolean);
+          if (ids.length) {
+            this._likesService.checkLikesBulk(ids).subscribe((bulkRes) => {
+              songs.forEach((track) => {
+                (track as any).isLiked = !!bulkRes.map[track.videoId];
+              });
+            });
+          }
+        }
       }
     });
   }

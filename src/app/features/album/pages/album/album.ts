@@ -10,6 +10,8 @@ import { PlaybackService } from '../../../../core/services/playback.service';
 import { LucideClock, LucideDisc, LucideMusic } from '@lucide/angular';
 import { Header } from '../../../../shared/components/header/header';
 
+import { LikesService } from '../../../../core/services/likes.service';
+
 @Component({
   imports: [DetailHero, DetailSongRow, LucideDisc, LucideClock, LucideMusic, Header],
   selector: 'app-album',
@@ -19,6 +21,7 @@ import { Header } from '../../../../shared/components/header/header';
 export class Album {
   private readonly _youtubeService = inject(Dashboard);
   private readonly _playbackService = inject(PlaybackService);
+  private readonly _likesService = inject(LikesService);
   private readonly _location = inject(Location);
 
   /**
@@ -42,7 +45,16 @@ export class Album {
       }
       return this._youtubeService.getAlbumById(albumId).pipe(
         tap((res) => {
-          if (!res?.songs?.length) {
+          if (res?.songs?.length) {
+            const ids = res.songs.map((t) => t.videoId).filter(Boolean);
+            if (ids.length) {
+              this._likesService.checkLikesBulk(ids).subscribe((bulkRes) => {
+                res.songs.forEach((track) => {
+                  (track as any).isLiked = !!bulkRes.map[track.videoId];
+                });
+              });
+            }
+          } else {
             this.fallbackPlayTrack(albumId);
           }
         }),

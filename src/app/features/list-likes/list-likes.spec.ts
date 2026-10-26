@@ -135,4 +135,42 @@ describe('ListLikes', () => {
     component.clearSearch();
     expect(component.songs().length).toBe(2);
   });
+
+  it('should sort songs by title and artist', () => {
+    component.setSortField('title');
+    expect(component.sortBy()).toBe('title');
+    expect(component.sortOrder()).toBe('ASC');
+    // Midnight City comes before Starboy
+    expect(component.songs()[0].name).toBe('Midnight City');
+
+    component.toggleSortOrder();
+    expect(component.sortOrder()).toBe('DESC');
+    expect(component.songs()[0].name).toBe('Starboy');
+  });
+
+  it('should handle pagination controls', () => {
+    component.limit.set(1);
+    expect(component.totalPages()).toBe(2);
+    expect(component.songs().length).toBe(1);
+    expect(component.page()).toBe(1);
+
+    component.nextPage();
+    expect(component.page()).toBe(2);
+    expect(component.songs().length).toBe(1);
+
+    component.prevPage();
+    expect(component.page()).toBe(1);
+  });
+
+  it('should play liked radio mix when onPlayLikedRadio is invoked', () => {
+    const radioTrack = { videoId: 'r-1', name: 'Radio Song', artist: 'Radio Artist' };
+    vi.spyOn(likesService, 'getLikedRadio').mockReturnValue(of([radioTrack as any]));
+    const playQueueSpy = vi.spyOn(playbackService, 'playQueue');
+
+    component.onPlayLikedRadio();
+
+    expect(playQueueSpy).toHaveBeenCalled();
+    const [, , title] = playQueueSpy.mock.calls[0];
+    expect(title).toBe('Radio de Likes');
+  });
 });

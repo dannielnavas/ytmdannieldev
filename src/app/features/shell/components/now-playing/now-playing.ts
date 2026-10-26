@@ -12,7 +12,7 @@ import {
 import { Router } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
-import { PlaybackService } from '../../../../core/services/playback.service';
+import { PlaybackService, SleepTimerPreset } from '../../../../core/services/playback.service';
 import {
   AudioVisualizerService,
   VISUALIZER_STYLES,
@@ -44,6 +44,9 @@ import {
   LucideVolumeX,
   LucideX,
   LucideActivity,
+  LucideListMusic,
+  LucideClock,
+  LucideTrash2,
 } from '@lucide/angular';
 import { LikeButton } from '../../../../shared/components/like-button/like-button';
 
@@ -69,6 +72,9 @@ import { LikeButton } from '../../../../shared/components/like-button/like-butto
     LucideVolumeX,
     LucideX,
     LucideActivity,
+    LucideListMusic,
+    LucideClock,
+    LucideTrash2,
     LikeButton,
   ],
   templateUrl: './now-playing.html',
@@ -83,6 +89,8 @@ export class NowPlaying {
   private readonly _visualizer = inject(AudioVisualizerService);
   private readonly _lyricsPreferences = inject(LyricsPreferencesService);
   private readonly _destroyRef = inject(DestroyRef);
+
+  public readonly formatTime = formatTime;
 
   public $song = this.playbackService.$stream;
   public $dominantColor = signal<Rgb | null>(null);
@@ -101,10 +109,60 @@ export class NowPlaying {
     this._visualizer.cycleStyle();
   }
 
-  public $viewMode = signal<'cover' | 'lyrics'>('lyrics');
+  public $viewMode = signal<'cover' | 'lyrics' | 'queue'>('lyrics');
   public $animateArtwork = signal<boolean>(true);
   public $showRemainingTime = signal<boolean>(true);
   public $showVolumePopup = signal<boolean>(false);
+
+  // --- Queue state and actions ---
+  public readonly $queue = this.playbackService.$queue;
+  public readonly $currentIndex = this.playbackService.$currentIndex;
+
+  public playTrackFromQueue(index: number): void {
+    this.playbackService.playIndex(index);
+  }
+
+  public removeFromQueue(index: number): void {
+    this.playbackService.removeFromQueue(index);
+  }
+
+  public clearQueue(): void {
+    this.playbackService.clearQueue();
+  }
+
+  // --- Sleep Timer state and actions ---
+  public readonly $showSleepTimerMenu = signal<boolean>(false);
+  public readonly sleepTimerRemaining = this.playbackService.$sleepTimerRemaining;
+  public readonly sleepTimerPreset = this.playbackService.$sleepTimerPreset;
+
+  public readonly formattedSleepRemaining = computed(() => {
+    const secs = this.sleepTimerRemaining();
+    if (secs === null) return '';
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  });
+
+  public readonly sleepPresets: { label: string; value: SleepTimerPreset }[] = [
+    { label: '15 minutos', value: '15m' },
+    { label: '30 minutos', value: '30m' },
+    { label: '45 minutos', value: '45m' },
+    { label: '1 hora', value: '60m' },
+    { label: 'Al terminar canción', value: 'end-of-song' },
+  ];
+
+  public toggleSleepTimerMenu(): void {
+    this.$showSleepTimerMenu.update((v) => !v);
+  }
+
+  public selectSleepTimer(preset: SleepTimerPreset | null): void {
+    if (!preset) {
+      this.playbackService.clearSleepTimer();
+    } else {
+      this.playbackService.setSleepTimer(preset);
+    }
+    this.$showSleepTimerMenu.set(false);
+  }
 
   public backgroundStyle = computed(() => {
     const color = this.$dominantColor();
@@ -176,10 +234,11 @@ export class NowPlaying {
     params: () => ({
       title: this.trackTitle(),
       author: this.trackAuthor(),
+      duration: this.trackDuration(),
     }),
     stream: ({ params }) => {
       if (!params.title) return of(null);
-      return this._lyricsService.getLyrics(params.title, params.author);
+      return this._lyricsService.getLyrics(params.title, params.author, params.duration);
     },
   });
 
@@ -278,7 +337,9 @@ export class NowPlaying {
     // The offset is added to the clock, not to the timestamps: a positive
     // correction brings the lines forward, which is what someone needs when the
     // lyrics of the database run behind the audio.
-    const time = this.playbackService.$currentTime() + this.$lyricsOffset();
+    // +0.15s lead compensation counters HTML5 audio timeupdate event latency (~200-250ms)
+    // so lines highlight right on the vocal onset.
+    const time = this.playbackService.$currentTime() + this.$lyricsOffset() + 0.15;
 
     // Find the last lyric line that has passed
     let index = -1;
@@ -310,6 +371,13 @@ export class NowPlaying {
 
     effect(() => {
       const track = this.playbackService.$currentTrack();
+      const trackKey =
+        track?.videoId || (this.trackTitle() ? `${this.trackTitle()}:${this.trackAuthor()}` : '');
+      this._lyricsPreferences.setTrack(trackKey);
+    });
+
+    effect(() => {
+      const track = this.playbackService.$currentTrack();
       // The queue usually carries title and artist, so no request is needed.
       this._trackMetadata.load(track?.videoId ?? null, Boolean(track?.name));
     });
@@ -325,6 +393,7 @@ export class NowPlaying {
       }
     });
   }
+
 
   public onImageLoad(img: HTMLImageElement): void {
     this.$dominantColor.set(this._coverPalette.dominant(img));
@@ -371,11 +440,15 @@ export class NowPlaying {
     this.$lyricsQuery.set('');
   }
 
-  public toggleViewMode(mode?: 'cover' | 'lyrics'): void {
+  public toggleViewMode(mode?: 'cover' | 'lyrics' | 'queue'): void {
     if (mode) {
       this.$viewMode.set(mode);
     } else {
-      this.$viewMode.update((curr) => (curr === 'cover' ? 'lyrics' : 'cover'));
+      this.$viewMode.update((curr) => {
+        if (curr === 'cover') return 'lyrics';
+        if (curr === 'lyrics') return 'queue';
+        return 'cover';
+      });
     }
   }
 

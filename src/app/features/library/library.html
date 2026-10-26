@@ -1,1 +1,272 @@
-<p>library works!</p>
+<div class="h-full flex flex-col bg-[#09090b] text-neutral-100 overflow-hidden select-none">
+  <app-header [$showBack]="true" />
+
+  <main class="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 lg:px-12 py-6 space-y-8 pb-32">
+    <!-- Header Hero Section -->
+    <div
+      class="relative overflow-hidden rounded-3xl p-6 lg:p-8 border border-white/10 bg-gradient-to-br from-purple-950/40 via-zinc-900/60 to-black/80 shadow-2xl backdrop-blur-xl"
+    >
+      <div
+        class="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-purple-600/15 blur-3xl pointer-events-none"
+      ></div>
+
+      <div class="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div class="space-y-2">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/15 border border-purple-500/20 text-purple-300 text-xs font-semibold tracking-wide">
+            <svg lucideSparkles class="w-3.5 h-3.5"></svg>
+            <span>Colección Personal</span>
+          </div>
+          <h1 class="text-3xl lg:text-4xl font-extrabold text-white tracking-tight">Tu Biblioteca</h1>
+          <p class="text-sm text-neutral-400 max-w-xl">
+            Tus canciones favoritas, playlists guardadas y álbumes en un solo lugar.
+          </p>
+        </div>
+
+        <!-- Quick stats & Play all button -->
+        <div class="flex items-center gap-3 shrink-0">
+          @if (likedSongs().length > 0) {
+            <button
+              type="button"
+              (click)="playAllLikes()"
+              class="flex items-center gap-2 px-5 py-3 rounded-full bg-white text-black font-semibold text-sm hover:scale-105 active:scale-95 transition-all shadow-lg hover:shadow-white/20 cursor-pointer"
+            >
+              <svg lucidePlay class="w-4 h-4 fill-current"></svg>
+              <span>Reproducir favoritos</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Quick Stats Counter -->
+      <div class="grid grid-cols-3 gap-3 sm:gap-6 mt-6 pt-6 border-t border-white/10 max-w-md">
+        <div>
+          <span class="block text-xl sm:text-2xl font-bold text-white">{{ likedSongs().length }}</span>
+          <span class="text-xs text-neutral-400 font-medium">Favoritos</span>
+        </div>
+        <div>
+          <span class="block text-xl sm:text-2xl font-bold text-white">{{ playlists().length }}</span>
+          <span class="text-xs text-neutral-400 font-medium">Playlists</span>
+        </div>
+        <div>
+          <span class="block text-xl sm:text-2xl font-bold text-white">{{ albums().length }}</span>
+          <span class="text-xs text-neutral-400 font-medium">Álbumes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs & Search Filter Row -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <!-- Tabs -->
+      <div class="inline-flex items-center p-1 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md">
+        <button
+          type="button"
+          (click)="setTab('all')"
+          class="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition cursor-pointer"
+          [class.bg-white]="activeTab() === 'all'"
+          [class.text-black]="activeTab() === 'all'"
+          [class.shadow-md]="activeTab() === 'all'"
+          [class.text-neutral-400]="activeTab() !== 'all'"
+          [class.hover:text-white]="activeTab() !== 'all'"
+        >
+          Todo
+        </button>
+        <button
+          type="button"
+          (click)="setTab('likes')"
+          class="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-white]="activeTab() === 'likes'"
+          [class.text-black]="activeTab() === 'likes'"
+          [class.shadow-md]="activeTab() === 'likes'"
+          [class.text-neutral-400]="activeTab() !== 'likes'"
+          [class.hover:text-white]="activeTab() !== 'likes'"
+        >
+          <svg lucideHeart class="w-3.5 h-3.5"></svg>
+          <span>Favoritos</span>
+        </button>
+        <button
+          type="button"
+          (click)="setTab('playlists')"
+          class="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-white]="activeTab() === 'playlists'"
+          [class.text-black]="activeTab() === 'playlists'"
+          [class.shadow-md]="activeTab() === 'playlists'"
+          [class.text-neutral-400]="activeTab() !== 'playlists'"
+          [class.hover:text-white]="activeTab() !== 'playlists'"
+        >
+          <svg lucideListMusic class="w-3.5 h-3.5"></svg>
+          <span>Playlists</span>
+        </button>
+        <button
+          type="button"
+          (click)="setTab('albums')"
+          class="px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-white]="activeTab() === 'albums'"
+          [class.text-black]="activeTab() === 'albums'"
+          [class.shadow-md]="activeTab() === 'albums'"
+          [class.text-neutral-400]="activeTab() !== 'albums'"
+          [class.hover:text-white]="activeTab() !== 'albums'"
+        >
+          <svg lucideDisc class="w-3.5 h-3.5"></svg>
+          <span>Álbumes</span>
+        </button>
+      </div>
+
+      <!-- Local search filter -->
+      <div class="relative w-full sm:w-64">
+        <svg
+          lucideSearch
+          class="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+        ></svg>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          placeholder="Filtrar en biblioteca..."
+          class="w-full pl-9 pr-8 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/10 focus:border-purple-400/50 text-xs text-white placeholder-neutral-500 transition outline-none"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            (click)="clearSearch()"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white cursor-pointer"
+          >
+            <svg lucideX class="w-3.5 h-3.5"></svg>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- CONTENT SECTION 1: LIKED SONGS SPOTLIGHT (Shown in 'all' or 'likes' tab) -->
+    @if (activeTab() === 'all' || activeTab() === 'likes') {
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg lucideHeart class="w-4 h-4 text-pink-400 fill-pink-400/30"></svg>
+            <h2 class="text-lg font-bold text-white tracking-tight">Tus Me Gusta</h2>
+            <span class="text-xs text-neutral-400 font-medium">({{ filteredLikedSongs().length }})</span>
+          </div>
+          @if (activeTab() === 'all') {
+            <button
+              type="button"
+              (click)="goToLikes()"
+              class="text-xs font-semibold text-purple-400 hover:text-purple-300 transition cursor-pointer"
+            >
+              Ver todos →
+            </button>
+          }
+        </div>
+
+        @if (filteredLikedSongs().length === 0) {
+          <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center text-neutral-400">
+            <svg lucideHeart class="w-8 h-8 text-neutral-600 mx-auto mb-2"></svg>
+            <p class="text-sm">No hay canciones que coincidan con la búsqueda.</p>
+          </div>
+        } @else {
+          <div class="flex flex-col gap-1 rounded-2xl bg-white/[0.02] border border-white/5 p-2">
+            @for (song of (activeTab() === 'all' ? filteredLikedSongs().slice(0, 5) : filteredLikedSongs()); track song.videoId; let i = $index) {
+              <app-detail-song-row
+                [song]="toSourceSong(song)"
+                [index]="i"
+                (play)="onPlaySong(song, i)"
+              />
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- CONTENT SECTION 2: PLAYLISTS (Shown in 'all' or 'playlists' tab) -->
+    @if (activeTab() === 'all' || activeTab() === 'playlists') {
+      <div class="space-y-4">
+        <div class="flex items-center gap-2">
+          <svg lucideListMusic class="w-4 h-4 text-purple-400"></svg>
+          <h2 class="text-lg font-bold text-white tracking-tight">Listas de reproducción</h2>
+          <span class="text-xs text-neutral-400 font-medium">({{ filteredPlaylists().length }})</span>
+        </div>
+
+        @if (filteredPlaylists().length === 0) {
+          <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center text-neutral-400">
+            <svg lucideListMusic class="w-8 h-8 text-neutral-600 mx-auto mb-2"></svg>
+            <p class="text-sm">No se encontraron playlists.</p>
+          </div>
+        } @else {
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            @for (item of (activeTab() === 'all' ? filteredPlaylists().slice(0, 12) : filteredPlaylists()); track item.playlistId) {
+              <div
+                (click)="openPlaylist(item.playlistId)"
+                class="group flex flex-col p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all duration-200 cursor-pointer"
+              >
+                <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-neutral-900 mb-3 shadow-md">
+                  <img
+                    [src]="item | thumbnailUrl"
+                    [alt]="item.name"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all">
+                      <svg lucidePlay class="w-4 h-4 fill-current translate-x-0.5"></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs font-semibold text-white truncate" [title]="item.name">
+                  {{ item.name }}
+                </p>
+                <p class="text-[11px] text-neutral-400 truncate mt-0.5">
+                  {{ item.artist.name || 'Playlist' }}
+                </p>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- CONTENT SECTION 3: ALBUMS (Shown in 'all' or 'albums' tab) -->
+    @if (activeTab() === 'all' || activeTab() === 'albums') {
+      <div class="space-y-4">
+        <div class="flex items-center gap-2">
+          <svg lucideDisc class="w-4 h-4 text-amber-400"></svg>
+          <h2 class="text-lg font-bold text-white tracking-tight">Álbumes guardados</h2>
+          <span class="text-xs text-neutral-400 font-medium">({{ filteredAlbums().length }})</span>
+        </div>
+
+        @if (filteredAlbums().length === 0) {
+          <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center text-neutral-400">
+            <svg lucideDisc class="w-8 h-8 text-neutral-600 mx-auto mb-2"></svg>
+            <p class="text-sm">No se encontraron álbumes.</p>
+          </div>
+        } @else {
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            @for (album of (activeTab() === 'all' ? filteredAlbums().slice(0, 12) : filteredAlbums()); track (album.albumId || album.playlistId)) {
+              <div
+                (click)="openAlbum(album)"
+                class="group flex flex-col p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all duration-200 cursor-pointer"
+              >
+                <div class="relative w-full aspect-square rounded-xl overflow-hidden bg-neutral-900 mb-3 shadow-md">
+                  <img
+                    [src]="album | thumbnailUrl"
+                    [alt]="album.name"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all">
+                      <svg lucidePlay class="w-4 h-4 fill-current translate-x-0.5"></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs font-semibold text-white truncate" [title]="album.name">
+                  {{ album.name }}
+                </p>
+                <p class="text-[11px] text-neutral-400 truncate mt-0.5">
+                  {{ album.artist.name || 'Álbum' }}
+                </p>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </main>
+</div>

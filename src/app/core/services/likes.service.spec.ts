@@ -142,4 +142,74 @@ describe('LikesService', () => {
     expect(service.$likedCount()).toBe(0);
     expect(service.$likedSongs()).toEqual([]);
   });
+
+  it('should get liked tracks with query params (search, sortBy, order, page, limit)', () => {
+    service
+      .getLikedTracks({
+        page: 2,
+        limit: 15,
+        search: 'rock',
+        sortBy: 'artist',
+        order: 'ASC',
+      })
+      .subscribe();
+
+    const req = httpTesting.expectOne((r) => r.url.endsWith('/likes'));
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('page')).toBe('2');
+    expect(req.request.params.get('limit')).toBe('15');
+    expect(req.request.params.get('search')).toBe('rock');
+    expect(req.request.params.get('sortBy')).toBe('artist');
+    expect(req.request.params.get('order')).toBe('ASC');
+    req.flush({ data: [], meta: { total: 0, page: 2, limit: 15, totalPages: 0 } });
+  });
+
+  it('should check likes bulk via POST /likes/check-bulk and update local state', () => {
+    let result: any;
+    service.checkLikesBulk(['vid1', 'vid2', 'vid3']).subscribe((res) => {
+      result = res;
+    });
+
+    const req = httpTesting.expectOne((r) => r.url.endsWith('/likes/check-bulk'));
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ youtubeIds: ['vid1', 'vid2', 'vid3'] });
+    req.flush({ likedIds: ['vid1', 'vid3'], map: { vid1: true, vid2: false, vid3: true } });
+
+    expect(result.likedIds).toEqual(['vid1', 'vid3']);
+    expect(result.map['vid1']).toBe(true);
+    expect(result.map['vid2']).toBe(false);
+    expect(service.isLiked('vid1')).toBe(true);
+    expect(service.isLiked('vid2')).toBe(false);
+    expect(service.isLiked('vid3')).toBe(true);
+  });
+
+  it('should fetch liked radio via GET /likes/radio', () => {
+    let radioTracks: any[] = [];
+    service.getLikedRadio(20).subscribe((tracks) => {
+      radioTracks = tracks;
+    });
+
+    const req = httpTesting.expectOne((r) => r.url.endsWith('/likes/radio'));
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('limit')).toBe('20');
+    req.flush([{ videoId: 'r1', title: 'Radio Track 1' }]);
+
+    expect(radioTracks.length).toBe(1);
+    expect(radioTracks[0].videoId).toBe('r1');
+  });
+
+  it('should fetch forgotten gems via GET /likes/forgotten', () => {
+    let gems: any[] = [];
+    service.getForgottenGems(8).subscribe((tracks) => {
+      gems = tracks;
+    });
+
+    const req = httpTesting.expectOne((r) => r.url.endsWith('/likes/forgotten'));
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('limit')).toBe('8');
+    req.flush([{ videoId: 'g1', title: 'Gem 1' }]);
+
+    expect(gems.length).toBe(1);
+    expect(gems[0].videoId).toBe('g1');
+  });
 });

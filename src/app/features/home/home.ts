@@ -31,6 +31,7 @@ import { Header } from '../../shared/components/header/header';
 import { LikeButton } from '../../shared/components/like-button/like-button';
 import { SearchStore } from '../../core/store/search-store';
 import { LikesService } from '../../core/services/likes.service';
+import { Track } from '../../core/models/likes.model';
 
 export interface RenderedSection {
   title: string;
@@ -165,6 +166,17 @@ export class Home {
     () => this.personal()?.recentLikes ?? [],
   );
 
+  /** Recurso reactivo para cargar joyas olvidadas (canciones que gustaron hace tiempo) */
+  public readonly forgottenGemsResource = rxResource({
+    stream: () => this._likesService.getForgottenGems(10),
+    defaultValue: [] as Track[],
+  });
+
+  public readonly forgottenGems = computed<Track[]>(() => {
+    const list = this.forgottenGemsResource.value();
+    return Array.isArray(list) ? list : [];
+  });
+
   public readonly recommendations = computed<RecommendedArtistItem[]>(
     () => this.personal()?.recommendations ?? [],
   );
@@ -277,6 +289,41 @@ export class Home {
     );
 
     this._playbackService.playQueue(queueItems, index, 'Tus Me Gusta');
+  }
+
+  public getForgottenGemCover(track: Track): string {
+    const raw =
+      track.thumbnailUrl ||
+      track.thumbnail_url ||
+      track.coverUrl ||
+      track.thumbnails?.[track.thumbnails.length - 1]?.url ||
+      (track.videoId || track.youtubeId
+        ? `https://i.ytimg.com/vi/${track.videoId || track.youtubeId}/hqdefault.jpg`
+        : '');
+    return getHighResThumbnail(raw, 500);
+  }
+
+  public getTrackArtistName(track: Track): string {
+    if (!track.artist) return 'Desconocido';
+    if (typeof track.artist === 'string') return track.artist;
+    return track.artist.name || 'Desconocido';
+  }
+
+  public playForgottenGem(track: Track, index: number): void {
+    const gems = this.forgottenGems();
+    if (!gems.length) return;
+
+    const queueItems: QueueItem[] = this._playbackService.normalizeQueueItems(
+      gems.map((g) => ({
+        videoId: g.videoId || g.youtubeId || '',
+        name: g.title || g.name || 'Canción',
+        artist: this.getTrackArtistName(g),
+        thumbnail: this.getForgottenGemCover(g),
+        duration: g.duration ?? undefined,
+      })),
+    );
+
+    this._playbackService.playQueue(queueItems, index, 'Joyas Olvidadas');
   }
 
   public playItem(item: DashboardItem, section?: RenderedSection): void {

@@ -45,6 +45,9 @@ describe('Home', () => {
             $likedIds: signal(new Set()),
             fetchFavoritesFromBackend: () => of([]),
             getListLikes: () => of([]),
+            getForgottenGems: () => of([]),
+            getLikedRadio: () => of([]),
+            checkLikesBulk: () => of({ likedIds: [], map: {} }),
             isLiked: () => false,
             toggleLike: () => true,
           },
@@ -286,5 +289,28 @@ describe('Home', () => {
     });
 
     expect(navSpy).toHaveBeenCalledWith(['/playlist', 'RDAMVMdQw4w9WgXcQ']);
+  });
+
+  it('should play forgotten gems queue when playForgottenGem is called', () => {
+    const playback = TestBed.inject(PlaybackService);
+    const playQueueSpy = vi.spyOn(playback, 'playQueue');
+    (component as any).forgottenGems = () => [
+      {
+        videoId: 'gem1',
+        title: 'Old Gem',
+        artist: 'Vintage Artist',
+      },
+    ];
+
+    component.playForgottenGem(
+      { videoId: 'gem1', title: 'Old Gem', artist: 'Vintage Artist' },
+      0,
+    );
+
+    expect(playQueueSpy).toHaveBeenCalled();
+    const [queue, index, title] = playQueueSpy.mock.calls[0];
+    expect(index).toBe(0);
+    expect(title).toBe('Joyas Olvidadas');
+    expect(queue[0].videoId).toBe('gem1');
   });
 });

@@ -1,10 +1,16 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 import { apiUrl } from '../config/api.config';
 import { SourceSong } from '../models/youtube';
 import { QueueItem } from '../models/queue.model';
-import { ToggleLikeDto, ToggleLikeResponse } from '../models/likes.model';
+import {
+  GetLikesParams,
+  PaginatedLikesResponse,
+  ToggleLikeDto,
+  ToggleLikeResponse,
+  Track,
+} from '../models/likes.model';
 import { parseDuration } from './playback.service';
 
 export interface LikedSong {
@@ -147,6 +153,9 @@ export class LikesService {
     unlike: () => apiUrl('likes', 'toggle'),
     favorites: () => apiUrl('likes'),
     check: (youtubeId: string) => apiUrl('likes', 'check', youtubeId),
+    checkBulk: () => apiUrl('likes', 'check-bulk'),
+    radio: () => apiUrl('likes', 'radio'),
+    forgotten: () => apiUrl('likes', 'forgotten'),
   };
 
   /**
@@ -292,14 +301,104 @@ export class LikesService {
   }
 
   /**
+   * Obtiene canciones con 'me gusta' desde el backend admitiendo parámetros de búsqueda,
+   * ordenación y paginación (GET /likes?page=&limit=&search=&sortBy=&order=).
+   */
+  public getLikedTracks(
+    params?: GetLikesParams,
+  ): Observable<PaginatedLikesResponse | Track[]> {
+    let httpParams = new HttpParams();
+    if (params?.page) httpParams = httpParams.set('page', params.page.toString());
+    if (params?.limit) httpParams = httpParams.set('limit', params.limit.toString());
+    if (params?.search) httpParams = httpParams.set('search', params.search);
+    if (params?.sortBy) httpParams = httpParams.set('sortBy', params.sortBy);
+    if (params?.order) httpParams = httpParams.set('order', params.order);
+
+    return this._http.get<any>(this.endpoints.favorites(), { params: httpParams });
+  }
+
+  /**
+   * Solicita el estado de me gusta para una lista de IDs de YouTube en una sola petición (POST /likes/check-bulk).
+   */
+  public checkLikesBulk(
+    youtubeIds: string[],
+  ): Observable<{ likedIds: string[]; map: Record<string, boolean> }> {
+    if (!youtubeIds || youtubeIds.length === 0) {
+      return of({ likedIds: [], map: {} });
+    }
+
+    return this._http
+      .post<{ likedIds: string[]; map: Record<string, boolean> }>(
+        this.endpoints.checkBulk(),
+        { youtubeIds },
+      )
+      .pipe(
+        tap((res) => {
+          if (res?.likedIds && Array.isArray(res.likedIds)) {
+            const currentMap = new Map(this._likedSongs().map((s) => [s.videoId, s]));
+            let changed = false;
+            for (const id of res.likedIds) {
+              if (!currentMap.has(id)) {
+                currentMap.set(id, { videoId: id, name: '', likedAt: Date.now() });
+                changed = true;
+              }
+            }
+            if (changed) {
+              this._likedSongs.set(Array.from(currentMap.values()));
+            }
+          }
+        }),
+        catchError((error) => {
+          console.warn('[LikesService] Error verificando me gusta masivos:', error);
+          const map: Record<string, boolean> = {};
+          const likedIds: string[] = [];
+          for (const id of youtubeIds) {
+            const liked = this.isLiked(id);
+            map[id] = liked;
+            if (liked) likedIds.push(id);
+          }
+          return of({ likedIds, map });
+        }),
+      );
+  }
+
+  /**
+   * Obtiene una selección de canciones para la "Radio de Likes" / "Mi Mix de Favoritas" (GET /likes/radio?limit=25).
+   */
+  public getLikedRadio(limit = 25): Observable<Track[]> {
+    const params = new HttpParams().set('limit', limit.toString());
+    return this._http.get<any>(this.endpoints.radio(), { params }).pipe(
+      map((res) => (Array.isArray(res) ? res : res?.data || [])),
+      catchError((err) => {
+        console.warn('[LikesService] Error obteniendo radio de me gusta:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
+   * Obtiene canciones guardadas hace tiempo ("Joyas Olvidadas") para el Dashboard (GET /likes/forgotten?limit=10).
+   */
+  public getForgottenGems(limit = 10): Observable<Track[]> {
+    const params = new HttpParams().set('limit', limit.toString());
+    return this._http.get<any>(this.endpoints.forgotten(), { params }).pipe(
+      map((res) => (Array.isArray(res) ? res : res?.data || [])),
+      catchError((err) => {
+        console.warn('[LikesService] Error obteniendo joyas olvidadas:', err);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
    * Recupera las canciones favoritas desde el backend (GET /likes) y actualiza el estado reactivo.
    */
-  public fetchFavoritesFromBackend(): Observable<LikedSong[]> {
-    const url = this.endpoints.favorites();
-    return this._http.get<any[]>(url).pipe(
-      map((remoteLikes) => {
-        if (!Array.isArray(remoteLikes)) return [];
-        return remoteLikes.map((item) => toLikedSong(item));
+  public fetchFavoritesFromBackend(params?: GetLikesParams): Observable<LikedSong[]> {
+    return this.getLikedTracks(params).pipe(
+      map((remoteLikes: any) => {
+        const list = Array.isArray(remoteLikes) ? remoteLikes : remoteLikes?.data;
+        if (!Array.isArray(list)) return [];
+        return list.map((item: any) => toLikedSong(item));
       }),
       tap((songs) => {
         this._likedSongs.set(songs);
@@ -314,8 +413,8 @@ export class LikesService {
   /**
    * Alias utilizado por componentes como ListLikes para obtener las canciones con like.
    */
-  public getListLikes(): Observable<LikedSong[]> {
-    return this.fetchFavoritesFromBackend();
+  public getListLikes(params?: GetLikesParams): Observable<LikedSong[]> {
+    return this.fetchFavoritesFromBackend(params);
   }
 
   /**

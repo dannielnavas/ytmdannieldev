@@ -4,19 +4,28 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
 import {
+  LucideArrowUpDown,
+  LucideChevronLeft,
+  LucideChevronRight,
   LucideClock,
   LucideHeart,
+  LucideLoader2,
   LucidePause,
   LucidePlay,
   LucideSearch,
   LucideShuffle,
+  LucideSparkles,
   LucideX,
 } from '@lucide/angular';
-import { LikesService, LikedSong } from '../../core/services/likes.service';
+import { LikesService, LikedSong, toLikedSong } from '../../core/services/likes.service';
 import { PlaybackService, parseDuration } from '../../core/services/playback.service';
 import { SourceSong } from '../../core/models/youtube';
+import { GetLikesParams, PaginatedLikesResponse } from '../../core/models/likes.model';
 import { DetailSongRow } from '../../shared/components/detail-song-row/detail-song-row';
 import { Header } from '../../shared/components/header/header';
+
+export type LikedSortField = 'likedAt' | 'title' | 'artist' | 'duration';
+export type LikedSortOrder = 'ASC' | 'DESC';
 
 @Component({
   selector: 'app-list-likes',
@@ -30,6 +39,11 @@ import { Header } from '../../shared/components/header/header';
     LucideClock,
     LucideSearch,
     LucideX,
+    LucideSparkles,
+    LucideArrowUpDown,
+    LucideChevronLeft,
+    LucideChevronRight,
+    LucideLoader2,
     Header,
   ],
   templateUrl: './list-likes.html',
@@ -41,20 +55,43 @@ export class ListLikes {
   private readonly _location = inject(Location);
   private readonly _router = inject(Router);
 
+  /** Filtro de búsqueda en tiempo real */
+  public readonly searchQuery = signal('');
+
+  /** Campo y orden para la ordenación */
+  public readonly sortBy = signal<LikedSortField>('likedAt');
+  public readonly sortOrder = signal<LikedSortOrder>('DESC');
+
+  /** Paginación */
+  public readonly page = signal(1);
+  public readonly limit = signal(30);
+
+  /** Estado de carga de la radio */
+  public readonly isLoadingRadio = signal(false);
+
   /** Recurso reactivo para cargar los favoritos */
   public resourceListLikes = rxResource({
     stream: () => this._likesService.getListLikes(),
-    defaultValue: [] as LikedSong[],
+    defaultValue: [] as any,
   });
 
-  /** Filtro de búsqueda rápida en la lista de favoritos */
-  public readonly searchQuery = signal('');
+  public readonly rawRemoteData = computed(() => {
+    const val = this.resourceListLikes.value();
+    if (!val) return null;
+    if (Array.isArray(val)) {
+      return { data: val as any[], meta: null };
+    }
+    if (val && typeof val === 'object' && 'data' in val && Array.isArray((val as any).data)) {
+      return val as PaginatedLikesResponse;
+    }
+    return null;
+  });
 
   /** Lista base de canciones con like: toma los del servicio o el fallback local */
   public readonly baseLikedSongs = computed<LikedSong[]>(() => {
-    const remote = this.resourceListLikes.value();
-    if (Array.isArray(remote) && remote.length > 0) {
-      return remote;
+    const remote = this.rawRemoteData();
+    if (remote?.data && remote.data.length > 0) {
+      return remote.data.map((item) => toLikedSong(item));
     }
     return this._likesService.$likedSongs();
   });
@@ -84,21 +121,70 @@ export class ListLikes {
     });
   });
 
-  /** Canciones filtradas por el término de búsqueda */
-  public readonly songs = computed<SourceSong[]>(() => {
+  /** Canciones filtradas y ordenadas (fallback client-side si el backend devuelve array completo) */
+  public readonly filteredSortedSongs = computed<SourceSong[]>(() => {
     const list = this.allSourceSongs();
-    const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return list;
+    const isServerPaginated = Boolean(this.rawRemoteData()?.meta);
+    if (isServerPaginated) {
+      return list;
+    }
 
-    return list.filter(
-      (song) =>
-        song.name.toLowerCase().includes(query) ||
-        (song.artist?.name && song.artist.name.toLowerCase().includes(query)),
-    );
+    const query = this.searchQuery().trim().toLowerCase();
+    let result = query
+      ? list.filter(
+          (song) =>
+            song.name.toLowerCase().includes(query) ||
+            (song.artist?.name && song.artist.name.toLowerCase().includes(query)),
+        )
+      : [...list];
+
+    const sort = this.sortBy();
+    const order = this.sortOrder();
+    result.sort((a, b) => {
+      let comp = 0;
+      if (sort === 'title') {
+        comp = (a.name || '').localeCompare(b.name || '');
+      } else if (sort === 'artist') {
+        comp = (a.artist?.name || '').localeCompare(b.artist?.name || '');
+      } else if (sort === 'duration') {
+        const da = parseDuration(a.duration) ?? 0;
+        const db = parseDuration(b.duration) ?? 0;
+        comp = da - db;
+      }
+      return order === 'ASC' ? comp : -comp;
+    });
+
+    return result;
+  });
+
+  /** Canciones de la página actual para renderizar */
+  public readonly songs = computed<SourceSong[]>(() => {
+    const list = this.filteredSortedSongs();
+    const isServerPaginated = Boolean(this.rawRemoteData()?.meta);
+    if (isServerPaginated) {
+      return list;
+    }
+    const start = (this.page() - 1) * this.limit();
+    return list.slice(start, start + this.limit());
   });
 
   /** Total de canciones en la lista */
-  public readonly totalCount = computed(() => this.allSourceSongs().length);
+  public readonly totalCount = computed(() => {
+    const meta = this.rawRemoteData()?.meta;
+    if (meta && typeof meta.total === 'number') {
+      return meta.total;
+    }
+    return this.filteredSortedSongs().length;
+  });
+
+  /** Total de páginas calculadas */
+  public readonly totalPages = computed(() => {
+    const meta = this.rawRemoteData()?.meta;
+    if (meta && typeof meta.totalPages === 'number') {
+      return Math.max(1, meta.totalPages);
+    }
+    return Math.max(1, Math.ceil(this.filteredSortedSongs().length / this.limit()));
+  });
 
   /** Suma estimada de la duración total en segundos */
   public readonly totalDurationSeconds = computed(() => {
@@ -139,6 +225,49 @@ export class ListLikes {
     );
   });
 
+  public setSortField(field: LikedSortField): void {
+    if (this.sortBy() === field) {
+      this.sortOrder.update((curr) => (curr === 'ASC' ? 'DESC' : 'ASC'));
+    } else {
+      this.sortBy.set(field);
+      this.sortOrder.set('ASC');
+    }
+    this.page.set(1);
+  }
+
+  public toggleSortOrder(): void {
+    this.sortOrder.update((curr) => (curr === 'ASC' ? 'DESC' : 'ASC'));
+    this.page.set(1);
+  }
+
+  public onSearchChange(query: string): void {
+    this.searchQuery.set(query);
+    this.page.set(1);
+  }
+
+  public clearSearch(): void {
+    this.searchQuery.set('');
+    this.page.set(1);
+  }
+
+  public prevPage(): void {
+    if (this.page() > 1) {
+      this.page.update((p) => p - 1);
+    }
+  }
+
+  public nextPage(): void {
+    if (this.page() < this.totalPages()) {
+      this.page.update((p) => p + 1);
+    }
+  }
+
+  public goToPage(p: number): void {
+    if (p >= 1 && p <= this.totalPages()) {
+      this.page.set(p);
+    }
+  }
+
   /**
    * Reproduce una canción específica de la lista, encolando todas las canciones
    * de favoritos a partir de ese índice y mostrando la PlayerBar.
@@ -164,11 +293,35 @@ export class ListLikes {
    * Reproduce la lista de favoritos en modo aleatorio (shuffle).
    */
   public onPlayShuffle(): void {
-    const list = this.songs();
+    const list = this.filteredSortedSongs().length > 0 ? this.filteredSortedSongs() : this.songs();
     if (!list.length) return;
     this._playbackService.playShuffled(list, {
       size: 800,
       sourceTitle: 'Tus Me Gusta',
+    });
+  }
+
+  /**
+   * Inicia el mix infinito o radio basada en favoritos (GET /likes/radio?limit=25).
+   */
+  public onPlayLikedRadio(): void {
+    if (this.isLoadingRadio()) return;
+    this.isLoadingRadio.set(true);
+
+    this._likesService.getLikedRadio(25).subscribe({
+      next: (tracks) => {
+        this.isLoadingRadio.set(false);
+        if (tracks && tracks.length > 0) {
+          const queueItems = this._playbackService.toQueueItems(tracks as any[], { size: 800 });
+          this._playbackService.playQueue(queueItems, 0, 'Radio de Likes');
+        } else {
+          this.onPlayShuffle();
+        }
+      },
+      error: () => {
+        this.isLoadingRadio.set(false);
+        this.onPlayShuffle();
+      },
     });
   }
 
@@ -189,10 +342,6 @@ export class ListLikes {
     }
   }
 
-  public clearSearch(): void {
-    this.searchQuery.set('');
-  }
-
   public goBack(): void {
     this._location.back();
   }
@@ -201,3 +350,4 @@ export class ListLikes {
     this._router.navigate(['/home']);
   }
 }
+

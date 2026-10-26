@@ -21,6 +21,8 @@ import {
 } from '@lucide/angular';
 import { Header } from '../../../../shared/components/header/header';
 
+import { LikesService } from '../../../../core/services/likes.service';
+
 @Component({
   imports: [
     DetailHero,
@@ -39,6 +41,7 @@ import { Header } from '../../../../shared/components/header/header';
 export class Playlist {
   private readonly _youtubeService = inject(Dashboard);
   private readonly _playbackService = inject(PlaybackService);
+  private readonly _likesService = inject(LikesService);
   private readonly _location = inject(Location);
 
   /** Inyectado desde `:playlistId` por `withComponentInputBinding()`. */
@@ -61,7 +64,16 @@ export class Playlist {
 
       return this._youtubeService.getPlaylist(id).pipe(
         tap((res) => {
-          if (!res?.songsList?.length && isVideoId(normalized)) {
+          if (res?.songsList?.length) {
+            const ids = res.songsList.map((t) => t.videoId).filter(Boolean);
+            if (ids.length) {
+              this._likesService.checkLikesBulk(ids).subscribe((bulkRes) => {
+                res.songsList.forEach((track) => {
+                  (track as any).isLiked = !!bulkRes.map[track.videoId];
+                });
+              });
+            }
+          } else if (isVideoId(normalized)) {
             this.fallbackPlayTrack(normalized);
           }
         }),

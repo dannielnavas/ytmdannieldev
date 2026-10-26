@@ -11,6 +11,7 @@ import {
 } from './playback-state.store';
 
 export type RepeatMode = 'off' | 'all' | 'one';
+export type SleepTimerPreset = '15m' | '30m' | '45m' | '60m' | 'end-of-song';
 
 /** Consecutive track errors tolerated before playback stops trying to advance. */
 const MAX_CONSECUTIVE_ERRORS = 3;
@@ -107,6 +108,15 @@ export class PlaybackService {
   public readonly $isBuffering = this._isBuffering.asReadonly();
   public readonly $artworkError = this._artworkError.asReadonly();
   public readonly $error = this._error.asReadonly();
+
+  // --- Sleep Timer state -----------------------------------------------------
+
+  private readonly _sleepTimerRemaining = signal<number | null>(null);
+  private readonly _sleepTimerPreset = signal<SleepTimerPreset | null>(null);
+  private _sleepTimerInterval: ReturnType<typeof setInterval> | null = null;
+
+  public readonly $sleepTimerRemaining = this._sleepTimerRemaining.asReadonly();
+  public readonly $sleepTimerPreset = this._sleepTimerPreset.asReadonly();
 
   /**
    * Track loaded in the audio element.
@@ -278,6 +288,11 @@ export class PlaybackService {
    * of advancing.
    */
   public onTrackEnded(): void {
+    if (this._sleepTimerPreset() === 'end-of-song') {
+      this.clearSleepTimer();
+      this.pause();
+      return;
+    }
     if (this._repeatMode() === 'one') {
       this.playCurrent();
       return;
@@ -426,7 +441,48 @@ export class PlaybackService {
     this._error.set(null);
   }
 
+  // --- Sleep Timer controls --------------------------------------------------
+
+  public setSleepTimer(preset: SleepTimerPreset): void {
+    this.clearSleepTimer();
+    this._sleepTimerPreset.set(preset);
+
+    if (preset === 'end-of-song') {
+      this._sleepTimerRemaining.set(null);
+      return;
+    }
+
+    const minutesMap: Record<string, number> = {
+      '15m': 15,
+      '30m': 30,
+      '45m': 45,
+      '60m': 60,
+    };
+    const totalSeconds = (minutesMap[preset] ?? 15) * 60;
+    this._sleepTimerRemaining.set(totalSeconds);
+
+    this._sleepTimerInterval = setInterval(() => {
+      const current = this._sleepTimerRemaining();
+      if (current === null || current <= 1) {
+        this.clearSleepTimer();
+        this.pause();
+      } else {
+        this._sleepTimerRemaining.set(current - 1);
+      }
+    }, 1000);
+  }
+
+  public clearSleepTimer(): void {
+    if (this._sleepTimerInterval) {
+      clearInterval(this._sleepTimerInterval);
+      this._sleepTimerInterval = null;
+    }
+    this._sleepTimerRemaining.set(null);
+    this._sleepTimerPreset.set(null);
+  }
+
   public dispose(): void {
+    this.clearSleepTimer();
     this._store.flush();
     this._audio.pause();
     this._audio.removeAttribute('src');
