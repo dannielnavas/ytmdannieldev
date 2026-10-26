@@ -1,8 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { tap } from 'rxjs';
 import {
   LucideArrowUpDown,
   LucideChevronLeft,
@@ -69,9 +70,29 @@ export class ListLikes {
   /** Estado de carga de la radio */
   public readonly isLoadingRadio = signal(false);
 
+  constructor() {
+    // Si al desmarcar una canción optimista el número de páginas disminuye, ajustar la página
+    effect(() => {
+      const maxPages = this.totalPages();
+      if (this.page() > maxPages) {
+        this.page.set(maxPages);
+      }
+    });
+  }
+
   /** Recurso reactivo para cargar los favoritos */
   public resourceListLikes = rxResource({
-    stream: () => this._likesService.getListLikes(),
+    stream: () =>
+      this._likesService.getListLikes().pipe(
+        tap((res: any) => {
+          const list = Array.isArray(res) ? res : res?.data;
+          if (Array.isArray(list) && list.length > 0) {
+            if (this._likesService.$likedCount() === 0 && !this._likesService.$hasLoaded()) {
+              this._likesService.setLocalSongs(list.map((item) => toLikedSong(item)));
+            }
+          }
+        }),
+      ),
     defaultValue: [] as any,
   });
 
@@ -87,13 +108,29 @@ export class ListLikes {
     return null;
   });
 
-  /** Lista base de canciones con like: toma los del servicio o el fallback local */
+  /** Lista base de canciones con like: reactiva y sincronizada optimistamente con el servicio */
   public readonly baseLikedSongs = computed<LikedSong[]>(() => {
+    const serviceSongs = this._likesService.$likedSongs();
+    const likedIds = this._likesService.$likedIds();
+    const hasLoaded = this._likesService.$hasLoaded();
+
     const remote = this.rawRemoteData();
     if (remote?.data && remote.data.length > 0) {
-      return remote.data.map((item) => toLikedSong(item));
+      const remoteMapped = remote.data.map((item) => toLikedSong(item));
+      const remoteIds = new Set(remoteMapped.map((s) => s.videoId));
+
+      // 1. Canciones agregadas optimistamente desde el servicio que no estaban en la respuesta remota
+      const newlyLikedInService = serviceSongs.filter((s) => !remoteIds.has(s.videoId));
+
+      // 2. Canciones remotas que aún conservan like (excluye optimistamente las que se desmarcaron)
+      const remainingRemote = remoteMapped.filter((s) =>
+        hasLoaded ? likedIds.has(s.videoId) : true,
+      );
+
+      return [...newlyLikedInService, ...remainingRemote];
     }
-    return this._likesService.$likedSongs();
+
+    return serviceSongs;
   });
 
   /** Canciones normalizadas a `SourceSong` para usar con `DetailSongRow` y la cola */
@@ -172,7 +209,10 @@ export class ListLikes {
   public readonly totalCount = computed(() => {
     const meta = this.rawRemoteData()?.meta;
     if (meta && typeof meta.total === 'number') {
-      return meta.total;
+      const initialTotal = meta.total;
+      const initialCount = this.rawRemoteData()?.data?.length ?? 0;
+      const currentCount = this.baseLikedSongs().length;
+      return Math.max(0, initialTotal + (currentCount - initialCount));
     }
     return this.filteredSortedSongs().length;
   });
@@ -181,7 +221,7 @@ export class ListLikes {
   public readonly totalPages = computed(() => {
     const meta = this.rawRemoteData()?.meta;
     if (meta && typeof meta.totalPages === 'number') {
-      return Math.max(1, meta.totalPages);
+      return Math.max(1, Math.ceil(this.totalCount() / this.limit()));
     }
     return Math.max(1, Math.ceil(this.filteredSortedSongs().length / this.limit()));
   });

@@ -139,6 +139,43 @@ export class LikesService {
   public readonly $likedCount = computed(() => this._likedSongs().length);
   public readonly $likedIds = computed(() => new Set(this._likedSongs().map((s) => s.videoId)));
 
+  private readonly _hasLoaded = signal(false);
+  public readonly $hasLoaded = this._hasLoaded.asReadonly();
+
+  /** Delta acumulado de likes/unlikes realizados optimistamente antes o durante la carga */
+  private readonly _optimisticDelta = signal(0);
+  public readonly $optimisticDelta = this._optimisticDelta.asReadonly();
+
+  /**
+   * Sincroniza localmente las canciones favoritas.
+   */
+  public setLocalSongs(songs: LikedSong[]): void {
+    this._likedSongs.set(songs);
+    this._hasLoaded.set(true);
+    this._optimisticDelta.set(0);
+  }
+
+  /**
+   * Registra canciones que se sabe que tienen like (ej. desde dashboard, joyas olvidadas o mixes)
+   * sin sobrescribir las existentes ni borrar otras canciones.
+   */
+  public registerKnownLiked(songs: (LikedSong | any)[]): void {
+    if (!songs || songs.length === 0) return;
+    const current = this._likedSongs();
+    const existingIds = new Set(current.map((s) => s.videoId));
+    const toAdd: LikedSong[] = [];
+    for (const raw of songs) {
+      const item = toLikedSong(raw);
+      if (item.videoId && !existingIds.has(item.videoId)) {
+        existingIds.add(item.videoId);
+        toAdd.push(item);
+      }
+    }
+    if (toAdd.length > 0) {
+      this._likedSongs.set([...current, ...toAdd]);
+    }
+  }
+
   /**
    * Bandera para habilitar/deshabilitar sincronización HTTP (activa por defecto).
    */
@@ -233,6 +270,7 @@ export class LikesService {
 
     // Actualización optimista inmediata
     this._updateLocalState(item, nextLiked);
+    this._optimisticDelta.update((d) => (nextLiked ? d + 1 : d - 1));
 
     const durationSeconds = parseDuration(item.duration) ?? 0;
     const payload: ToggleLikeDto = {
@@ -247,6 +285,7 @@ export class LikesService {
       tap((res) => {
         if (res && typeof res.isLiked === 'boolean' && res.isLiked !== nextLiked) {
           this._updateLocalState(item, res.isLiked);
+          this._optimisticDelta.update((d) => (res.isLiked ? d + 1 : d - 1));
         }
       }),
       catchError((error) => {
@@ -256,6 +295,7 @@ export class LikesService {
         );
         // Rollback al estado previo si falla
         this._updateLocalState(item, currentlyLiked);
+        this._optimisticDelta.update((d) => (currentlyLiked ? d + 1 : d - 1));
         return of({ isLiked: currentlyLiked });
       }),
     );
@@ -402,6 +442,8 @@ export class LikesService {
       }),
       tap((songs) => {
         this._likedSongs.set(songs);
+        this._hasLoaded.set(true);
+        this._optimisticDelta.set(0);
       }),
       catchError((error) => {
         console.warn('[LikesService] Error cargando favoritos del backend:', error);
@@ -422,6 +464,8 @@ export class LikesService {
    */
   public clearAll(): void {
     this._likedSongs.set([]);
+    this._hasLoaded.set(true);
+    this._optimisticDelta.set(0);
   }
 
   /**

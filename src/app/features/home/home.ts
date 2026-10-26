@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
+import { tap } from 'rxjs';
 import {
   LucideArrowRight,
   LucideCompass,
@@ -126,6 +127,22 @@ export class Home {
         }
       }
     });
+
+    // Sincronizar canciones recientes conocidas con el servicio para alimentar estados optimistas
+    effect(() => {
+      const recent = this.personal()?.recentLikes;
+      if (recent && recent.length > 0) {
+        this._likesService.registerKnownLiked(
+          recent.map((t) => ({
+            videoId: t.youtubeId,
+            name: t.title,
+            artist: t.artist,
+            thumbnailUrl: t.thumbnailUrl,
+            duration: t.duration,
+          })),
+        );
+      }
+    });
   }
 
   public readonly resourceDashboard = rxResource({
@@ -154,7 +171,20 @@ export class Home {
 
   public readonly personal = computed(() => this.dashboardResponse().personal);
 
-  public readonly kpis = computed(() => this.personal()?.kpis ?? null);
+  public readonly kpis = computed(() => {
+    const base = this.personal()?.kpis;
+    if (!base) return null;
+    const hasLoaded = this._likesService.$hasLoaded();
+    const serviceCount = this._likesService.$likedCount();
+    const delta = this._likesService.$optimisticDelta();
+
+    const totalLikes = hasLoaded ? serviceCount : Math.max(0, base.totalLikes + delta);
+
+    return {
+      ...base,
+      totalLikes,
+    };
+  });
 
   public readonly topArtists = computed<EnrichedArtistItem[]>(
     () => this.personal()?.topArtists ?? [],
@@ -162,19 +192,36 @@ export class Home {
 
   public readonly topGenres = computed(() => this.personal()?.topGenres ?? []);
 
-  public readonly recentLikes = computed<PersonalRecentTrack[]>(
-    () => this.personal()?.recentLikes ?? [],
-  );
+  public readonly recentLikes = computed<PersonalRecentTrack[]>(() => {
+    const raw = this.personal()?.recentLikes ?? [];
+    return raw.filter((track) => {
+      const id = track.youtubeId || (track as any).videoId;
+      if (!id) return true;
+      return this._likesService.isLiked(id);
+    });
+  });
 
   /** Recurso reactivo para cargar joyas olvidadas (canciones que gustaron hace tiempo) */
   public readonly forgottenGemsResource = rxResource({
-    stream: () => this._likesService.getForgottenGems(10),
+    stream: () =>
+      this._likesService.getForgottenGems(10).pipe(
+        tap((gems) => {
+          if (Array.isArray(gems) && gems.length > 0) {
+            this._likesService.registerKnownLiked(gems);
+          }
+        }),
+      ),
     defaultValue: [] as Track[],
   });
 
   public readonly forgottenGems = computed<Track[]>(() => {
     const list = this.forgottenGemsResource.value();
-    return Array.isArray(list) ? list : [];
+    const arr = Array.isArray(list) ? list : [];
+    return arr.filter((gem) => {
+      const id = gem.videoId || gem.youtubeId;
+      if (!id) return true;
+      return this._likesService.isLiked(id);
+    });
   });
 
   public readonly recommendations = computed<RecommendedArtistItem[]>(

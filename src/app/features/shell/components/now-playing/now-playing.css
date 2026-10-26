@@ -18,60 +18,182 @@
   mask-image:
     radial-gradient(
       ellipse 85% 80% at 50% 48%,
-      black 35%,
-      rgba(0, 0, 0, 0.85) 60%,
-      transparent 95%
-    ),
-    linear-gradient(to bottom, black 0%, black 70%, transparent 98%);
+      black 45%,
+      rgba(0, 0, 0, 0.9) 70%,
+      transparent 98%
+    );
   -webkit-mask-image:
     radial-gradient(
       ellipse 85% 80% at 50% 48%,
-      black 35%,
-      rgba(0, 0, 0, 0.85) 60%,
-      transparent 95%
-    ),
-    linear-gradient(to bottom, black 0%, black 70%, transparent 98%);
+      black 45%,
+      rgba(0, 0, 0, 0.9) 70%,
+      transparent 98%
+    );
 }
 
-/* Slow, hypnotic ambient Ken Burns breathing animation */
-@keyframes subtleKenBurns {
-  0% {
-    transform: scale(1) translate3d(0, 0, 0);
+/* 1. Realistic Continuous Vinyl Record Rotation */
+@keyframes spinVinyl {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 2. Specular Light Sheen Beam sweeping across the deluxe jacket */
+@keyframes coverSheen {
+  0%,
+  25% {
+    transform: translateX(-140%) rotate(25deg);
+    opacity: 0;
+  }
+  38% {
+    opacity: 0.45;
+  }
+  50%,
+  100% {
+    transform: translateX(180%) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+/* 3. Hypnotic Bass Breathing / Acoustic Heartbeat Float */
+@keyframes albumBreathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    filter: drop-shadow(0 20px 35px rgba(0, 0, 0, 0.7));
   }
   50% {
-    transform: scale(1.055) translate3d(-1%, -1.2%, 0);
+    transform: translateY(-8px) scale(1.025);
+    filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.85));
+  }
+}
+
+/* 4. Acoustic Concentric Soundwave Ripples */
+@keyframes acousticRipple {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.35;
   }
   100% {
-    transform: scale(1.025) translate3d(1%, 0.8%, 0);
+    transform: scale(1.42);
+    opacity: 0;
   }
 }
 
-.animate-artwork {
-  animation: subtleKenBurns 22s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
-  will-change: transform;
-  transform-origin: center center;
+/* Concentric Ripple Elements */
+.concentric-ring-1 {
+  animation: acousticRipple 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  will-change: transform, opacity;
 }
 
-.animate-artwork-paused {
-  animation-play-state: paused !important;
+.concentric-ring-2 {
+  animation: acousticRipple 4s cubic-bezier(0.16, 1, 0.3, 1) infinite 2s;
+  will-change: transform, opacity;
+}
+
+/* Realistic Vinyl Record Disc Styling */
+.vinyl-disc {
+  background: radial-gradient(
+    circle,
+    #1d1c24 0%,
+    #0c0b10 40%,
+    #17161f 52%,
+    #0a090e 75%,
+    #14131b 100%
+  );
+  box-shadow:
+    0 25px 60px -10px rgba(0, 0, 0, 0.95),
+    inset 0 0 12px rgba(255, 255, 255, 0.12);
+  transform: translateX(0) rotate(0deg);
+  transition:
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.6s ease;
+  will-change: transform;
+}
+
+.vinyl-playing {
+  transform: translateX(32%) rotate(0deg);
+  animation: spinVinyl 16s linear infinite;
+}
+
+.vinyl-paused {
+  transform: translateX(12%) rotate(0deg);
+  animation: spinVinyl 16s linear infinite;
+  animation-play-state: paused;
+}
+
+/* Micro-Grooves on the Vinyl Disc */
+.vinyl-grooves {
+  background: repeating-radial-gradient(
+    circle,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.035) 3px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+/* Light Reflection Sheen on the Vinyl */
+.vinyl-reflection {
+  background: conic-gradient(
+    from 35deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.09) 45deg,
+    transparent 90deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.09) 225deg,
+    transparent 270deg
+  );
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* Deluxe Album Jacket Styling */
+.album-jacket {
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.5s ease;
+  will-change: transform, box-shadow;
+}
+
+.jacket-playing {
+  animation: albumBreathe 4.5s ease-in-out infinite;
+}
+
+/* Specular Sheen Beam running diagonally across the jacket */
+.jacket-sheen {
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.18) 46%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.18) 54%,
+    transparent 70%
+  );
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  animation: coverSheen 8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-artwork {
+  .vinyl-playing,
+  .jacket-playing,
+  .concentric-ring-1,
+  .concentric-ring-2,
+  .jacket-sheen {
     animation: none !important;
   }
-}
-
-/* Atmospheric ambient glow behind the artwork */
-.ambient-glow {
-  position: absolute;
-  inset: -15%;
-  filter: blur(85px) saturate(2);
-  opacity: 0.45;
-  pointer-events: none;
-  transform: scale(1.15);
-  z-index: 0;
-  transition: opacity 1s ease-in-out;
 }
 
 /* Floating player controls island with liquid glassmorphism */
@@ -122,15 +244,15 @@
 @keyframes ambientGlowPulse {
   0%,
   100% {
-    opacity: 0.35;
-    transform: scale(1.1);
+    opacity: 0.4;
+    transform: scale(1.08);
   }
   50% {
-    opacity: 0.55;
-    transform: scale(1.18);
+    opacity: 0.65;
+    transform: scale(1.22);
   }
 }
 
 .animate-glow-pulse {
-  animation: ambientGlowPulse 14s ease-in-out infinite;
+  animation: ambientGlowPulse 4.5s ease-in-out infinite;
 }

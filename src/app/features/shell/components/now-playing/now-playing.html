@@ -191,30 +191,103 @@
     >
       <!-- Integrated Seamless Artwork Stage -->
       <div
-        class="relative w-full h-[54vh] sm:h-[58vh] max-h-[480px] flex items-center justify-center"
+        class="relative w-full h-[54vh] sm:h-[58vh] max-h-[480px] flex items-center justify-center py-4"
       >
         @if (currentArtworkUrl()) {
-          <!-- Ambient blurred halo behind image -->
+          <!-- Ambient blurred halo behind image (audio-reactive breathing) -->
           <div
-            class="absolute w-[80%] max-w-[500px] aspect-square rounded-full blur-[90px] opacity-40 pointer-events-none transition-all duration-700"
-            [style.background-color]="'rgb(' + dominantRgbString() + ')'"
+            class="ambient-cover-glow absolute w-[75%] max-w-[460px] aspect-square rounded-full blur-[100px] pointer-events-none transition-all duration-700"
+            [class.animate-glow-pulse]="playbackService.$isPlaying()"
+            [style.background-color]="'rgba(' + dominantRgbString() + ', 0.55)'"
           ></div>
 
-          <!-- The Hero Masked Artwork with Seamless Dissolve Edges -->
+          <!-- Concentric Acoustic Soundwave Rings (pulse when playing) -->
+          @if (playbackService.$isPlaying()) {
+            <div
+              class="concentric-ring-1 absolute w-[340px] sm:w-[420px] aspect-square rounded-full border pointer-events-none"
+              [style.border-color]="'rgba(' + dominantRgbString() + ', 0.35)'"
+            ></div>
+            <div
+              class="concentric-ring-2 absolute w-[420px] sm:w-[500px] aspect-square rounded-full border pointer-events-none"
+              [style.border-color]="'rgba(' + dominantRgbString() + ', 0.2)'"
+            ></div>
+          }
+
+          <!-- Deluxe Artwork & Vinyl Stage Container -->
           <div
-            class="relative w-full h-full max-w-[620px] flex items-center justify-center mask-artwork-seamless overflow-hidden"
+            class="artwork-stage-container relative flex items-center justify-center max-w-[620px] w-full h-full select-none cursor-pointer group/art"
+            (click)="playbackService.togglePlay()"
+            [title]="playbackService.$isPlaying() ? 'Pausar reproducción' : 'Continuar reproducción'"
           >
-            <img
-              #artImg
-              crossorigin="anonymous"
-              [src]="currentArtworkUrl()"
-              [alt]="trackTitle()"
-              (load)="onImageLoad(artImg)"
-              (error)="playbackService.reportArtworkError()"
-              class="w-full h-full object-contain transition-transform duration-700 select-none"
-              [class.animate-artwork]="$animateArtwork()"
-              [class.animate-artwork-paused]="!playbackService.$isPlaying()"
-            />
+            <!-- Spinning Vinyl Record (Slides out from behind sleeve when playing) -->
+            <div
+              class="vinyl-disc absolute aspect-square w-[75%] max-w-[380px] rounded-full transition-transform duration-700 ease-out z-0 shadow-2xl flex items-center justify-center"
+              [class.vinyl-playing]="playbackService.$isPlaying()"
+              [class.vinyl-paused]="!playbackService.$isPlaying()"
+            >
+              <!-- Vinyl Grooves Sheen Overlay -->
+              <div class="vinyl-grooves absolute inset-0 rounded-full"></div>
+              <!-- Vinyl Specular Light Reflection -->
+              <div class="vinyl-reflection absolute inset-0 rounded-full"></div>
+              <!-- Center Album Label -->
+              <div
+                class="relative w-[34%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-inner z-10 flex items-center justify-center bg-black"
+              >
+                <img
+                  [src]="currentArtworkUrl()"
+                  [alt]="trackTitle()"
+                  class="w-full h-full object-cover select-none"
+                />
+                <!-- Spindle Center Hole -->
+                <div
+                  class="absolute w-3.5 h-3.5 rounded-full bg-neutral-900 border-2 border-neutral-400 shadow-md"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Deluxe Album Jacket (Cover) -->
+            <div
+              class="album-jacket relative aspect-square w-[78%] max-w-[390px] rounded-3xl overflow-hidden z-10 border border-white/20 transition-all duration-500"
+              [class.jacket-playing]="playbackService.$isPlaying()"
+              [style.box-shadow]="
+                '0 28px 65px -12px rgba(0,0,0,0.85), 0 0 45px -5px rgba(' +
+                dominantRgbString() +
+                ', 0.45)'
+              "
+            >
+              <img
+                #artImg
+                crossorigin="anonymous"
+                [src]="currentArtworkUrl()"
+                [alt]="trackTitle()"
+                (load)="onImageLoad(artImg)"
+                (error)="playbackService.reportArtworkError()"
+                class="w-full h-full object-cover select-none"
+              />
+
+              <!-- Specular Light Sheen Beam Sweep -->
+              <div class="jacket-sheen absolute inset-0 pointer-events-none"></div>
+
+              <!-- Inner Bevel Glass Border Highlight -->
+              <div
+                class="absolute inset-0 rounded-3xl border border-white/25 pointer-events-none"
+              ></div>
+
+              <!-- Play/Pause Indicator on hover -->
+              <div
+                class="absolute inset-0 bg-black/30 opacity-0 group-hover/art:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-20"
+              >
+                <div
+                  class="w-14 h-14 rounded-full bg-white/90 text-neutral-950 flex items-center justify-center shadow-xl backdrop-blur-md transform scale-90 group-hover/art:scale-100 transition-transform"
+                >
+                  @if (playbackService.$isPlaying()) {
+                    <svg lucidePause class="w-6 h-6 fill-current"></svg>
+                  } @else {
+                    <svg lucidePlay class="w-6 h-6 fill-current translate-x-0.5"></svg>
+                  }
+                </div>
+              </div>
+            </div>
           </div>
         } @else {
           <div class="w-full h-full flex items-center justify-center">
@@ -284,24 +357,70 @@
       <div
         class="hidden lg:flex flex-1 flex-col justify-center items-center lg:items-end lg:pr-6 max-w-xl w-full"
       >
-        <!-- Masked Artwork container -->
+        <!-- Artwork & Vinyl Stage Container (Lyrics View) -->
         <div
-          class="relative w-full max-w-[460px] aspect-square flex items-center justify-center mask-artwork-seamless overflow-hidden"
+          class="relative w-full max-w-[440px] aspect-square flex items-center justify-center cursor-pointer group/art select-none"
+          (click)="playbackService.togglePlay()"
+          [title]="playbackService.$isPlaying() ? 'Pausar reproducción' : 'Continuar reproducción'"
         >
           @if (currentArtworkUrl()) {
-            <img
-              #artImgLyrics
-              crossorigin="anonymous"
-              [src]="currentArtworkUrl()"
-              [alt]="trackTitle()"
-              (load)="onImageLoad(artImgLyrics)"
-              (error)="playbackService.reportArtworkError()"
-              class="w-full h-full object-cover transition-transform duration-700 select-none"
-              [class.animate-artwork]="$animateArtwork()"
-              [class.animate-artwork-paused]="!playbackService.$isPlaying()"
-            />
+            <!-- Ambient blurred halo behind image -->
+            <div
+              class="ambient-cover-glow absolute w-[75%] aspect-square rounded-full blur-[85px] pointer-events-none transition-all duration-700"
+              [class.animate-glow-pulse]="playbackService.$isPlaying()"
+              [style.background-color]="'rgba(' + dominantRgbString() + ', 0.55)'"
+            ></div>
+
+            <!-- Spinning Vinyl Record (Lyrics View) -->
+            <div
+              class="vinyl-disc absolute aspect-square w-[75%] rounded-full transition-transform duration-700 ease-out z-0 shadow-2xl flex items-center justify-center"
+              [class.vinyl-playing]="playbackService.$isPlaying()"
+              [class.vinyl-paused]="!playbackService.$isPlaying()"
+            >
+              <div class="vinyl-grooves absolute inset-0 rounded-full"></div>
+              <div class="vinyl-reflection absolute inset-0 rounded-full"></div>
+              <div
+                class="relative w-[34%] aspect-square rounded-full overflow-hidden border-2 border-white/20 shadow-inner z-10 flex items-center justify-center bg-black"
+              >
+                <img
+                  [src]="currentArtworkUrl()"
+                  [alt]="trackTitle()"
+                  class="w-full h-full object-cover select-none"
+                />
+                <div
+                  class="absolute w-3 h-3 rounded-full bg-neutral-900 border-2 border-neutral-400 shadow-md"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Deluxe Album Jacket -->
+            <div
+              class="album-jacket relative aspect-square w-[78%] rounded-3xl overflow-hidden z-10 border border-white/20 transition-all duration-500"
+              [class.jacket-playing]="playbackService.$isPlaying()"
+              [style.box-shadow]="
+                '0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px -5px rgba(' +
+                dominantRgbString() +
+                ', 0.4)'
+              "
+            >
+              <img
+                #artImgLyrics
+                crossorigin="anonymous"
+                [src]="currentArtworkUrl()"
+                [alt]="trackTitle()"
+                (load)="onImageLoad(artImgLyrics)"
+                (error)="playbackService.reportArtworkError()"
+                class="w-full h-full object-cover select-none"
+              />
+              <div class="jacket-sheen absolute inset-0 pointer-events-none"></div>
+              <div
+                class="absolute inset-0 rounded-3xl border border-white/25 pointer-events-none"
+              ></div>
+            </div>
           } @else {
-            <div class="w-full h-full bg-white/5 flex items-center justify-center">
+            <div
+              class="w-full h-full bg-white/5 flex items-center justify-center rounded-3xl border border-white/10"
+            >
               <svg lucideMusic class="w-24 h-24 text-white/20"></svg>
             </div>
           }
@@ -664,6 +783,8 @@
   <footer class="absolute bottom-5 inset-x-0 z-30 flex justify-center px-4 pointer-events-none">
     <div
       class="floating-island pointer-events-auto w-full max-w-2xl rounded-3xl p-3 sm:px-6 sm:py-3.5 flex flex-col gap-2 transition-all duration-300"
+      [style.box-shadow]="'0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px -5px rgba(' + dominantRgbString() + ', 0.35)'"
+      [style.border-color]="'rgba(' + dominantRgbString() + ', 0.3)'"
     >
       <!-- Row 1: Playback Buttons -->
       <div class="flex items-center justify-center gap-3 sm:gap-6">

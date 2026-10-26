@@ -173,4 +173,29 @@ describe('ListLikes', () => {
     const [, , title] = playQueueSpy.mock.calls[0];
     expect(title).toBe('Radio de Likes');
   });
+
+  it('should update list optimistically when a song is unliked or liked', () => {
+    expect(component.songs().length).toBe(2);
+    expect(component.totalCount()).toBe(2);
+
+    // Desmarcar v1 optimista
+    likesService.backendSyncEnabled = false;
+    likesService.unlike('v1');
+
+    expect(component.songs().length).toBe(1);
+    expect(component.songs()[0].videoId).toBe('v2');
+    expect(component.totalCount()).toBe(1);
+
+    // Agregar una nueva canción optimistamente
+    likesService.like({
+      videoId: 'v3',
+      name: 'New Song',
+      artist: 'New Artist',
+      duration: 180,
+    });
+
+    expect(component.songs().length).toBe(2);
+    expect(component.totalCount()).toBe(2);
+    expect(component.songs().some((s) => s.videoId === 'v3')).toBe(true);
+  });
 });
