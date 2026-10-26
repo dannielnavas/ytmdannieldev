@@ -1,11 +1,9 @@
 import { Component, inject, input } from '@angular/core';
-import { NgOptimizedImage } from '@angular/common';
 import { WindowControlsService } from '../../../core/services/window-controls.service';
 
 @Component({
   selector: 'app-title-bar',
   standalone: true,
-  imports: [NgOptimizedImage],
   template: `
     <header
       class="h-9 w-full bg-[#0a0812]/90 backdrop-blur-md text-neutral-300 border-b border-white/[0.06] flex items-center justify-between select-none fixed top-0 left-0 right-0 z-50 text-xs font-medium shadow-xs"
@@ -78,11 +76,24 @@ import { WindowControlsService } from '../../../core/services/window-controls.se
           </button>
         </div>
 
-        <!-- Título y Logo Centrados estilo nativo macOS -->
+        <!-- Título e Ícono Centrados estilo nativo macOS -->
         <div
-          class="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-none max-w-[50%] overflow-hidden"
+          class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none max-w-[50%] overflow-hidden"
         >
-          <img ngSrc="logo.png" alt="Logo Pulso" width="16" height="16" class="rounded-xs shrink-0" />
+          <svg
+            class="w-3.5 h-3.5 text-neutral-300 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
           <span class="truncate text-xs font-semibold text-neutral-300 tracking-wide">
             {{ $title() }}
           </span>
@@ -105,16 +116,39 @@ import { WindowControlsService } from '../../../core/services/window-controls.se
               stroke-width="2"
             >
               <rect x="2" y="3" width="20" height="14" rx="2" />
-              <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" fill-opacity="0.35" />
+              <rect
+                x="11"
+                y="9"
+                width="9"
+                height="7"
+                rx="1"
+                fill="currentColor"
+                fill-opacity="0.35"
+              />
             </svg>
-            <span class="text-[11px] font-medium text-neutral-400 group-hover:text-neutral-200">Mini</span>
+            <span class="text-[11px] font-medium text-neutral-400 group-hover:text-neutral-200"
+              >Mini</span
+            >
           </button>
         </div>
       } @else {
         <!-- ======================= WINDOWS / LINUX LAYOUT ======================= -->
-        <!-- Logo y Título a la IZQUIERDA -->
+        <!-- Ícono y Título a la IZQUIERDA -->
         <div class="flex items-center gap-2 px-3.5 h-full overflow-hidden pointer-events-none">
-          <img ngSrc="logo.png" alt="Logo Pulso" width="18" height="18" class="rounded-xs shrink-0" />
+          <svg
+            class="w-4 h-4 text-neutral-200 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
           <span class="truncate tracking-wide text-neutral-200 text-xs font-semibold">
             {{ $title() }}
           </span>
@@ -138,7 +172,15 @@ import { WindowControlsService } from '../../../core/services/window-controls.se
               stroke-width="2"
             >
               <rect x="2" y="3" width="20" height="14" rx="2" />
-              <rect x="11" y="9" width="9" height="7" rx="1" fill="currentColor" fill-opacity="0.35" />
+              <rect
+                x="11"
+                y="9"
+                width="9"
+                height="7"
+                rx="1"
+                fill="currentColor"
+                fill-opacity="0.35"
+              />
             </svg>
           </button>
 
