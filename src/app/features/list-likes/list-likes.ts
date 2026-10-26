@@ -10,7 +10,6 @@ import {
   LucidePlay,
   LucideSearch,
   LucideShuffle,
-  LucideSparkles,
   LucideX,
 } from '@lucide/angular';
 import { LikesService, LikedSong } from '../../core/services/likes.service';
@@ -30,7 +29,6 @@ import { Header } from '../../shared/components/header/header';
     LucideShuffle,
     LucideClock,
     LucideSearch,
-    LucideSparkles,
     LucideX,
     Header,
   ],

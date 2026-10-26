@@ -3,9 +3,7 @@ import { Router } from '@angular/router';
 import { rxResource } from '@angular/core/rxjs-interop';
 import {
   LucideArrowRight,
-  LucideClock,
   LucideCompass,
-  LucideFlame,
   LucideHeart,
   LucideLayers,
   LucideMusic,
@@ -14,7 +12,6 @@ import {
   LucideSearch,
   LucideSparkles,
   LucideTrendingUp,
-  LucideUsers,
 } from '@lucide/angular';
 import { Dashboard } from '../../core/services/dashboard/dashboard';
 import {
@@ -35,9 +32,20 @@ import { LikeButton } from '../../shared/components/like-button/like-button';
 import { SearchStore } from '../../core/store/search-store';
 import { LikesService } from '../../core/services/likes.service';
 
-interface RenderedSection {
+export interface RenderedSection {
   title: string;
   contents: DashboardItem[];
+}
+
+export interface HeroFeatured {
+  type: 'artist' | 'track' | 'youtube';
+  title: string;
+  subtitle: string;
+  category: string;
+  imageUrl: string;
+  listeners?: string;
+  likesCount?: number;
+  itemRef?: any;
 }
 
 export type HomeViewTab = 'hybrid' | 'personal' | 'youtube';
@@ -73,10 +81,7 @@ function normalizeDashboardResponse(data: unknown): DashboardResponse {
     LucidePlay,
     LucideHeart,
     LucideSparkles,
-    LucideClock,
-    LucideFlame,
     LucideTrendingUp,
-    LucideUsers,
     LucideCompass,
     LucideRotateCw,
     LucideSearch,
@@ -175,6 +180,61 @@ export class Home {
       }))
       .filter((section) => section.contents.length > 0);
   });
+
+  public readonly heroFeatured = computed<HeroFeatured | null>(() => {
+    const artists = this.topArtists();
+    if (artists.length > 0) {
+      const first = artists[0];
+      return {
+        type: 'artist',
+        title: first.name,
+        subtitle: first.tags?.slice(0, 3).join(' · ') || 'Tu artista principal en Pulso',
+        category: 'Artista Destacado',
+        imageUrl: this.getArtistImage(first),
+        listeners: first.listeners,
+        likesCount: first.likesCount,
+        itemRef: first,
+      };
+    }
+
+    const likes = this.recentLikes();
+    if (likes.length > 0) {
+      const first = likes[0];
+      return {
+        type: 'track',
+        title: first.title,
+        subtitle: first.artist || 'Canción guardada',
+        category: 'Continuar Escuchando',
+        imageUrl: this.getRecentLikeCover(first),
+        itemRef: first,
+      };
+    }
+
+    const sections = this.validSections();
+    if (sections.length > 0 && sections[0].contents.length > 0) {
+      const first = sections[0].contents[0];
+      return {
+        type: 'youtube',
+        title: first.name,
+        subtitle: first.artist?.name || sections[0].title,
+        category: 'Novedades y Recomendados',
+        imageUrl: this.getThumbnailUrl(first),
+        itemRef: first,
+      };
+    }
+
+    return null;
+  });
+
+  public playHeroFeatured(hero: HeroFeatured): void {
+    if (hero.type === 'artist') {
+      this.exploreArtist(hero.title);
+    } else if (hero.type === 'track') {
+      this.playRecentLike(hero.itemRef, 0);
+    } else if (hero.type === 'youtube') {
+      this.playItem(hero.itemRef);
+    }
+  }
 
   /**
    * Pestaña activa: Por defecto es 'hybrid' si el usuario tiene datos personales,

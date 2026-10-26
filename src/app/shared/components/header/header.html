@@ -2,7 +2,7 @@
 @let isUserLoading = resourceMe.isLoading();
 
 <header
-  class="shrink-0 px-6 pt-3 pb-3 flex flex-col gap-3 border-b border-white/5 bg-[#0c0a15]/90 backdrop-blur-md z-20">
+  class="shrink-0 px-6 pt-3 pb-3 flex flex-col gap-3 border-b border-white/[0.06] bg-[#09090b]/85 backdrop-blur-md z-20">
   <div class="flex items-center justify-between gap-4">
 
     @if($showBack()){
@@ -42,8 +42,8 @@
           (click)="toggleMenu()"
           [attr.aria-expanded]="isMenuOpen()"
           aria-haspopup="true"
-          class="flex items-center gap-2.5 py-1 px-1.5 md:pr-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/30 transition-all duration-200 cursor-pointer select-none group shadow-sm text-left"
-          [class.border-purple-500/50]="isMenuOpen()"
+          class="flex items-center gap-2.5 py-1 px-1.5 md:pr-2.5 rounded-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/20 transition-all duration-200 cursor-pointer select-none group text-left"
+          [class.border-white/30]="isMenuOpen()"
           [class.bg-white/[0.08]]="isMenuOpen()"
           [title]="
             user.full_name
@@ -55,7 +55,7 @@
         >
           <!-- Avatar -->
           <div
-            class="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-purple-500/30 bg-purple-600/20 text-purple-200 flex items-center justify-center shadow-inner"
+            class="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/15 bg-zinc-800 text-zinc-300 flex items-center justify-center"
           >
             @if (user.profile_image && !hasAvatarError()) {
               <img
@@ -73,7 +73,7 @@
 
             @if (user.is_youtube_premium) {
               <span
-                class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#0c0a15]"
+                class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#09090b]"
                 title="Premium"
               ></span>
             }
@@ -111,14 +111,14 @@
         <!-- Dropdown Menu -->
         @if (isMenuOpen()) {
           <div
-            class="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-[#13111f]/95 border border-white/10 p-2 shadow-2xl shadow-purple-950/50 backdrop-blur-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1"
+            class="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-zinc-900/95 border border-white/[0.08] p-2 shadow-2xl backdrop-blur-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1"
             role="menu"
             aria-label="Menú de usuario"
           >
             <!-- User summary inside dropdown -->
-            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
+            <div class="p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center gap-3">
               <div
-                class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 border border-purple-500/40 bg-purple-600/20 text-purple-200 flex items-center justify-center font-bold text-sm shadow-inner"
+                class="relative w-10 h-10 rounded-full overflow-hidden shrink-0 border border-white/15 bg-zinc-800 text-zinc-300 flex items-center justify-center font-bold text-sm"
               >
                 @if (user.profile_image && !hasAvatarError()) {
                   <img
@@ -207,10 +207,8 @@
     aria-labelledby="logout-dialog-title"
   >
     <div
-      class="w-full max-w-sm rounded-3xl bg-[#141126] border border-white/15 p-6 shadow-2xl shadow-purple-950/40 space-y-5 text-center relative overflow-hidden animate-in zoom-in-95 duration-150"
+      class="w-full max-w-sm rounded-3xl bg-zinc-900 border border-white/[0.08] p-6 shadow-2xl space-y-5 text-center relative overflow-hidden animate-in zoom-in-95 duration-150"
     >
-      <!-- Ambient decorative glow -->
-      <div class="absolute -top-12 -left-12 w-36 h-36 bg-rose-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
       <!-- Close button -->
       <button

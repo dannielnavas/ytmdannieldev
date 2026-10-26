@@ -1,45 +1,46 @@
-<section class="h-full flex-1 min-h-0 flex flex-col overflow-hidden bg-[#0c0a15] text-neutral-100">
+<section class="h-full flex-1 min-h-0 flex flex-col overflow-hidden bg-[#09090b] text-neutral-100">
   <!-- Top Navigation Bar -->
   <app-header />
 
   <!-- Main Scrollable Content Area -->
   <main
-    class="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-32 space-y-10 scroll-smooth custom-scrollbar"
+    class="flex-1 min-h-0 overflow-y-auto px-6 md:px-10 pt-6 pb-36 space-y-12 scroll-smooth custom-scrollbar"
   >
-    <!-- Dashboard Subheader & Controls -->
-    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
+    <!-- Dashboard Header & Segmented Controls -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
       <div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
-            <span>Dashboard</span>
-            @if (hasPersonalData()) {
-              <span class="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-purple-300 bg-purple-500/15 border border-purple-500/25 px-2.5 py-0.5 rounded-full">
-                <svg lucideSparkles class="w-3 h-3 text-purple-400"></svg>
-                Personal + YouTube
-              </span>
-            }
+            <span>Escuchar ahora</span>
           </h1>
-        </div>
-        <p class="text-xs md:text-sm text-neutral-400 mt-1">
           @if (hasPersonalData()) {
-            Tus analíticas con Last.fm, canciones guardadas y descubrimiento musical en un solo lugar.
+            <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 bg-white/[0.04] border border-white/[0.08] px-2.5 py-0.5 rounded-full">
+              <svg lucideSparkles class="w-3 h-3 text-purple-400"></svg>
+              Personal + YouTube
+            </span>
+          }
+        </div>
+        <p class="text-xs md:text-sm text-zinc-400 mt-1">
+          @if (hasPersonalData()) {
+            Tus analíticas de Last.fm, canciones favoritas y descubrimientos musicales en un solo lugar.
           } @else {
             Descubre música recomendada, novedades y playlists seleccionadas para ti.
           }
         </p>
       </div>
 
-      <!-- Controls: Tabs & Refresh -->
-      <div class="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
+      <!-- Controls: Modern Studio Segmented Tabs & Refresh -->
+      <div class="flex items-center gap-2.5 self-stretch sm:self-auto justify-between sm:justify-end">
         @if (hasPersonalData()) {
-          <div class="inline-flex p-1 bg-white/[0.04] border border-white/10 rounded-xl backdrop-blur-md">
+          <div class="inline-flex p-1 bg-white/[0.03] border border-white/[0.07] rounded-xl backdrop-blur-md">
             <button
               type="button"
               (click)="setTab('hybrid')"
-              [class.bg-purple-600]="activeTab() === 'hybrid'"
-              [class.text-white]="activeTab() === 'hybrid'"
-              [class.text-neutral-400]="activeTab() !== 'hybrid'"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
+              [class.bg-white]="activeTab() === 'hybrid'"
+              [class.text-black]="activeTab() === 'hybrid'"
+              [class.shadow-sm]="activeTab() === 'hybrid'"
+              [class.text-zinc-400]="activeTab() !== 'hybrid'"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
             >
               <svg lucideLayers class="w-3.5 h-3.5"></svg>
               <span>Todo</span>
@@ -47,10 +48,11 @@
             <button
               type="button"
               (click)="setTab('personal')"
-              [class.bg-purple-600]="activeTab() === 'personal'"
-              [class.text-white]="activeTab() === 'personal'"
-              [class.text-neutral-400]="activeTab() !== 'personal'"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
+              [class.bg-white]="activeTab() === 'personal'"
+              [class.text-black]="activeTab() === 'personal'"
+              [class.shadow-sm]="activeTab() === 'personal'"
+              [class.text-zinc-400]="activeTab() !== 'personal'"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
             >
               <svg lucideHeart class="w-3.5 h-3.5"></svg>
               <span>Tu Música</span>
@@ -58,10 +60,11 @@
             <button
               type="button"
               (click)="setTab('youtube')"
-              [class.bg-purple-600]="activeTab() === 'youtube'"
-              [class.text-white]="activeTab() === 'youtube'"
-              [class.text-neutral-400]="activeTab() !== 'youtube'"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
+              [class.bg-white]="activeTab() === 'youtube'"
+              [class.text-black]="activeTab() === 'youtube'"
+              [class.shadow-sm]="activeTab() === 'youtube'"
+              [class.text-zinc-400]="activeTab() !== 'youtube'"
+              class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer hover:text-white"
             >
               <svg lucideCompass class="w-3.5 h-3.5"></svg>
               <span>Explorar</span>
@@ -74,7 +77,7 @@
           type="button"
           (click)="reload()"
           [disabled]="isRefreshing()"
-          class="p-2 text-neutral-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+          class="p-2 text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.07] rounded-xl transition-all cursor-pointer disabled:opacity-50"
           title="Actualizar datos del dashboard"
           aria-label="Actualizar datos del dashboard"
         >
@@ -89,14 +92,16 @@
 
     <!-- Loading Skeleton State -->
     @if (resourceDashboard.isLoading() && !dashboardResponse().personal && !validSections().length) {
-      <div class="space-y-10 animate-pulse">
-        <!-- KPIs Skeleton -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="space-y-12 animate-pulse">
+        <!-- Hero Banner Skeleton -->
+        <div class="h-64 rounded-3xl bg-white/[0.02] border border-white/[0.05]"></div>
+
+        <!-- Metric strip skeleton -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 py-4 border-b border-white/[0.05]">
           @for (_ of [1, 2, 3, 4]; track $index) {
-            <div class="h-28 rounded-2xl bg-white/[0.03] border border-white/5 p-4 space-y-3">
-              <div class="h-4 w-20 bg-white/10 rounded"></div>
+            <div class="space-y-2">
+              <div class="h-3 w-20 bg-white/10 rounded"></div>
               <div class="h-7 w-28 bg-white/15 rounded"></div>
-              <div class="h-3 w-16 bg-white/5 rounded"></div>
             </div>
           }
         </div>
@@ -104,8 +109,8 @@
         <!-- Sections Skeleton -->
         @for (_ of [1, 2]; track $index) {
           <div class="space-y-4">
-            <div class="h-6 w-48 bg-white/10 rounded-md"></div>
-            <div class="flex gap-4 overflow-hidden">
+            <div class="h-6 w-44 bg-white/10 rounded-md"></div>
+            <div class="flex gap-5 overflow-hidden">
               @for (__ of [1, 2, 3, 4, 5]; track $index) {
                 <div class="w-44 shrink-0 space-y-2.5">
                   <div class="aspect-square w-full bg-white/5 rounded-2xl"></div>
@@ -119,133 +124,195 @@
       </div>
     }
 
-    <!-- Fallback Callout when no personal data exists -->
+    <!-- 1. Apple Music Editorial Hero Spotlight -->
+    @if (heroFeatured(); as hero) {
+      <section aria-label="Destacado editorial" class="relative group">
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-white/[0.07] min-h-[220px] md:min-h-[260px] flex items-center p-6 sm:p-8 md:p-10 shadow-2xl">
+          <!-- Background Ambient Artwork Glow & Image -->
+          @if (hero.imageUrl) {
+            <div class="absolute right-0 top-0 bottom-0 w-2/5 md:w-1/3 overflow-hidden pointer-events-none select-none">
+              <div class="absolute inset-0 bg-gradient-to-r from-zinc-900 via-zinc-900/40 to-transparent z-10"></div>
+              <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent z-10"></div>
+              <img
+                [src]="hero.imageUrl"
+                [alt]="hero.title"
+                class="w-full h-full object-cover object-center opacity-65 group-hover:scale-105 transition-transform duration-700 filter saturate-110"
+              />
+            </div>
+          }
+
+          <!-- Editorial Typography & Actions -->
+          <div class="relative z-20 max-w-xl space-y-3.5">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                {{ hero.category }}
+              </span>
+              @if (hero.type === 'artist' && hero.likesCount) {
+                <span class="text-[11px] font-medium text-pink-400/90 flex items-center gap-1">
+                  • {{ hero.likesCount }} canciones guardadas
+                </span>
+              }
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2">
+              {{ hero.title }}
+            </h2>
+
+            <p class="text-xs sm:text-sm text-zinc-300 max-w-lg line-clamp-2 font-normal leading-relaxed">
+              {{ hero.subtitle }}
+              @if (hero.listeners) {
+                <span class="text-zinc-400">({{ formatListeners(hero.listeners) }})</span>
+              }
+            </p>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                (click)="playHeroFeatured(hero)"
+                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs tracking-wide shadow-lg transition-all duration-200 active:scale-95 cursor-pointer"
+              >
+                <svg lucidePlay class="w-4 h-4 fill-zinc-950 text-zinc-950 translate-x-0.5"></svg>
+                <span>{{ hero.type === 'artist' ? 'Explorar' : 'Reproducir' }}</span>
+              </button>
+
+              @if (hero.type === 'artist') {
+                <button
+                  type="button"
+                  (click)="exploreArtist(hero.title)"
+                  class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.08] font-medium text-xs tracking-wide transition-colors cursor-pointer"
+                >
+                  <svg lucideSearch class="w-3.5 h-3.5 text-zinc-300"></svg>
+                  <span>Ver discografía</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- Fallback Welcome Callout when no personal data exists -->
     @if (!hasPersonalData()) {
-      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-900/30 via-indigo-950/20 to-black/40 border border-purple-500/20 p-6 md:p-8 backdrop-blur-md">
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="relative overflow-hidden rounded-2xl bg-zinc-900/40 border border-white/[0.06] p-6 md:p-8">
         <div class="relative z-10 max-w-2xl space-y-3">
-          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-300 uppercase tracking-wider bg-purple-500/20 px-3 py-1 rounded-full border border-purple-500/30">
-            <svg lucideHeart class="w-3.5 h-3.5 fill-purple-300 text-purple-300"></svg>
+          <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+            <svg lucideHeart class="w-3.5 h-3.5 fill-pink-500 text-pink-500"></svg>
             Personaliza tu experiencia Pulso
           </span>
-          <h2 class="text-xl md:text-2xl font-bold text-white">
-            Tu centro musical personal cobrará vida aquí
+          <h2 class="text-xl md:text-2xl font-bold text-white tracking-tight">
+            Tus estadísticas de escucha cobrarán vida aquí
           </h2>
-          <p class="text-xs md:text-sm text-neutral-300 leading-relaxed">
-            Cuando guardes tus canciones favoritas haciendo clic en el corazón ♥, desbloquearás tus estadísticas en tiempo real: tiempo total de reproducción, artistas más escuchados con Last.fm, radar de géneros y recomendaciones inteligentes personalizadas.
+          <p class="text-xs md:text-sm text-zinc-400 leading-relaxed">
+            Cuando guardes tus canciones favoritas con el botón Me Gusta ♥, desbloquearás tus analíticas en tiempo real: tiempo de reproducción acumulado, tus artistas principales enriquecidos con Last.fm y sugerencias inteligentes.
           </p>
         </div>
       </div>
     }
 
-    <!-- Personal Analytics Section (Visible in 'hybrid' and 'personal' tabs) -->
+    <!-- 2. Subtle Floating Metrics (Cápsulas sutiles sin fondo ni borde) -->
     @if (hasPersonalData() && (activeTab() === 'hybrid' || activeTab() === 'personal')) {
-      <!-- 1. Hero KPIs Grid -->
       @if (kpis(); as stats) {
-        <section aria-labelledby="kpis-heading" class="space-y-3">
+        <section aria-labelledby="kpis-heading">
           <h2 id="kpis-heading" class="sr-only">Métricas de escucha</h2>
-          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Total Likes Card -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 py-3 border-b border-white/[0.06]">
+            <!-- Total Likes Metric -->
             <div
               (click)="goToLikes()"
-              class="group relative overflow-hidden rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-pink-500/40 p-4 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-pink-500/10"
+              class="group cursor-pointer select-none space-y-1"
             >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-neutral-400 group-hover:text-pink-300 transition-colors">Tus Me Gusta</span>
-                <div class="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/25 flex items-center justify-center text-pink-400 group-hover:scale-110 transition-transform">
-                  <svg lucideHeart class="w-4 h-4 fill-pink-400 text-pink-400"></svg>
-                </div>
+              <span class="text-[11px] font-semibold tracking-wider uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                Colección Guardada
+              </span>
+              <div class="flex items-baseline gap-2">
+                <span class="text-2xl md:text-3xl font-bold text-white tracking-tight group-hover:text-pink-400 transition-colors">
+                  {{ stats.totalLikes }}
+                </span>
+                <span class="text-xs text-zinc-500">canciones</span>
               </div>
-              <div class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                {{ stats.totalLikes }}
-              </div>
-              <p class="text-[11px] text-neutral-400 mt-1 flex items-center gap-1">
-                <span>Canciones guardadas</span>
-                <svg lucideArrowRight class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-pink-300"></svg>
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1 pt-0.5">
+                <span>Ver biblioteca</span>
+                <svg lucideArrowRight class="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity"></svg>
               </p>
             </div>
 
-            <!-- Total Listening Time Card -->
-            <div class="relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/10 p-4 shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-neutral-400">Tiempo de Música</span>
-                <div class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
-                  <svg lucideClock class="w-4 h-4 text-indigo-400"></svg>
-                </div>
+            <!-- Listening Time Metric -->
+            <div class="space-y-1">
+              <span class="text-[11px] font-semibold tracking-wider uppercase text-zinc-500">
+                Tiempo de Escucha
+              </span>
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                  {{ stats.totalHours }}
+                </span>
+                <span class="text-xs text-zinc-500">horas</span>
               </div>
-              <div class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                {{ stats.totalHours }} <span class="text-sm font-semibold text-neutral-400">horas</span>
-              </div>
-              <p class="text-[11px] text-neutral-400 mt-1">
+              <p class="text-[11px] text-zinc-500 pt-0.5">
                 {{ stats.totalMinutes }} minutos acumulados
               </p>
             </div>
 
-            <!-- Unique Artists Card -->
-            <div class="relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/10 p-4 shadow-sm">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-neutral-400">Artistas Distintos</span>
-                <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-                  <svg lucideUsers class="w-4 h-4 text-emerald-400"></svg>
-                </div>
+            <!-- Unique Artists Metric -->
+            <div class="space-y-1">
+              <span class="text-[11px] font-semibold tracking-wider uppercase text-zinc-500">
+                Artistas Distintos
+              </span>
+              <div class="flex items-baseline gap-1.5">
+                <span class="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                  {{ stats.uniqueArtists }}
+                </span>
+                <span class="text-xs text-zinc-500">artistas</span>
               </div>
-              <div class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                {{ stats.uniqueArtists }}
-              </div>
-              <p class="text-[11px] text-neutral-400 mt-1">
-                En tu colección personal
+              <p class="text-[11px] text-zinc-500 pt-0.5">
+                En tu repertorio personal
               </p>
             </div>
 
-            <!-- Top Favorite Artist Card -->
+            <!-- Top Favorite Artist Metric -->
             <div
               (click)="stats.favoriteArtist && exploreArtist(stats.favoriteArtist)"
-              class="group relative overflow-hidden rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-amber-500/40 p-4 transition-all duration-300 cursor-pointer shadow-sm"
+              class="group cursor-pointer select-none space-y-1"
             >
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-neutral-400 group-hover:text-amber-300 transition-colors">Artista Favorito</span>
-                <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
-                  <svg lucideFlame class="w-4 h-4 fill-amber-400 text-amber-400"></svg>
-                </div>
+              <span class="text-[11px] font-semibold tracking-wider uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                Más Escuchado
+              </span>
+              <div>
+                <span class="text-lg md:text-xl font-bold text-white tracking-tight truncate block group-hover:text-purple-300 transition-colors" [title]="stats.favoriteArtist || 'Sin definir'">
+                  {{ stats.favoriteArtist || 'Sin definir' }}
+                </span>
               </div>
-              <div class="text-lg md:text-xl font-extrabold text-white tracking-tight truncate" [title]="stats.favoriteArtist || 'Sin definir'">
-                {{ stats.favoriteArtist || 'Sin definir' }}
-              </div>
-              <p class="text-[11px] text-neutral-400 mt-1 flex items-center gap-1">
-                <span>Top reproducciones</span>
-                <svg lucideSearch class="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-amber-300"></svg>
+              <p class="text-[11px] text-zinc-500 flex items-center gap-1 pt-0.5">
+                <span>Artista principal</span>
+                <svg lucideArrowRight class="w-3 h-3 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity"></svg>
               </p>
             </div>
           </div>
         </section>
       }
 
-      <!-- 2. Top Artists Enriched with Last.fm -->
+      <!-- 3. Top Artists (Apple Music Circular Avatars) -->
       @if (topArtists().length > 0) {
-        <section class="space-y-4" aria-labelledby="top-artists-heading">
+        <section class="space-y-5" aria-labelledby="top-artists-heading">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <h2 id="top-artists-heading" class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                <span>Tus Artistas Principales</span>
-                <span class="text-[10px] uppercase font-semibold text-purple-300 bg-purple-500/15 border border-purple-500/25 px-2.5 py-0.5 rounded-full">
-                  Last.fm
-                </span>
-              </h2>
-            </div>
+            <h2 id="top-artists-heading" class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              <span>Tus Artistas Principales</span>
+              <span class="text-[10px] uppercase font-semibold text-zinc-400 bg-white/[0.04] border border-white/[0.08] px-2 py-0.5 rounded-full">
+                Last.fm
+              </span>
+            </h2>
           </div>
 
-          <!-- Horizontal Artists Row -->
-          <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-1 px-1">
+          <!-- Horizontal Circular Artists Row (No Cards, Pure Visuals) -->
+          <div class="flex gap-6 overflow-x-auto no-scrollbar pb-3 pt-1 -mx-2 px-2">
             @for (artist of topArtists(); track artist.name) {
               <div
                 (click)="exploreArtist(artist.name)"
-                class="group flex flex-col justify-between p-3.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/35 transition-all duration-300 cursor-pointer shadow-sm w-56 shrink-0 relative overflow-hidden"
+                class="group flex flex-col items-center text-center cursor-pointer w-36 shrink-0 space-y-3"
               >
-                <!-- Image & Avatar -->
-                <div class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 shadow-md mb-3">
+                <!-- Circular Avatar -->
+                <div class="relative w-32 h-32 rounded-full overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl transition-all duration-300">
                   @let artistImg = getArtistImage(artist);
                   @if (artistImg) {
-                    <div class="absolute inset-0 flex items-center justify-center bg-purple-900/30 text-purple-300 font-bold text-3xl select-none">
+                    <div class="absolute inset-0 flex items-center justify-center bg-zinc-900 text-zinc-400 font-bold text-2xl select-none">
                       {{ artist.name.charAt(0) }}
                     </div>
                     <img
@@ -253,45 +320,34 @@
                       [alt]="artist.name"
                       loading="lazy"
                       (error)="onArtistImageError($event, artist)"
-                      class="relative z-1 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      class="relative z-1 w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
                     />
                   } @else {
-                    <div class="w-full h-full flex items-center justify-center bg-purple-900/30 text-purple-300 font-bold text-3xl">
+                    <div class="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-400 font-bold text-2xl">
                       {{ artist.name.charAt(0) }}
                     </div>
                   }
 
-                  <!-- Overlay likes counter on image -->
-                  <div class="absolute bottom-2 left-2 z-10">
-                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-white bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/15">
-                      <svg lucideHeart class="w-3 h-3 fill-pink-400 text-pink-400"></svg>
-                      {{ artist.likesCount }} {{ artist.likesCount === 1 ? 'canción' : 'canciones' }}
-                    </span>
+                  <!-- Hover overlay play icon -->
+                  <div class="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
+                    <div class="w-10 h-10 rounded-full bg-white text-zinc-950 flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                      <svg lucidePlay class="w-4 h-4 fill-zinc-950 text-zinc-950 translate-x-0.5"></svg>
+                    </div>
                   </div>
                 </div>
 
-                <!-- Info -->
-                <div class="min-w-0 space-y-1">
-                  <h3 class="text-base font-bold text-white truncate group-hover:text-purple-300 transition-colors" [title]="artist.name">
+                <!-- Artist Name & Stats -->
+                <div class="w-full space-y-0.5">
+                  <h3 class="text-sm font-semibold text-white truncate group-hover:text-zinc-300 transition-colors" [title]="artist.name">
                     {{ artist.name }}
                   </h3>
-
-                  @if (artist.listeners) {
-                    <p class="text-xs text-neutral-400">
+                  <p class="text-xs text-zinc-400 truncate">
+                    @if (artist.listeners) {
                       {{ formatListeners(artist.listeners) }}
-                    </p>
-                  }
-
-                  <!-- Genre tags chips -->
-                  @if (artist.tags && artist.tags.length > 0) {
-                    <div class="flex flex-wrap gap-1 pt-1.5">
-                      @for (tag of artist.tags.slice(0, 3); track tag) {
-                        <span class="text-[10px] font-medium text-neutral-300 bg-white/5 border border-white/10 rounded-md px-1.5 py-0.5">
-                          {{ tag }}
-                        </span>
-                      }
-                    </div>
-                  }
+                    } @else {
+                      {{ artist.likesCount }} canciones
+                    }
+                  </p>
                 </div>
               </div>
             }
@@ -299,30 +355,98 @@
         </section>
       }
 
-      <!-- 3. Two Columns: Genres Distribution & Smart Recommendations -->
-      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Genres Distribution Card -->
+      <!-- 4. Recent Likes Section (Apple Music Borderless Album Covers) -->
+      @if (recentLikes().length > 0) {
+        <section class="space-y-4" aria-labelledby="recent-likes-heading">
+          <div class="flex items-center justify-between">
+            <h2 id="recent-likes-heading" class="text-xl md:text-2xl font-bold tracking-tight text-white">
+              Tus Me Gusta Recientes
+            </h2>
+            <button
+              type="button"
+              (click)="goToLikes()"
+              class="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <span>Ver todos</span>
+              <svg lucideArrowRight class="w-3.5 h-3.5"></svg>
+            </button>
+          </div>
+
+          <div class="flex gap-5 overflow-x-auto no-scrollbar pb-3 pt-1 -mx-2 px-2">
+            @for (track of recentLikes(); track track.youtubeId; let idx = $index) {
+              <div
+                class="group flex flex-col gap-2.5 w-40 sm:w-44 shrink-0 cursor-pointer"
+                (click)="playRecentLike(track, idx)"
+              >
+                <!-- Thumbnail & Play & Like -->
+                <div class="relative aspect-square w-full rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl transition-all duration-300">
+                  @let cover = getRecentLikeCover(track);
+                  @if (cover) {
+                    <img
+                      [src]="cover"
+                      [alt]="track.title"
+                      loading="lazy"
+                      (error)="onRecentLikeImageError($event, track)"
+                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  } @else {
+                    <div class="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-500">
+                      <svg lucideMusic class="w-8 h-8"></svg>
+                    </div>
+                  }
+
+                  <!-- Like Button on Cover -->
+                  <div class="absolute top-2.5 right-2.5 z-10">
+                    <app-like-button [song]="track" [videoId]="track.youtubeId" [name]="track.title" [artist]="track.artist" [thumbnail]="cover" size="sm" [autoHide]="true" />
+                  </div>
+
+                  <!-- Centered/Bottom Play Button on Hover -->
+                  <div class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 z-10">
+                    <div class="w-11 h-11 rounded-full bg-white text-zinc-950 flex items-center justify-center shadow-xl hover:scale-105 active:scale-95">
+                      <svg lucidePlay class="w-4 h-4 fill-zinc-950 text-zinc-950 translate-x-0.5"></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Title & Artist -->
+                <div class="min-w-0 space-y-0.5">
+                  <h3 class="text-sm font-semibold text-white truncate group-hover:text-zinc-200 transition-colors" [title]="track.title">
+                    {{ track.title }}
+                  </h3>
+                  <p class="text-xs text-zinc-400 truncate" [title]="track.artist">
+                    {{ track.artist || 'Desconocido' }}
+                  </p>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- 5. Minimalist Studio Genres & Recommendations -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-2">
+        <!-- Minimalist Genre Distribution -->
         @if (topGenres().length > 0) {
-          <div class="rounded-3xl bg-white/[0.02] border border-white/10 p-5 md:p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <svg lucideTrendingUp class="w-4 h-4 text-purple-400"></svg>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <svg lucideTrendingUp class="w-4 h-4 text-zinc-400"></svg>
                 <span>Distribución de Géneros</span>
               </h3>
-              <span class="text-xs text-neutral-400">Analizado por Last.fm</span>
+              <span class="text-[11px] text-zinc-500">Last.fm Taste</span>
             </div>
 
-            <div class="space-y-3.5 pt-2">
+            <div class="space-y-3 pt-1">
               @for (item of topGenres(); track item.genre) {
                 <div class="space-y-1.5">
                   <div class="flex justify-between text-xs">
-                    <span class="font-semibold text-neutral-200">{{ item.genre }}</span>
-                    <span class="font-bold text-purple-300">{{ item.percentage }}%</span>
+                    <span class="font-medium text-zinc-200">{{ item.genre }}</span>
+                    <span class="font-mono text-xs text-zinc-400">{{ item.percentage }}%</span>
                   </div>
-                  <!-- Progress Bar -->
-                  <div class="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+                  <!-- Minimalist thin bar indicator -->
+                  <div class="w-full h-1.5 rounded-full bg-zinc-800/80 overflow-hidden">
                     <div
-                      class="h-full rounded-full bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500 transition-all duration-700"
+                      class="h-full rounded-full bg-white transition-all duration-700"
                       [style.width.%]="item.percentage"
                     ></div>
                   </div>
@@ -332,27 +456,27 @@
           </div>
         }
 
-        <!-- Recommendations Card (Last.fm Similar Artists) -->
+        <!-- Minimalist Smart Recommendations -->
         @if (recommendations().length > 0) {
-          <div class="rounded-3xl bg-white/[0.02] border border-white/10 p-5 md:p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <svg lucideSparkles class="w-4 h-4 text-amber-400"></svg>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <svg lucideSparkles class="w-4 h-4 text-zinc-400"></svg>
                 <span>Descubrimientos Sugeridos</span>
               </h3>
-              <span class="text-xs text-neutral-400">Basado en tus favoritos</span>
+              <span class="text-[11px] text-zinc-500">Por similitud acústica</span>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               @for (rec of recommendations().slice(0, 4); track rec.name) {
                 <div
                   (click)="exploreRecommendation(rec)"
-                  class="group flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/30 transition-all cursor-pointer"
+                  class="group flex items-center gap-3 p-2.5 rounded-2xl hover:bg-white/[0.04] transition-colors cursor-pointer"
                 >
-                  <div class="w-12 h-12 rounded-xl overflow-hidden bg-neutral-900 shrink-0 relative">
+                  <div class="w-12 h-12 rounded-xl overflow-hidden bg-zinc-900 shrink-0 relative shadow-sm">
                     @let recImg = getRecommendationImage(rec);
                     @if (recImg) {
-                      <div class="absolute inset-0 flex items-center justify-center bg-purple-900/30 text-purple-300 font-bold text-sm select-none">
+                      <div class="absolute inset-0 flex items-center justify-center bg-zinc-900 text-zinc-400 font-bold text-sm select-none">
                         {{ rec.name.charAt(0) }}
                       </div>
                       <img
@@ -363,20 +487,20 @@
                         class="relative z-1 w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     } @else {
-                      <div class="w-full h-full flex items-center justify-center bg-purple-900/30 text-purple-300 font-bold">
+                      <div class="w-full h-full flex items-center justify-center bg-zinc-900 text-zinc-400 font-bold">
                         {{ rec.name.charAt(0) }}
                       </div>
                     }
                   </div>
                   <div class="min-w-0 flex-1">
-                    <h4 class="text-sm font-semibold text-white truncate group-hover:text-purple-300 transition-colors">
+                    <h4 class="text-xs font-semibold text-white truncate group-hover:text-zinc-200 transition-colors">
                       {{ rec.name }}
                     </h4>
-                    <p class="text-[11px] text-neutral-400 truncate mt-0.5">
-                      Basado en {{ rec.sourceArtist }}
+                    <p class="text-[11px] text-zinc-400 truncate mt-0.5">
+                      Similar a {{ rec.sourceArtist }}
                     </p>
                     @if (rec.matchScore) {
-                      <span class="inline-block mt-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded">
+                      <span class="inline-block mt-1 text-[10px] font-medium text-emerald-400/90">
                         {{ (rec.matchScore * 100).toFixed(0) }}% afinidad
                       </span>
                     }
@@ -387,74 +511,9 @@
           </div>
         }
       </section>
-
-      <!-- 4. Recent Likes Section -->
-      @if (recentLikes().length > 0) {
-        <section class="space-y-4" aria-labelledby="recent-likes-heading">
-          <div class="flex items-center justify-between">
-            <h2 id="recent-likes-heading" class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Tus Me Gusta Recientes</span>
-            </h2>
-            <button
-              type="button"
-              (click)="goToLikes()"
-              class="text-xs font-medium text-neutral-400 hover:text-white border border-white/10 rounded-full px-3 py-1 hover:border-purple-500/30 hover:bg-white/5 transition-all cursor-pointer"
-            >
-              Ver biblioteca
-            </button>
-          </div>
-
-          <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-1 px-1">
-            @for (track of recentLikes(); track track.youtubeId; let idx = $index) {
-              <div
-                class="group flex flex-col gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-purple-500/25 transition-all cursor-pointer shadow-sm w-44 shrink-0"
-                (click)="playRecentLike(track, idx)"
-              >
-                <!-- Thumbnail & Play & Like -->
-                <div class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 shadow-md">
-                  @let cover = getRecentLikeCover(track);
-                  @if (cover) {
-                    <img
-                      [src]="cover"
-                      [alt]="track.title"
-                      loading="lazy"
-                      (error)="onRecentLikeImageError($event, track)"
-                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  } @else {
-                    <div class="w-full h-full flex items-center justify-center bg-white/5 text-neutral-500">
-                      <svg lucideMusic class="w-8 h-8"></svg>
-                    </div>
-                  }
-
-                  <div class="absolute top-2 right-2 z-10">
-                    <app-like-button [song]="track" [videoId]="track.youtubeId" [name]="track.title" [artist]="track.artist" [thumbnail]="cover" size="sm" [autoHide]="true" />
-                  </div>
-
-                  <div class="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200">
-                    <div class="w-10 h-10 rounded-full bg-[#8c25f5] text-white flex items-center justify-center shadow-lg shadow-purple-900/60 hover:scale-105 active:scale-95">
-                      <svg lucidePlay class="w-4 h-4 fill-white text-white translate-x-0.5"></svg>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Title & Artist -->
-                <div class="min-w-0">
-                  <h3 class="text-sm font-semibold text-neutral-100 truncate group-hover:text-purple-300 transition-colors" [title]="track.title">
-                    {{ track.title }}
-                  </h3>
-                  <p class="text-xs text-neutral-400 truncate mt-0.5" [title]="track.artist">
-                    {{ track.artist || 'Desconocido' }}
-                  </p>
-                </div>
-              </div>
-            }
-          </div>
-        </section>
-      }
     }
 
-    <!-- YouTube Music Feed Sections (Visible in 'hybrid' and 'youtube' tabs) -->
+    <!-- 6. YouTube Music Feed Sections (Apple Music Borderless Album Covers) -->
     @if (activeTab() === 'hybrid' || activeTab() === 'youtube' || !hasPersonalData()) {
       @for (section of validSections(); track section.title) {
         <section class="space-y-4">
@@ -462,55 +521,49 @@
             <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white">
               {{ section.title }}
             </h2>
-            <button
-              type="button"
-              class="text-xs font-medium text-neutral-400 hover:text-white border border-white/10 rounded-full px-3 py-1 hover:border-white/20 transition-all cursor-pointer"
-            >
-              Ver todo
-            </button>
           </div>
 
           <!-- Horizontal scroll row -->
-          <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-1 px-1">
+          <div class="flex gap-5 overflow-x-auto no-scrollbar pb-3 pt-1 -mx-2 px-2">
             @for (item of section.contents; track $index) {
               <div
-                class="group flex flex-col gap-2.5 p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-transparent hover:border-purple-500/25 transition-all cursor-pointer shadow-sm w-44 shrink-0"
+                class="group flex flex-col gap-2.5 w-40 sm:w-44 shrink-0 cursor-pointer"
+                (click)="playItem(item, section)"
               >
                 <!-- Thumbnail & Play Button -->
                 <div
-                  class="relative aspect-square w-full rounded-xl overflow-hidden bg-neutral-900 shadow-md"
-                  (click)="playItem(item, section)"
+                  class="relative aspect-square w-full rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl transition-all duration-300"
                 >
                   <img
                     [src]="item | thumbnailUrl"
                     [alt]="item.name"
                     loading="lazy"
                     decoding="async"
-                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
 
                   <!-- Floating Play Button on hover -->
                   <div
-                    class="absolute bottom-2.5 right-2.5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+                    class="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-200 z-10"
                   >
                     <div
-                      class="w-10 h-10 rounded-full bg-[#8c25f5] text-white flex items-center justify-center shadow-lg shadow-purple-900/60 hover:scale-105 active:scale-95"
+                      class="w-11 h-11 rounded-full bg-white text-zinc-950 flex items-center justify-center shadow-xl hover:scale-105 active:scale-95"
                     >
-                      <svg lucidePlay class="w-4 h-4 fill-white text-white translate-x-0.5"></svg>
+                      <svg lucidePlay class="w-4 h-4 fill-zinc-950 text-zinc-950 translate-x-0.5"></svg>
                     </div>
                   </div>
                 </div>
 
                 <!-- Title & Artist / Details -->
-                <div class="min-w-0">
+                <div class="min-w-0 space-y-0.5">
                   <h3
-                    class="text-sm font-semibold text-neutral-100 truncate group-hover:text-purple-300 transition-colors"
+                    class="text-sm font-semibold text-white truncate group-hover:text-zinc-200 transition-colors"
                     [title]="item.name"
                   >
                     {{ item.name }}
                   </h3>
                   <p
-                    class="text-xs text-neutral-400 truncate mt-0.5"
+                    class="text-xs text-zinc-400 truncate"
                     [title]="item.artist?.name || ''"
                   >
                     {{ item.artist?.name || 'Varios' }}
