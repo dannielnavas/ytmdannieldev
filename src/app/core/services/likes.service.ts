@@ -7,6 +7,7 @@ import { QueueItem } from '../models/queue.model';
 import {
   GetLikesParams,
   PaginatedLikesResponse,
+  SponsorBlockSegment,
   ToggleLikeDto,
   ToggleLikeResponse,
   Track,
@@ -21,6 +22,7 @@ export interface LikedSong {
   duration?: number | string | null;
   albumId?: string | null;
   likedAt: number;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 export function toLikedSong(
@@ -117,6 +119,7 @@ export function toLikedSong(
     duration: raw.duration ?? null,
     albumId: raw.albumId ?? null,
     likedAt,
+    ...(raw.skipSegments ? { skipSegments: raw.skipSegments } : {}),
   };
 }
 

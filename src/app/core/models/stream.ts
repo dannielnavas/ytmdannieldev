@@ -1,6 +1,9 @@
+import { SponsorBlockSegment } from './track.model';
+
 export interface StreamResponse {
   videoId: string;
   streamUrl: string;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 export interface MetadataResponse {
@@ -10,4 +13,5 @@ export interface MetadataResponse {
   channel: string;
   author: string;
   viewCount: number;
+  skipSegments?: SponsorBlockSegment[];
 }

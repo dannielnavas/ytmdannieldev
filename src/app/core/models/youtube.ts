@@ -7,6 +7,10 @@
  * fuente de verdad; los archivos de modelo por endpoint los reexportan.
  */
 
+import { SponsorBlockSegment } from './track.model';
+
+export type { SponsorBlockSegment };
+
 export interface Thumbnail {
   url: string;
   width: number;
@@ -34,6 +38,7 @@ export interface SourceSong {
   artist?: Artist | null;
   duration?: number | string | null;
   thumbnails?: Thumbnail[] | null;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 export interface Song extends SourceSong {

@@ -1,3 +1,7 @@
+import { SponsorBlockSegment } from './track.model';
+
+export type { SponsorBlockSegment };
+
 export interface YoutubeTrackInput {
   youtubeId: string;
   title: string;
@@ -27,6 +31,7 @@ export interface Track {
   likedAt?: number | string;
   createdAt?: string | Date;
   isLiked?: boolean;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 export interface GetLikesParams {

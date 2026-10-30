@@ -85,6 +85,7 @@ export class BannerLikes {
         artist: s.artist || 'Desconocido',
         thumbnail: s.thumbnailUrl,
         duration: s.duration ?? undefined,
+        ...(s.skipSegments ? { skipSegments: s.skipSegments } : {}),
       })),
     );
 

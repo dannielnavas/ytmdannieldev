@@ -706,6 +706,87 @@ describe('PlaybackService', () => {
       expect(service.$currentIndex()).toBe(2);
     });
   });
+
+  describe('SponsorBlock skipSegments', () => {
+    const seg1 = {
+      UUID: 'uuid-intro',
+      segment: [0, 12] as [number, number],
+      category: 'music_offtopic',
+      actionType: 'skip',
+      locked: 0,
+      votes: 5,
+      videoDuration: 180,
+      description: 'Intro',
+    };
+    const seg2 = {
+      UUID: 'uuid-outro',
+      segment: [160, 180] as [number, number],
+      category: 'music_offtopic',
+      actionType: 'skip',
+      locked: 0,
+      votes: 3,
+      videoDuration: 180,
+      description: 'Outro',
+    };
+
+    it('skips segments when currentTime falls inside [start, end - 0.25)', () => {
+      const trackWithSegments: QueueItem = {
+        ...A,
+        skipSegments: [seg1, seg2],
+      };
+      service.playQueue([trackWithSegments], 0);
+
+      audio.tick(2);
+      expect(audio.currentTime).toBe(12);
+      expect(service.$currentTime()).toBe(12);
+
+      audio.tick(50);
+      expect(audio.currentTime).toBe(50);
+      expect(service.$currentTime()).toBe(50);
+
+      audio.tick(165);
+      expect(audio.currentTime).toBe(180);
+      expect(service.$currentTime()).toBe(180);
+    });
+
+    it('does not skip when audio is currently seeking or within 0.25s of segment end', () => {
+      const trackWithSegments: QueueItem = {
+        ...A,
+        skipSegments: [seg1],
+      };
+      service.playQueue([trackWithSegments], 0);
+
+      audio.seeking = true;
+      audio.tick(5);
+      expect(audio.currentTime).toBe(5);
+
+      audio.seeking = false;
+      audio.tick(11.8);
+      expect(audio.currentTime).toBe(11.8);
+    });
+
+    it('preserves skipSegments in toQueueItems and normalizeQueueItems', () => {
+      const items = service.toQueueItems([
+        {
+          videoId: 'v-sb',
+          name: 'With Segments',
+          duration: 180,
+          skipSegments: [seg1],
+        },
+      ]);
+      expect(items[0].skipSegments).toEqual([seg1]);
+
+      const normalized = service.normalizeQueueItems([
+        {
+          videoId: 'v-sb',
+          name: 'With Segments',
+          duration: 180,
+          skipSegments: [seg1],
+        },
+      ]);
+      expect(normalized[0].skipSegments).toEqual([seg1]);
+    });
+  });
 });
 
 describe('PlaybackService session restore', () => {

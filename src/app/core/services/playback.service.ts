@@ -1,5 +1,6 @@
 import { computed, DestroyRef, effect, inject, Service, signal } from '@angular/core';
 import { PersistedQueueItem, QueueItem } from '../models/queue.model';
+import { SponsorBlockSegment } from '../models/track.model';
 import { Dashboard } from './dashboard/dashboard';
 import { QueueCandidate, Thumbnail } from '../models/youtube';
 import { getHighResThumbnail } from './image-helper.service';
@@ -138,6 +139,7 @@ export class PlaybackService {
   /** Position to apply once the restored track reports its duration. */
   private _pendingSeek: number | null = null;
   private _lastPositionSave = 0;
+  private lastSkippedUuid: string | null = null;
 
   public constructor() {
     this._audio = this._createAudio();
@@ -215,6 +217,7 @@ export class PlaybackService {
 
   public stop(): void {
     this._shouldPlay = false;
+    this.lastSkippedUuid = null;
     this._audio.pause();
     this._audio.removeAttribute('src');
     this._audio.load();
@@ -319,6 +322,7 @@ export class PlaybackService {
     const current = this.$currentTrack();
     if (!current?.videoId) return;
 
+    this.lastSkippedUuid = null;
     this._artworkError.set(false);
     this._errorRetriedFor = null;
     this._currentTime.set(0);
@@ -529,6 +533,7 @@ export class PlaybackService {
           artist: song.artist?.name || '',
           duration: parseDuration(song.duration),
           thumbnail: getHighResThumbnail(raw, size),
+          ...(song.skipSegments ? { skipSegments: song.skipSegments } : {}),
         };
       });
   }
@@ -544,6 +549,7 @@ export class PlaybackService {
         artist: item.artist,
         duration: parseDuration(item.duration),
         thumbnail: item.thumbnail,
+        ...(item.skipSegments ? { skipSegments: item.skipSegments } : {}),
       }));
   }
 
@@ -815,10 +821,37 @@ export class PlaybackService {
       });
   }
 
+  public onTimeUpdate(
+    audio: HTMLAudioElement = this._audio,
+    currentTrack: { skipSegments?: SponsorBlockSegment[] } | null | undefined = this.$currentTrack(),
+  ): void {
+    const segments = currentTrack?.skipSegments;
+    if (!segments?.length || audio.seeking) return;
+
+    const currentTime = audio.currentTime;
+
+    for (const item of segments) {
+      const [start, end] = item.segment;
+
+      // Si el tiempo actual cae dentro del segmento a omitir
+      if (currentTime >= start && currentTime < end - 0.25) {
+        audio.currentTime = end;
+
+        // (Opcional) Reportar vista del segmento a tu backend una sola vez
+        if (this.lastSkippedUuid !== item.UUID) {
+          this.lastSkippedUuid = item.UUID;
+          // this.http.post(`${apiUrl}/sponsorblock/viewed`, { UUID: item.UUID }).subscribe();
+        }
+        break;
+      }
+    }
+  }
+
   private _registerListeners(): void {
     const audio = this._audio;
 
     audio.addEventListener('timeupdate', () => {
+      this.onTimeUpdate(audio, this.$currentTrack());
       this._currentTime.set(audio.currentTime);
       this._savePosition();
     });

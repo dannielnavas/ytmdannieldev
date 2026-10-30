@@ -154,6 +154,7 @@ export class ListLikes {
         artist: item.artist ? { name: item.artist, artistId: null } : null,
         duration: item.duration ?? null,
         thumbnails: thumbnails.length > 0 ? thumbnails : null,
+        ...(item.skipSegments ? { skipSegments: item.skipSegments } : {}),
       };
     });
   });

@@ -139,6 +139,7 @@ export class Home {
             artist: t.artist,
             thumbnailUrl: t.thumbnailUrl,
             duration: t.duration,
+            ...(t.skipSegments ? { skipSegments: t.skipSegments } : {}),
           })),
         );
       }
@@ -332,6 +333,7 @@ export class Home {
         artist: t.artist || 'Desconocido',
         thumbnail: t.thumbnailUrl,
         duration: t.duration,
+        ...(t.skipSegments ? { skipSegments: t.skipSegments } : {}),
       })),
     );
 
@@ -367,6 +369,7 @@ export class Home {
         artist: this.getTrackArtistName(g),
         thumbnail: this.getForgottenGemCover(g),
         duration: g.duration ?? undefined,
+        ...(g.skipSegments ? { skipSegments: g.skipSegments } : {}),
       })),
     );
 
@@ -406,6 +409,7 @@ export class Home {
         name: item.name,
         artist: item.artist?.name || '',
         thumbnail: this.getThumbnailUrl(item),
+        ...(item.skipSegments ? { skipSegments: item.skipSegments } : {}),
       });
     }
   }

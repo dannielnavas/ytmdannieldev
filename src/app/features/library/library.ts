@@ -168,6 +168,7 @@ export class Library {
         artist: song.artist || '',
         duration: parseDuration(song.duration),
         thumbnail: song.thumbnailUrl,
+        ...(song.skipSegments ? { skipSegments: song.skipSegments } : {}),
       })),
       0,
       'Tus Me Gusta',
@@ -184,6 +185,7 @@ export class Library {
         artist: s.artist || '',
         duration: parseDuration(s.duration),
         thumbnail: s.thumbnailUrl,
+        ...(s.skipSegments ? { skipSegments: s.skipSegments } : {}),
       })),
       index,
       'Tus Me Gusta',
@@ -212,6 +214,7 @@ export class Library {
       artist: { name: song.artist || '', artistId: null },
       duration: song.duration,
       thumbnails: song.thumbnailUrl ? [{ url: song.thumbnailUrl, width: 200, height: 200 }] : [],
+      ...(song.skipSegments ? { skipSegments: song.skipSegments } : {}),
     };
   }
 }

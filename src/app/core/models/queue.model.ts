@@ -1,3 +1,5 @@
+import { SponsorBlockSegment } from './track.model';
+
 /**
  * Entrada de una canción en la cola.
  *
@@ -14,6 +16,7 @@ export interface QueueItem {
   /** Normalizado a segundos en `PlaybackService.toQueueItems()`. */
   duration?: number;
   thumbnail?: string;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 /**

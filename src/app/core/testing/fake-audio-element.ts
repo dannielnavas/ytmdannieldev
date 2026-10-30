@@ -20,6 +20,7 @@ export class FakeAudioElement {
   public preservesPitch = true;
   public preload = 'none';
   public crossOrigin: string | null = null;
+  public seeking = false;
   public ended = false;
   public error: { code: number; message: string } | null = null;
 

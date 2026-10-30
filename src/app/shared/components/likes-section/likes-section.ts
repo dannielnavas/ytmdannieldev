@@ -99,6 +99,7 @@ export class LikesSection implements OnInit {
         artist: s.artist || 'Desconocido',
         thumbnail: s.thumbnailUrl,
         duration: s.duration ?? undefined,
+        ...(s.skipSegments ? { skipSegments: s.skipSegments } : {}),
       })),
     );
 
