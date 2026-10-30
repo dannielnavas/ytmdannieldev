@@ -1,6 +1,6 @@
-import { Album, Artist, Song, SourceSong, Thumbnail } from './youtube';
+import { Album, Artist, Song, SourceSong, SponsorBlockSegment, Thumbnail } from './youtube';
 
-export type { Album, Artist, Song, SourceSong, Thumbnail };
+export type { Album, Artist, Song, SourceSong, SponsorBlockSegment, Thumbnail };
 
 export interface DashboardAlbumItem {
   type: 'ALBUM';
@@ -33,6 +33,7 @@ export interface DashboardSongItem {
   thumbnails: Thumbnail[];
   albumId?: string | null;
   playlistId?: string | null;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 /**
@@ -88,6 +89,7 @@ export interface PersonalRecentTrack {
   duration?: number;
   thumbnailUrl?: string;
   createdAt?: string | Date;
+  skipSegments?: SponsorBlockSegment[];
 }
 
 export interface PersonalDashboardData {
@@ -111,4 +113,3 @@ export interface DashboardQueryOptions {
   includeYoutube?: boolean;
   refresh?: boolean;
 }
-

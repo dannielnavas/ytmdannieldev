@@ -4,3 +4,86 @@
   height: 100%;
   overflow: hidden;
 }
+
+@keyframes spinCdDisc {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cd-disc {
+  will-change: transform;
+  box-shadow:
+    0 8px 20px -4px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
+    inset 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.cd-disc-playing {
+  animation: spinCdDisc 9s linear infinite;
+}
+
+.cd-disc-paused {
+  animation: spinCdDisc 9s linear infinite;
+  animation-play-state: paused;
+}
+
+.cd-surface-fallback {
+  background: radial-gradient(circle, #2a2736 0%, #161420 60%, #0d0b16 100%);
+}
+
+/* Holographic / Iridescent CD Prism Reflection */
+.cd-iridescent-sheen {
+  background: conic-gradient(
+    from 25deg at 50% 50%,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.22) 25deg,
+    rgba(168, 85, 247, 0.18) 42deg,
+    rgba(56, 189, 248, 0.18) 58deg,
+    transparent 85deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.22) 205deg,
+    rgba(236, 72, 153, 0.16) 222deg,
+    rgba(52, 211, 153, 0.16) 238deg,
+    transparent 265deg,
+    transparent 360deg
+  );
+  mix-blend-mode: screen;
+}
+
+/* Subtle concentric optical data tracks & outer polycarbonate rim */
+.cd-grooves {
+  background: repeating-radial-gradient(
+    circle at center,
+    transparent 0px,
+    transparent 2px,
+    rgba(255, 255, 255, 0.04) 2.5px,
+    transparent 3.5px
+  );
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.22),
+    inset 0 0 6px rgba(0, 0, 0, 0.75);
+}
+
+/* Central clear polycarbonate clamping area */
+.cd-clamping-ring {
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.12) 68%,
+    rgba(0, 0, 0, 0.45) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 0 6px rgba(0, 0, 0, 0.65),
+    inset 0 0 4px rgba(255, 255, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-disc-playing {
+    animation: none !important;
+  }
+}

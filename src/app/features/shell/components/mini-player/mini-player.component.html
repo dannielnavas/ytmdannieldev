@@ -61,22 +61,58 @@
 
   <!-- Mini Player Body -->
   <div class="flex-1 min-h-0 flex items-center gap-3">
-    <!-- 1. Song Cover Artwork -->
-    <div
-      class="w-20 h-20 sm:w-22 sm:h-22 rounded-xl shrink-0 overflow-hidden relative shadow-lg border border-white/15 bg-black/40 flex items-center justify-center group"
-    >
-      @if (currentArtworkUrl()) {
-        <img
-          #miniImg
-          crossorigin="anonymous"
-          [src]="currentArtworkUrl()"
-          [alt]="trackTitle()"
-          (load)="onImageLoad(miniImg)"
-          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-      } @else {
-        <svg lucideMusic class="w-8 h-8 text-white/20"></svg>
-      }
+    <!-- 1. Song Cover Artwork (CD Disc Style) -->
+    <div class="relative w-20 h-20 sm:w-22 sm:h-22 shrink-0 flex items-center justify-center group">
+      <!-- Ambient Underglow matching track color -->
+      <div
+        class="absolute -inset-1 rounded-full blur-md transition-opacity duration-500 pointer-events-none"
+        [class.opacity-75]="playbackService.$isPlaying()"
+        [class.opacity-25]="!playbackService.$isPlaying()"
+        [style.background-color]="'rgba(' + dominantRgbString() + ', 0.65)'"
+      ></div>
+
+      <!-- CD Disc Container -->
+      <div
+        class="cd-disc relative w-full h-full rounded-full overflow-hidden shadow-xl border border-white/25 bg-neutral-900 flex items-center justify-center"
+        [class.cd-disc-playing]="playbackService.$isPlaying()"
+        [class.cd-disc-paused]="!playbackService.$isPlaying()"
+      >
+        @if (currentArtworkUrl()) {
+          <img
+            #miniImg
+            crossorigin="anonymous"
+            [src]="currentArtworkUrl()"
+            [alt]="trackTitle()"
+            (load)="onImageLoad(miniImg)"
+            class="w-full h-full object-cover select-none pointer-events-none"
+          />
+        } @else {
+          <div class="cd-surface-fallback absolute inset-0 flex items-center justify-center">
+            <svg lucideMusic class="w-7 h-7 text-white/30"></svg>
+          </div>
+        }
+
+        <!-- Iridescent CD Prism & Specular Reflection Overlay -->
+        <div class="cd-iridescent-sheen absolute inset-0 rounded-full pointer-events-none"></div>
+
+        <!-- Micro-track radial texture & outer polycarbonate rim -->
+        <div class="cd-grooves absolute inset-0 rounded-full pointer-events-none"></div>
+
+        <!-- CD Clamping Ring / Transparent Polycarbonate Hub -->
+        <div
+          class="cd-clamping-ring relative w-[34%] h-[34%] rounded-full flex items-center justify-center pointer-events-none z-10"
+        >
+          <!-- Inner Metallic Mirror Band -->
+          <div
+            class="w-[72%] h-[72%] rounded-full border border-white/40 bg-white/10 backdrop-blur-[1px] flex items-center justify-center shadow-inner"
+          >
+            <!-- Center Spindle Hole -->
+            <div
+              class="w-[52%] h-[52%] rounded-full bg-[#0d0b16] border border-white/50 shadow-[inset_0_1px_3px_rgba(0,0,0,0.9)]"
+            ></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 2. Track Info, Animated Wave & Controls -->
