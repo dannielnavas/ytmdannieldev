@@ -37,7 +37,10 @@ app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de cach
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // Habilita el soporte nativo de gestos AVRCP Bluetooth (Sony WH-1000XM5, AirPods Max)
 // y teclas multimedia del sistema (macOS MPNowPlayingInfoCenter, Windows SMTC, Linux MPRIS).
-app.commandLine.appendSwitch('enable-features', 'HardwareMediaKeyHandling,MediaSessionService');
+app.commandLine.appendSwitch(
+  'enable-features',
+  'HardwareMediaKeyHandling,MediaSessionService',
+);
 
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
