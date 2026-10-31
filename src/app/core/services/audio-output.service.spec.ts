@@ -192,4 +192,37 @@ describe('AudioOutputService', () => {
 
     expect(audio.setSinkIdCalls).toEqual([]);
   });
+
+  it('pauses playback and resets sink when Bluetooth headphones disconnect', async () => {
+    setSinkIdSupport(true);
+    let deviceChangeHandler: (() => Promise<void>) | undefined;
+    const media = mockMediaDevices();
+    media['addEventListener'] = (event: string, cb: () => Promise<void>) => {
+      if (event === 'devicechange') deviceChangeHandler = cb;
+    };
+
+    mockDevices([
+      { kind: 'audiooutput', deviceId: 'speakers', label: 'MacBook Pro Speakers' },
+      { kind: 'audiooutput', deviceId: 'xm5', label: 'WH-1000XM5' },
+    ]);
+
+    const playback = TestBed.inject(PlaybackService);
+    const service = TestBed.inject(AudioOutputService);
+    await service.refresh();
+    await service.select('xm5');
+
+    playback.playQueue(
+      [{ id: '1', videoId: 'v1', name: 'Song 1', artist: 'Artist', duration: 200 }],
+      0,
+    );
+    expect(playback.$isPlaying()).toBe(true);
+    expect(service.$deviceId()).toBe('xm5');
+
+    // Simulate WH-1000XM5 / AirPods Max disconnecting
+    mockDevices([{ kind: 'audiooutput', deviceId: 'speakers', label: 'MacBook Pro Speakers' }]);
+    await deviceChangeHandler?.();
+
+    expect(playback.$isPlaying()).toBe(false);
+    expect(service.$deviceId()).toBe('');
+  });
 });

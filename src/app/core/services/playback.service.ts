@@ -145,6 +145,15 @@ export class PlaybackService {
     this._audio = this._createAudio();
     this._audio.preload = 'metadata';
     this._audio.crossOrigin = 'anonymous';
+    if (
+      typeof HTMLElement !== 'undefined' &&
+      this._audio instanceof HTMLElement &&
+      typeof document !== 'undefined' &&
+      document.body
+    ) {
+      this._audio.hidden = true;
+      document.body.appendChild(this._audio);
+    }
     this._registerListeners();
     this._restoreSession();
     this._registerPersistence();
@@ -491,6 +500,9 @@ export class PlaybackService {
     this._audio.pause();
     this._audio.removeAttribute('src');
     this._audio.load();
+    if (typeof HTMLElement !== 'undefined' && this._audio instanceof HTMLElement) {
+      this._audio.remove();
+    }
   }
 
   /** Forgets the saved session, e.g. when the user clears the queue. */

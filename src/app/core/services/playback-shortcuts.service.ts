@@ -47,9 +47,18 @@ export class PlaybackShortcutsService {
 
   private _handle(event: KeyboardEvent): void {
     if (event.defaultPrevented) return;
+    if (!this._playback.$stream()) return;
+
+    // Hardware media keys and Bluetooth AVRCP key events (e.g. WH-1000XM5 touch panel,
+    // AirPods Max Digital Crown, or keyboard media keys) work even while typing in an
+    // input field or holding modifier keys.
+    if (this._handleMediaKey(event)) {
+      event.preventDefault();
+      return;
+    }
+
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (isEditable(event.target)) return;
-    if (!this._playback.$stream()) return;
 
     const step = event.shiftKey ? SEEK_STEP_SECONDS : 0;
 
@@ -69,6 +78,26 @@ export class PlaybackShortcutsService {
       case 'ArrowLeft':
         if (step) this._playback.seekBy(-step);
         else this._playback.previous();
+        break;
+
+      case 'j':
+      case 'J':
+        this._playback.seekBy(-SEEK_STEP_SECONDS);
+        break;
+
+      case 'l':
+      case 'L':
+        this._playback.seekBy(SEEK_STEP_SECONDS);
+        break;
+
+      case 'n':
+      case 'N':
+        this._playback.playNext();
+        break;
+
+      case 'p':
+      case 'P':
+        this._playback.previous();
         break;
 
       case 'ArrowUp':
@@ -116,5 +145,61 @@ export class PlaybackShortcutsService {
     }
 
     event.preventDefault();
+  }
+
+  private _handleMediaKey(event: KeyboardEvent): boolean {
+    const key = event.key !== 'Unidentified' && event.key ? event.key : event.code;
+
+    switch (key) {
+      case 'MediaPlayPause':
+        this._playback.togglePlay();
+        return true;
+
+      case 'MediaPlay':
+        this._playback.play();
+        return true;
+
+      case 'MediaPause':
+        this._playback.pause();
+        return true;
+
+      case 'MediaStop':
+        this._playback.stop();
+        return true;
+
+      case 'MediaTrackNext':
+        this._playback.playNext();
+        return true;
+
+      case 'MediaTrackPrevious':
+        this._playback.previous();
+        return true;
+
+      case 'MediaFastForward':
+        this._playback.seekBy(SEEK_STEP_SECONDS);
+        return true;
+
+      case 'MediaRewind':
+        this._playback.seekBy(-SEEK_STEP_SECONDS);
+        return true;
+
+      case 'AudioVolumeUp':
+      case 'VolumeUp':
+        this._playback.nudgeVolume(VOLUME_STEP);
+        return true;
+
+      case 'AudioVolumeDown':
+      case 'VolumeDown':
+        this._playback.nudgeVolume(-VOLUME_STEP);
+        return true;
+
+      case 'AudioVolumeMute':
+      case 'VolumeMute':
+        this._playback.toggleMute();
+        return true;
+
+      default:
+        return false;
+    }
   }
 }

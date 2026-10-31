@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+export type MediaControlAction = 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop';
+
 export interface WindowControlsAPI {
   minimize: () => void;
   minimizeSystem?: () => void;
@@ -10,6 +12,7 @@ export interface WindowControlsAPI {
   toggleMiniPlayer: (enabled?: boolean) => void;
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
+  onMediaControl?: (callback: (action: MediaControlAction) => void) => () => void;
   platform?: string;
 }
 
@@ -34,6 +37,14 @@ const windowControls: WindowControlsAPI = {
     ipcRenderer.on('window-mini-player-change', listener);
     return () => {
       ipcRenderer.removeListener('window-mini-player-change', listener);
+    };
+  },
+  onMediaControl: (callback: (action: MediaControlAction) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, action: MediaControlAction) =>
+      callback(action);
+    ipcRenderer.on('window-media-control', listener);
+    return () => {
+      ipcRenderer.removeListener('window-media-control', listener);
     };
   },
   platform: process.platform,

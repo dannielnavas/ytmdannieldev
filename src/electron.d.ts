@@ -1,3 +1,5 @@
+export type MediaControlAction = 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop';
+
 export interface WindowControlsAPI {
   minimize: () => void;
   minimizeSystem?: () => void;
@@ -8,6 +10,7 @@ export interface WindowControlsAPI {
   toggleMiniPlayer: (enabled?: boolean) => void;
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
+  onMediaControl?: (callback: (action: MediaControlAction) => void) => () => void;
   platform?: string;
 }
 

@@ -97,7 +97,26 @@ export class AudioOutputService {
     this._devices.set([]);
   }
 
-  private readonly _onDeviceChange = (): void => {
-    void this.refresh();
+  private readonly _onDeviceChange = async (): Promise<void> => {
+    const previousIds = new Set(this._devices().map((d) => d.deviceId));
+    await this.refresh();
+
+    if (previousIds.size === 0 || !this.$available()) return;
+
+    const currentIds = new Set(this._devices().map((d) => d.deviceId));
+    const deviceRemoved = [...previousIds].some((id) => !currentIds.has(id));
+
+    if (deviceRemoved) {
+      // When Bluetooth headphones (e.g. Sony WH-1000XM5 or AirPods Max) are
+      // turned off, placed in their case, or disconnected, pause automatically
+      // so audio does not suddenly blast out of the built-in speakers.
+      if (this._playback.$isPlaying()) {
+        this._playback.pause();
+      }
+      const selectedId = this._currentId();
+      if (selectedId && !currentIds.has(selectedId)) {
+        await this.select('');
+      }
+    }
   };
 }

@@ -6,6 +6,9 @@ import { TitleBarComponent } from '../../../../shared/components/title-bar/title
 import { PlayerBar } from '../player-bar/player-bar';
 import { MiniPlayerComponent } from '../mini-player/mini-player.component';
 import { WindowControlsService } from '../../../../core/services/window-controls.service';
+import { PlaybackShortcutsService } from '../../../../core/services/playback-shortcuts.service';
+import { MediaSessionService } from '../../../../core/services/media-session.service';
+import { AudioOutputService } from '../../../../core/services/audio-output.service';
 
 @Component({
   imports: [RouterOutlet, TitleBarComponent, PlayerBar, MiniPlayerComponent],
@@ -15,6 +18,12 @@ import { WindowControlsService } from '../../../../core/services/window-controls
 })
 export class MainLayout {
   private readonly _router = inject(Router);
+  // Injected for their global side effects across the entire app lifecycle:
+  // keyboard shortcuts, OS/Bluetooth headphone media session (WH-1000XM5, AirPods Max),
+  // and headphone disconnect auto-pause.
+  private readonly _shortcuts = inject(PlaybackShortcutsService);
+  private readonly _mediaSession = inject(MediaSessionService);
+  private readonly _audioOutput = inject(AudioOutputService);
   public readonly controls = inject(WindowControlsService);
 
   public $title = signal('Pulso');

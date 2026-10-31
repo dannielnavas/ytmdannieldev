@@ -13,6 +13,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 app.setName('Pulso');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.pulso.app');
+}
 
 // Asegurar instancia única
 const gotTheLock = app.requestSingleInstanceLock();
@@ -32,6 +35,9 @@ if (!gotTheLock) {
 app.commandLine.appendSwitch('disk-cache-size', '1073741824'); // 1 GB de caché en disco
 app.commandLine.appendSwitch('media-cache-size', '536870912'); // 512 MB de caché multimedia
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Habilita el soporte nativo de gestos AVRCP Bluetooth (Sony WH-1000XM5, AirPods Max)
+// y teclas multimedia del sistema (macOS MPNowPlayingInfoCenter, Windows SMTC, Linux MPRIS).
+app.commandLine.appendSwitch('enable-features', 'HardwareMediaKeyHandling,MediaSessionService');
 
 let mainWindow: BrowserWindow | null = null;
 let authWindow: BrowserWindow | null = null;
@@ -182,13 +188,35 @@ function getWindowIconPath(): string {
   return findExistingPath(candidates);
 }
 
+function sendMediaControl(
+  action: 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop',
+): void {
+  mainWindow?.webContents.send('window-media-control', action);
+}
+
 /**
- * Configura el ícono de la aplicación en el Dock de macOS en tiempo de ejecución.
+ * Configura el ícono y menú de la aplicación en el Dock de macOS en tiempo de ejecución.
  */
 function setupMacDockIcon(): void {
   if (process.platform !== 'darwin' || !app.dock) {
     return;
   }
+  const dockMenu = Menu.buildFromTemplate([
+    {
+      label: 'Reproducir / Pausar',
+      click: () => sendMediaControl('toggle-play'),
+    },
+    {
+      label: 'Siguiente pista',
+      click: () => sendMediaControl('next'),
+    },
+    {
+      label: 'Pista anterior',
+      click: () => sendMediaControl('previous'),
+    },
+  ]);
+  app.dock.setMenu(dockMenu);
+
   const dockIconPath = getWindowIconPath();
   if (!dockIconPath) {
     return;
@@ -558,6 +586,19 @@ function setupTray(): void {
           setMiniPlayerMode(mainWindow, !isMiniPlayer);
         }
       },
+    },
+    { type: 'separator' },
+    {
+      label: 'Reproducir / Pausar',
+      click: () => sendMediaControl('toggle-play'),
+    },
+    {
+      label: 'Siguiente pista',
+      click: () => sendMediaControl('next'),
+    },
+    {
+      label: 'Pista anterior',
+      click: () => sendMediaControl('previous'),
     },
     { type: 'separator' },
     {

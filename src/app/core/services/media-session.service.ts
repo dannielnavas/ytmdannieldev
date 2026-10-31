@@ -1,6 +1,7 @@
-import { Service, computed, effect, inject } from '@angular/core';
+import { DestroyRef, Service, computed, effect, inject } from '@angular/core';
 import { PlaybackService } from './playback.service';
 import { getHighResThumbnail } from './image-helper.service';
+import { MediaControlAction } from '../../../electron';
 
 /** How often the OS scrubber position is refreshed, in ms. */
 const POSITION_UPDATE_INTERVAL_MS = 1000;
@@ -12,27 +13,67 @@ function isSupported(): boolean {
 }
 
 /**
- * Bridges playback with the OS media controls (macOS Control Center, Windows
- * Media Overlay, Linux MPRIS).
+ * Bridges playback with the OS media controls (macOS Control Center /
+ * MPRemoteCommandCenter for AirPods Max & WH-1000XM5, Windows SMTC, Linux MPRIS)
+ * and Electron IPC media controls (Dock/Tray).
  *
- * Without this the hardware keys and the notification tray show the app with no
- * metadata and no working buttons, because Chromium only exposes a session for
- * the elements it knows about, and here the `<audio>` is created by a service
- * instead of being in a template.
+ * Without this the hardware keys, Bluetooth headphone gestures, and the
+ * notification tray show the app with no metadata and no working buttons,
+ * because Chromium only exposes a session for the elements it knows about, and
+ * here the `<audio>` is created by a service instead of being in a template.
  */
 @Service()
 export class MediaSessionService {
   private readonly _playback = inject(PlaybackService);
+  private readonly _destroyRef = inject(DestroyRef);
 
   private _lastPositionUpdate = 0;
+  private _lastReportedPosition = -1;
+  private _lastReportedDuration = 0;
+  private _lastReportedRate = 1;
+  private _lastReportedPlaying = false;
   private _registered = false;
 
   public constructor() {
+    this._registerElectronIpc();
+
     if (!isSupported()) return;
 
     this._registerActions();
     this._registerMetadata();
     this._registerPosition();
+  }
+
+  private _registerElectronIpc(): void {
+    if (typeof window === 'undefined') return;
+    const onMediaControl =
+      window.windowControls?.onMediaControl ?? window.electronAPI?.windowControls?.onMediaControl;
+    if (!onMediaControl) return;
+
+    const unsubscribe = onMediaControl((action: MediaControlAction) => {
+      switch (action) {
+        case 'toggle-play':
+          this._playback.togglePlay();
+          break;
+        case 'play':
+          this._playback.play();
+          break;
+        case 'pause':
+          this._playback.pause();
+          break;
+        case 'next':
+          this._playback.playNext();
+          break;
+        case 'previous':
+          this._playback.previous();
+          break;
+        case 'stop':
+          this._playback.stop();
+          break;
+      }
+    });
+
+    this._destroyRef.onDestroy(() => unsubscribe());
   }
 
   private _registerActions(): void {
@@ -113,14 +154,26 @@ export class MediaSessionService {
       const currentTime = this._playback.$currentTime();
       const duration = this._playback.$effectiveDuration();
       const rate = this._playback.$playbackRate();
-
-      const now = Date.now();
-      if (now - this._lastPositionUpdate < POSITION_UPDATE_INTERVAL_MS) return;
-      this._lastPositionUpdate = now;
+      const isPlaying = this._playback.$isPlaying();
 
       // The API rejects a state without a valid duration, and the duration is
       // unknown until the metadata of the track loads.
       if (!this._registered || !Number.isFinite(duration) || duration <= 0) return;
+
+      const now = Date.now();
+      const stateChanged =
+        duration !== this._lastReportedDuration ||
+        rate !== this._lastReportedRate ||
+        isPlaying !== this._lastReportedPlaying ||
+        Math.abs(currentTime - this._lastReportedPosition) >= 2;
+
+      if (!stateChanged && now - this._lastPositionUpdate < POSITION_UPDATE_INTERVAL_MS) return;
+
+      this._lastPositionUpdate = now;
+      this._lastReportedPosition = currentTime;
+      this._lastReportedDuration = duration;
+      this._lastReportedRate = rate;
+      this._lastReportedPlaying = isPlaying;
 
       try {
         navigator.mediaSession.setPositionState({

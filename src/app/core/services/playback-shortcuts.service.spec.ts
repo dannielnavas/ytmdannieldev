@@ -84,6 +84,65 @@ describe('PlaybackShortcutsService', () => {
       press('ArrowLeft', { shiftKey: true });
       expect(audio.currentTime).toBe(30);
     });
+
+    it('seeks ten seconds with l and j (YouTube Music shortcuts)', () => {
+      audio.tick(30);
+      press('l');
+      expect(audio.currentTime).toBe(40);
+
+      press('j');
+      expect(audio.currentTime).toBe(30);
+    });
+
+    it('switches tracks with n and p', () => {
+      press('n');
+      expect(playback.$currentIndex()).toBe(1);
+
+      press('p');
+      expect(playback.$currentIndex()).toBe(0);
+    });
+
+    it('supports hardware media keys and headphone gestures even inside inputs', () => {
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'MediaPlayPause', bubbles: true, cancelable: true }),
+      );
+      expect(playback.$isPlaying()).toBe(false);
+
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'MediaPlay', bubbles: true, cancelable: true }),
+      );
+      expect(playback.$isPlaying()).toBe(true);
+
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'MediaTrackNext', bubbles: true, cancelable: true }),
+      );
+      expect(playback.$currentIndex()).toBe(1);
+
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'MediaTrackPrevious',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      expect(playback.$currentIndex()).toBe(0);
+
+      audio.tick(30);
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'MediaFastForward', bubbles: true, cancelable: true }),
+      );
+      expect(audio.currentTime).toBe(40);
+
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'MediaRewind', bubbles: true, cancelable: true }),
+      );
+      expect(audio.currentTime).toBe(30);
+
+      input.remove();
+    });
   });
 
   describe('volume and modes', () => {
