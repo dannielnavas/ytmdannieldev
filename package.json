@@ -57,6 +57,14 @@
   "build": {
     "appId": "dev.dannieldev.pulso",
     "productName": "Pulso",
+    "protocols": [
+      {
+        "name": "Pulso Music Player",
+        "schemes": [
+          "pulso"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist-release"
     },

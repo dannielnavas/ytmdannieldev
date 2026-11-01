@@ -9,6 +9,7 @@ import { WindowControlsService } from '../../../../core/services/window-controls
 import { PlaybackShortcutsService } from '../../../../core/services/playback-shortcuts.service';
 import { MediaSessionService } from '../../../../core/services/media-session.service';
 import { AudioOutputService } from '../../../../core/services/audio-output.service';
+import { ElectronMedia } from '../../../../core/services/electron-media';
 
 @Component({
   imports: [RouterOutlet, TitleBarComponent, PlayerBar, MiniPlayerComponent],
@@ -20,9 +21,10 @@ export class MainLayout {
   private readonly _router = inject(Router);
   // Injected for their global side effects across the entire app lifecycle:
   // keyboard shortcuts, OS/Bluetooth headphone media session (WH-1000XM5, AirPods Max),
-  // and headphone disconnect auto-pause.
+  // native OS Tray/Dock/Taskbar/DeepLink/Power integration, and headphone disconnect auto-pause.
   private readonly _shortcuts = inject(PlaybackShortcutsService);
   private readonly _mediaSession = inject(MediaSessionService);
+  private readonly _electronMedia = inject(ElectronMedia);
   private readonly _audioOutput = inject(AudioOutputService);
   public readonly controls = inject(WindowControlsService);
 

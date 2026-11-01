@@ -1,4 +1,40 @@
-export type MediaControlAction = 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop';
+export type MediaControlAction =
+  'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop' | 'toggle-like';
+
+export interface OSPlaybackTrack {
+  videoId: string;
+  title: string;
+  artist: string;
+  album?: string;
+  thumbnailUrl?: string;
+}
+
+export interface OSPlaybackState {
+  track: OSPlaybackTrack | null;
+  isPlaying: boolean;
+  isLiked: boolean;
+  /** Progress between 0 and 1, or -1 when no active progress should be shown. */
+  progress: number;
+}
+
+export interface OSTrackNotification {
+  videoId: string;
+  title: string;
+  artist: string;
+  album?: string;
+  thumbnailUrl?: string;
+}
+
+export interface OSThemeInfo {
+  shouldUseDarkColors: boolean;
+  inHighContrastColors: boolean;
+  accentColor?: string;
+}
+
+export interface LoginItemConfig {
+  openAtLogin: boolean;
+  openAsHidden?: boolean;
+}
 
 export interface WindowControlsAPI {
   minimize: () => void;
@@ -11,6 +47,15 @@ export interface WindowControlsAPI {
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
   onMediaControl?: (callback: (action: MediaControlAction) => void) => () => void;
+  updatePlaybackState?: (state: OSPlaybackState) => void;
+  notifyTrackChange?: (notification: OSTrackNotification) => void;
+  getLoginItemSettings?: () => Promise<LoginItemConfig>;
+  setLoginItemSettings?: (config: LoginItemConfig) => Promise<LoginItemConfig>;
+  getThemeInfo?: () => Promise<OSThemeInfo>;
+  onThemeChange?: (callback: (theme: OSThemeInfo) => void) => () => void;
+  onDeepLink?: (callback: (url: string) => void) => () => void;
+  onSystemSuspend?: (callback: () => void) => () => void;
+  onSystemResume?: (callback: () => void) => () => void;
   platform?: string;
 }
 

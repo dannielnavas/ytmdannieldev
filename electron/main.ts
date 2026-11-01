@@ -8,13 +8,60 @@ import {
   screen,
   Tray,
   Menu,
+  globalShortcut,
+  powerMonitor,
+  powerSaveBlocker,
+  Notification,
+  nativeTheme,
+  systemPreferences,
 } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
+import type {
+  LoginItemConfig,
+  MediaControlAction,
+  OSPlaybackState,
+  OSThemeInfo,
+  OSTrackNotification,
+} from './preload';
 
 app.setName('Pulso');
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.pulso.app');
+}
+
+// Registrar protocolo personalizado pulso:// para Deep Linking con el SO
+const PROTOCOL_SCHEME = 'pulso';
+if (process.defaultApp && process.argv.length >= 2) {
+  app.setAsDefaultProtocolClient(PROTOCOL_SCHEME, process.execPath, [
+    path.resolve(process.argv[1]),
+  ]);
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL_SCHEME);
+}
+
+function extractDeepLinkFromArgv(argv: string[]): string | null {
+  const match = argv.find(
+    (arg) => typeof arg === 'string' && arg.toLowerCase().startsWith(`${PROTOCOL_SCHEME}://`),
+  );
+  return match ?? null;
+}
+
+let pendingDeepLink: string | null = extractDeepLinkFromArgv(process.argv);
+
+function dispatchDeepLink(url: string): void {
+  if (!url || !url.toLowerCase().startsWith(`${PROTOCOL_SCHEME}://`)) return;
+
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (!mainWindow.isVisible()) mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('os:deep-link', url);
+    pendingDeepLink = null;
+  } else {
+    pendingDeepLink = url;
+  }
 }
 
 // Asegurar instancia única
@@ -22,14 +69,24 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, commandLine) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       if (!mainWindow.isVisible()) mainWindow.show();
       mainWindow.focus();
     }
+    const deepLink = extractDeepLinkFromArgv(commandLine);
+    if (deepLink) {
+      dispatchDeepLink(deepLink);
+    }
   });
 }
+
+// macOS: manejar enlaces pulso:// abiertos desde Finder / navegador
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  dispatchDeepLink(url);
+});
 
 // Optimización de caché de red de Chromium para imágenes y multimedia
 app.commandLine.appendSwitch('disk-cache-size', '1073741824'); // 1 GB de caché en disco
@@ -49,7 +106,139 @@ let isQuitting = false;
 
 let isMiniPlayer = false;
 let normalBounds = { width: 1280, height: 720, x: 0, y: 0 };
+let miniPlayerPosition: { x: number; y: number } | null = null;
 let wasMaximized = false;
+let windowStateSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let powerSaveBlockerId: number | null = null;
+
+let currentOSPlaybackState: OSPlaybackState = {
+  track: null,
+  isPlaying: false,
+  isLiked: false,
+  progress: -1,
+};
+
+interface PersistedWindowState {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  isMaximized?: boolean;
+  miniPlayerX?: number;
+  miniPlayerY?: number;
+}
+
+function getWindowStatePath(): string {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function isBoundsVisibleOnAnyDisplay(bounds: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}): boolean {
+  try {
+    const displays = screen.getAllDisplays();
+    return displays.some((display) => {
+      const wa = display.workArea;
+      return (
+        bounds.x + bounds.width > wa.x + 40 &&
+        bounds.x < wa.x + wa.width - 40 &&
+        bounds.y + bounds.height > wa.y + 40 &&
+        bounds.y < wa.y + wa.height - 40
+      );
+    });
+  } catch {
+    return true;
+  }
+}
+
+function loadWindowState(): PersistedWindowState {
+  const fallback: PersistedWindowState = { width: 1280, height: 720, isMaximized: false };
+  try {
+    const filePath = getWindowStatePath();
+    if (!fs.existsSync(filePath)) return fallback;
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Partial<PersistedWindowState>;
+    const width =
+      typeof raw.width === 'number' && raw.width >= 800 ? Math.round(raw.width) : fallback.width;
+    const height =
+      typeof raw.height === 'number' && raw.height >= 500
+        ? Math.round(raw.height)
+        : fallback.height;
+
+    const state: PersistedWindowState = {
+      width,
+      height,
+      isMaximized: Boolean(raw.isMaximized),
+    };
+
+    if (typeof raw.x === 'number' && typeof raw.y === 'number') {
+      const candidate = { x: Math.round(raw.x), y: Math.round(raw.y), width, height };
+      if (isBoundsVisibleOnAnyDisplay(candidate)) {
+        state.x = candidate.x;
+        state.y = candidate.y;
+      }
+    }
+
+    if (typeof raw.miniPlayerX === 'number' && typeof raw.miniPlayerY === 'number') {
+      const miniCandidate = {
+        x: Math.round(raw.miniPlayerX),
+        y: Math.round(raw.miniPlayerY),
+        width: 390,
+        height: 175,
+      };
+      if (isBoundsVisibleOnAnyDisplay(miniCandidate)) {
+        state.miniPlayerX = miniCandidate.x;
+        state.miniPlayerY = miniCandidate.y;
+        miniPlayerPosition = { x: miniCandidate.x, y: miniCandidate.y };
+      }
+    }
+
+    return state;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveWindowStateImmediate(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    if (!isMiniPlayer && !mainWindow.isMaximized() && !mainWindow.isMinimized()) {
+      normalBounds = mainWindow.getBounds();
+    } else if (isMiniPlayer && !mainWindow.isMinimized()) {
+      const b = mainWindow.getBounds();
+      miniPlayerPosition = { x: b.x, y: b.y };
+    }
+
+    const payload: PersistedWindowState = {
+      width: normalBounds.width,
+      height: normalBounds.height,
+      x: normalBounds.x,
+      y: normalBounds.y,
+      isMaximized: isMiniPlayer ? wasMaximized : mainWindow.isMaximized(),
+      ...(miniPlayerPosition
+        ? { miniPlayerX: miniPlayerPosition.x, miniPlayerY: miniPlayerPosition.y }
+        : {}),
+    };
+
+    const filePath = getWindowStatePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+  } catch {
+    // No interrumpir ejecución si falla la escritura de geometría
+  }
+}
+
+function scheduleSaveWindowState(): void {
+  if (windowStateSaveTimer) {
+    clearTimeout(windowStateSaveTimer);
+  }
+  windowStateSaveTimer = setTimeout(() => {
+    windowStateSaveTimer = null;
+    saveWindowStateImmediate();
+  }, 400);
+}
 
 function setMiniPlayerMode(win: BrowserWindow, enable: boolean): void {
   if (isMiniPlayer === enable) return;
@@ -68,15 +257,29 @@ function setMiniPlayerMode(win: BrowserWindow, enable: boolean): void {
     win.setMinimumSize(360, 160);
     win.setSize(390, 175);
     try {
-      const currentDisplay = screen.getDisplayMatching(normalBounds);
-      const { workArea } = currentDisplay;
-      const x = Math.round(workArea.x + workArea.width - 410);
-      const y = Math.round(workArea.y + workArea.height - 195);
-      win.setPosition(x, y);
+      if (
+        miniPlayerPosition &&
+        isBoundsVisibleOnAnyDisplay({
+          x: miniPlayerPosition.x,
+          y: miniPlayerPosition.y,
+          width: 390,
+          height: 175,
+        })
+      ) {
+        win.setPosition(miniPlayerPosition.x, miniPlayerPosition.y);
+      } else {
+        const currentDisplay = screen.getDisplayMatching(normalBounds);
+        const { workArea } = currentDisplay;
+        const x = Math.round(workArea.x + workArea.width - 410);
+        const y = Math.round(workArea.y + workArea.height - 195);
+        win.setPosition(x, y);
+      }
     } catch {
       // Fallback si la detección de display falla
     }
   } else {
+    const currentMiniBounds = win.getBounds();
+    miniPlayerPosition = { x: currentMiniBounds.x, y: currentMiniBounds.y };
     win.setAlwaysOnTop(false);
     if (process.platform === 'darwin') {
       win.setVisibleOnAllWorkspaces(false);
@@ -88,6 +291,7 @@ function setMiniPlayerMode(win: BrowserWindow, enable: boolean): void {
     }
   }
 
+  saveWindowStateImmediate();
   win.webContents.send('window-mini-player-change', isMiniPlayer);
 }
 
@@ -191,10 +395,115 @@ function getWindowIconPath(): string {
   return findExistingPath(candidates);
 }
 
-function sendMediaControl(
-  action: 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop',
-): void {
+function sendMediaControl(action: MediaControlAction): void {
   mainWindow?.webContents.send('window-media-control', action);
+}
+
+function truncateLabel(text: string, maxLength = 38): string {
+  if (!text) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+function getLinuxAutostartFilePath(): string {
+  const configHome = process.env['XDG_CONFIG_HOME'] || path.join(os.homedir(), '.config');
+  return path.join(configHome, 'autostart', 'pulso.desktop');
+}
+
+function getLoginItemConfig(): LoginItemConfig {
+  if (process.platform === 'linux') {
+    return {
+      openAtLogin: fs.existsSync(getLinuxAutostartFilePath()),
+      openAsHidden: true,
+    };
+  }
+  try {
+    const settings = app.getLoginItemSettings();
+    return {
+      openAtLogin: Boolean(settings.openAtLogin),
+      openAsHidden: true,
+    };
+  } catch {
+    return { openAtLogin: false, openAsHidden: false };
+  }
+}
+
+function setLoginItemConfig(config: LoginItemConfig): LoginItemConfig {
+  const openAtLogin = Boolean(config?.openAtLogin);
+  const openAsHidden = config?.openAsHidden ?? true;
+
+  if (process.platform === 'linux') {
+    try {
+      const desktopPath = getLinuxAutostartFilePath();
+      if (openAtLogin) {
+        fs.mkdirSync(path.dirname(desktopPath), { recursive: true });
+        const content = [
+          '[Desktop Entry]',
+          'Type=Application',
+          'Name=Pulso',
+          'Comment=Modern YouTube Music Desktop Player',
+          `Exec="${process.execPath}" --hidden`,
+          'Icon=pulso',
+          'Terminal=false',
+          'Categories=AudioVideo;Audio;Player;',
+          'X-GNOME-Autostart-enabled=true',
+          '',
+        ].join('\n');
+        fs.writeFileSync(desktopPath, content, 'utf-8');
+      } else if (fs.existsSync(desktopPath)) {
+        fs.unlinkSync(desktopPath);
+      }
+    } catch (err) {
+      console.warn('No se pudo configurar autostart en Linux:', err);
+    }
+  } else {
+    try {
+      app.setLoginItemSettings({
+        openAtLogin,
+        args: openAsHidden ? ['--hidden'] : [],
+      });
+    } catch (err) {
+      console.warn('No se pudo configurar LoginItem en el SO:', err);
+    }
+  }
+
+  refreshTrayMenu();
+  return getLoginItemConfig();
+}
+
+function buildMacDockMenu(): Menu {
+  const { track, isPlaying, isLiked } = currentOSPlaybackState;
+  const headerLabel = track
+    ? `♪ ${truncateLabel(track.title, 34)} — ${truncateLabel(track.artist, 26)}`
+    : 'Sin reproducción activa';
+
+  return Menu.buildFromTemplate([
+    {
+      label: headerLabel,
+      enabled: false,
+    },
+    { type: 'separator' },
+    {
+      label: isPlaying ? 'Pausar' : 'Reproducir',
+      enabled: Boolean(track),
+      click: () => sendMediaControl('toggle-play'),
+    },
+    {
+      label: 'Siguiente pista',
+      enabled: Boolean(track),
+      click: () => sendMediaControl('next'),
+    },
+    {
+      label: 'Pista anterior',
+      enabled: Boolean(track),
+      click: () => sendMediaControl('previous'),
+    },
+    { type: 'separator' },
+    {
+      label: isLiked ? '♥ Quitar de Me gusta' : '♡ Añadir a Me gusta',
+      enabled: Boolean(track),
+      click: () => sendMediaControl('toggle-like'),
+    },
+  ]);
 }
 
 /**
@@ -204,21 +513,7 @@ function setupMacDockIcon(): void {
   if (process.platform !== 'darwin' || !app.dock) {
     return;
   }
-  const dockMenu = Menu.buildFromTemplate([
-    {
-      label: 'Reproducir / Pausar',
-      click: () => sendMediaControl('toggle-play'),
-    },
-    {
-      label: 'Siguiente pista',
-      click: () => sendMediaControl('next'),
-    },
-    {
-      label: 'Pista anterior',
-      click: () => sendMediaControl('previous'),
-    },
-  ]);
-  app.dock.setMenu(dockMenu);
+  app.dock.setMenu(buildMacDockMenu());
 
   const dockIconPath = getWindowIconPath();
   if (!dockIconPath) {
@@ -558,18 +853,19 @@ function setupPermissions(window: BrowserWindow): void {
   });
 }
 
-function setupTray(): void {
-  const iconPath = getWindowIconPath();
-  if (!iconPath) return;
+function buildTrayContextMenu(): Menu {
+  const { track, isPlaying, isLiked } = currentOSPlaybackState;
+  const loginConfig = getLoginItemConfig();
+  const trackLabel = track
+    ? `♪ ${truncateLabel(track.title, 36)} — ${truncateLabel(track.artist, 28)}`
+    : 'Pulso — Sin reproducción';
 
-  const trayImage = nativeImage.createFromPath(iconPath);
-  if (trayImage.isEmpty()) return;
-
-  const resizedIcon = trayImage.resize({ width: 18, height: 18 });
-  tray = new Tray(resizedIcon);
-  tray.setToolTip('Pulso');
-
-  const contextMenu = Menu.buildFromTemplate([
+  return Menu.buildFromTemplate([
+    {
+      label: trackLabel,
+      enabled: false,
+    },
+    { type: 'separator' },
     {
       label: 'Mostrar Pulso',
       click: () => {
@@ -583,7 +879,7 @@ function setupTray(): void {
       },
     },
     {
-      label: 'Alternar Mini Reproductor',
+      label: isMiniPlayer ? 'Salir de Mini Reproductor' : 'Alternar Mini Reproductor',
       click: () => {
         if (mainWindow) {
           setMiniPlayerMode(mainWindow, !isMiniPlayer);
@@ -592,16 +888,33 @@ function setupTray(): void {
     },
     { type: 'separator' },
     {
-      label: 'Reproducir / Pausar',
+      label: isPlaying ? 'Pausar' : 'Reproducir',
+      enabled: Boolean(track),
       click: () => sendMediaControl('toggle-play'),
     },
     {
       label: 'Siguiente pista',
+      enabled: Boolean(track),
       click: () => sendMediaControl('next'),
     },
     {
       label: 'Pista anterior',
+      enabled: Boolean(track),
       click: () => sendMediaControl('previous'),
+    },
+    {
+      label: isLiked ? '♥ Quitar de Me gusta' : '♡ Añadir a Me gusta',
+      enabled: Boolean(track),
+      click: () => sendMediaControl('toggle-like'),
+    },
+    { type: 'separator' },
+    {
+      label: 'Iniciar con el sistema',
+      type: 'checkbox',
+      checked: loginConfig.openAtLogin,
+      click: (menuItem) => {
+        setLoginItemConfig({ openAtLogin: menuItem.checked, openAsHidden: true });
+      },
     },
     { type: 'separator' },
     {
@@ -612,8 +925,28 @@ function setupTray(): void {
       },
     },
   ]);
+}
 
-  tray.setContextMenu(contextMenu);
+function refreshTrayMenu(): void {
+  if (!tray) return;
+  const { track, isPlaying } = currentOSPlaybackState;
+  const statusPrefix = track ? (isPlaying ? '▶ ' : '⏸ ') : '';
+  const tooltip = track ? `${statusPrefix}Pulso — ${track.title} · ${track.artist}` : 'Pulso';
+  tray.setToolTip(tooltip);
+  tray.setContextMenu(buildTrayContextMenu());
+}
+
+function setupTray(): void {
+  const iconPath = getWindowIconPath();
+  if (!iconPath) return;
+
+  const trayImage = nativeImage.createFromPath(iconPath);
+  if (trayImage.isEmpty()) return;
+
+  const resizedIcon = trayImage.resize({ width: 18, height: 18 });
+  tray = new Tray(resizedIcon);
+  refreshTrayMenu();
+
   tray.on('click', () => {
     if (!mainWindow) {
       createWindow();
@@ -630,14 +963,277 @@ function setupTray(): void {
   });
 }
 
+function updatePowerSaveBlocker(isPlaying: boolean): void {
+  try {
+    if (isPlaying) {
+      if (powerSaveBlockerId === null || !powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+      }
+    } else if (powerSaveBlockerId !== null) {
+      if (powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+        powerSaveBlocker.stop(powerSaveBlockerId);
+      }
+      powerSaveBlockerId = null;
+    }
+  } catch {
+    // Fallback silencioso si la plataforma rechaza powerSaveBlocker
+  }
+}
+
+function updateTaskbarProgress(state: OSPlaybackState): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    if (!state.track || !Number.isFinite(state.progress) || state.progress < 0) {
+      mainWindow.setProgressBar(-1);
+      return;
+    }
+    const clamped = Math.min(1, Math.max(0, state.progress));
+    if (process.platform === 'win32') {
+      mainWindow.setProgressBar(clamped, { mode: state.isPlaying ? 'normal' : 'paused' });
+    } else {
+      mainWindow.setProgressBar(clamped);
+    }
+  } catch {
+    // Ignorar errores de barra de progreso no soportada en ciertos gestores de ventanas
+  }
+}
+
+function createSvgIcon(svgBody: string): Electron.NativeImage {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">${svgBody}</svg>`;
+  const dataUrl = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf-8').toString('base64')}`;
+  return nativeImage.createFromDataURL(dataUrl);
+}
+
+function updateWindowsThumbarButtons(state: OSPlaybackState): void {
+  if (process.platform !== 'win32' || !mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const hasTrack = Boolean(state.track);
+    const flags: Array<'enabled' | 'disabled'> = [hasTrack ? 'enabled' : 'disabled'];
+
+    const prevIcon = createSvgIcon('<path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>');
+    const playPauseIcon = state.isPlaying
+      ? createSvgIcon('<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>')
+      : createSvgIcon('<path d="M8 5v14l11-7z"/>');
+    const nextIcon = createSvgIcon('<path d="m6 18 8.5-6L6 6v12zM16 6v12h2V6h-2z"/>');
+
+    mainWindow.setThumbarButtons([
+      {
+        tooltip: 'Pista anterior',
+        icon: prevIcon,
+        flags,
+        click: () => sendMediaControl('previous'),
+      },
+      {
+        tooltip: state.isPlaying ? 'Pausar' : 'Reproducir',
+        icon: playPauseIcon,
+        flags,
+        click: () => sendMediaControl('toggle-play'),
+      },
+      {
+        tooltip: 'Siguiente pista',
+        icon: nextIcon,
+        flags,
+        click: () => sendMediaControl('next'),
+      },
+    ]);
+  } catch {
+    // Ignorar si la ventana aún no tiene handle de barra de tareas en Windows
+  }
+}
+
+function getOSThemeInfo(): OSThemeInfo {
+  let accentColor: string | undefined;
+  if (process.platform === 'darwin' || process.platform === 'win32') {
+    try {
+      const raw = systemPreferences.getAccentColor?.();
+      if (typeof raw === 'string' && raw.length >= 6) {
+        accentColor = `#${raw.slice(0, 6)}`;
+      }
+    } catch {
+      accentColor = undefined;
+    }
+  }
+  return {
+    shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+    inHighContrastColors: nativeTheme.shouldUseHighContrastColors,
+    ...(accentColor ? { accentColor } : {}),
+  };
+}
+
+function showTrackNotification(payload: OSTrackNotification): void {
+  if (!payload?.title) return;
+  try {
+    if (!Notification.isSupported()) return;
+    // Solo notificar cuando el usuario está fuera de la app o la ventana está oculta
+    const isWindowActive =
+      mainWindow &&
+      !mainWindow.isDestroyed() &&
+      mainWindow.isVisible() &&
+      !mainWindow.isMinimized() &&
+      mainWindow.isFocused();
+    if (isWindowActive) return;
+
+    const subtitleParts = [payload.artist, payload.album].filter(Boolean);
+    const iconPath = getWindowIconPath();
+    const notification = new Notification({
+      title: payload.title,
+      body: subtitleParts.join(' · ') || 'Pulso',
+      silent: true,
+      ...(iconPath ? { icon: iconPath } : {}),
+    });
+
+    notification.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+
+    notification.show();
+  } catch {
+    // Algunas distribuciones Linux sin daemon D-Bus de notificaciones pueden fallar
+  }
+}
+
+function registerOSIntegrationIpcHandlers(): void {
+  ipcMain.on('os:playback-state', (_event, state: OSPlaybackState) => {
+    if (!state || typeof state !== 'object') return;
+    const prevTrackId = currentOSPlaybackState.track?.videoId ?? null;
+    const prevPlaying = currentOSPlaybackState.isPlaying;
+    const prevLiked = currentOSPlaybackState.isLiked;
+
+    currentOSPlaybackState = {
+      track: state.track
+        ? {
+            videoId: String(state.track.videoId || ''),
+            title: String(state.track.title || ''),
+            artist: String(state.track.artist || ''),
+            ...(state.track.album ? { album: String(state.track.album) } : {}),
+            ...(state.track.thumbnailUrl ? { thumbnailUrl: String(state.track.thumbnailUrl) } : {}),
+          }
+        : null,
+      isPlaying: Boolean(state.isPlaying),
+      isLiked: Boolean(state.isLiked),
+      progress: typeof state.progress === 'number' ? state.progress : -1,
+    };
+
+    updatePowerSaveBlocker(currentOSPlaybackState.isPlaying);
+    updateTaskbarProgress(currentOSPlaybackState);
+
+    const metadataOrStateChanged =
+      (currentOSPlaybackState.track?.videoId ?? null) !== prevTrackId ||
+      currentOSPlaybackState.isPlaying !== prevPlaying ||
+      currentOSPlaybackState.isLiked !== prevLiked;
+
+    if (metadataOrStateChanged) {
+      refreshTrayMenu();
+      if (process.platform === 'darwin' && app.dock) {
+        app.dock.setMenu(buildMacDockMenu());
+      }
+      updateWindowsThumbarButtons(currentOSPlaybackState);
+    }
+  });
+
+  ipcMain.on('os:track-notification', (_event, payload: OSTrackNotification) => {
+    showTrackNotification(payload);
+  });
+
+  ipcMain.handle('os:get-login-item', () => {
+    return getLoginItemConfig();
+  });
+
+  ipcMain.handle('os:set-login-item', (_event, config: LoginItemConfig) => {
+    return setLoginItemConfig(config);
+  });
+
+  ipcMain.handle('os:get-theme-info', () => {
+    return getOSThemeInfo();
+  });
+
+  nativeTheme.on('updated', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('os:theme-changed', getOSThemeInfo());
+    }
+  });
+}
+
+function registerGlobalShortcuts(): void {
+  const shortcuts: Array<[string, () => void]> = [
+    ['CommandOrControl+Shift+Space', () => sendMediaControl('toggle-play')],
+    ['CommandOrControl+Shift+Right', () => sendMediaControl('next')],
+    ['CommandOrControl+Shift+Left', () => sendMediaControl('previous')],
+    ['CommandOrControl+Shift+L', () => sendMediaControl('toggle-like')],
+    [
+      'CommandOrControl+Shift+M',
+      () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          setMiniPlayerMode(mainWindow, !isMiniPlayer);
+        }
+      },
+    ],
+  ];
+
+  for (const [accelerator, handler] of shortcuts) {
+    try {
+      globalShortcut.register(accelerator, handler);
+    } catch {
+      // Si otra aplicación ya reservó el atajo, continuar sin interrumpir
+    }
+  }
+}
+
+function setupPowerMonitor(): void {
+  try {
+    powerMonitor.on('suspend', () => {
+      updatePowerSaveBlocker(false);
+      sendMediaControl('pause');
+      mainWindow?.webContents.send('os:power-suspend');
+    });
+
+    powerMonitor.on('resume', () => {
+      mainWindow?.webContents.send('os:power-resume');
+    });
+  } catch {
+    // Fallback seguro si powerMonitor no está disponible
+  }
+}
+
 function createWindow() {
   const iconPath = getWindowIconPath();
+  const savedState = loadWindowState();
+  const startHidden = process.argv.includes('--hidden');
+
+  normalBounds = {
+    width: savedState.width,
+    height: savedState.height,
+    x: savedState.x ?? 0,
+    y: savedState.y ?? 0,
+  };
 
   mainWindow = new BrowserWindow({
     title: 'Pulso',
-    width: 1280,
-    height: 720,
-    frame: false, // Opcional: útil si vas a usar tu propia barra de título personalizada
+    width: savedState.width,
+    height: savedState.height,
+    ...(typeof savedState.x === 'number' && typeof savedState.y === 'number'
+      ? { x: savedState.x, y: savedState.y }
+      : {}),
+    minWidth: 800,
+    minHeight: 500,
+    show: !startHidden,
+    frame: false,
+    backgroundColor: '#0a0812',
+    ...(process.platform === 'darwin'
+      ? {
+          vibrancy: 'under-window' as const,
+          visualEffectState: 'active' as const,
+        }
+      : {}),
+    ...(process.platform === 'win32'
+      ? {
+          backgroundMaterial: 'mica' as const,
+        }
+      : {}),
     icon: iconPath || undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // Puente seguro que definimos antes
@@ -645,6 +1241,10 @@ function createWindow() {
       contextIsolation: true,
     },
   });
+
+  if (savedState.isMaximized && !startHidden) {
+    mainWindow.maximize();
+  }
 
   if (iconPath && (process.platform === 'win32' || process.platform === 'linux')) {
     mainWindow.setIcon(iconPath);
@@ -664,17 +1264,37 @@ function createWindow() {
     }
   });
 
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (pendingDeepLink) {
+      const link = pendingDeepLink;
+      pendingDeepLink = null;
+      mainWindow?.webContents.send('os:deep-link', link);
+    }
+    updateWindowsThumbarButtons(currentOSPlaybackState);
+  });
+
   // Notificar al renderer cuando la ventana cambia de estado maximizado/restaurado
   mainWindow.on('maximize', () => {
+    scheduleSaveWindowState();
     mainWindow?.webContents.send('window-maximized-change', true);
   });
 
   mainWindow.on('unmaximize', () => {
+    scheduleSaveWindowState();
     mainWindow?.webContents.send('window-maximized-change', false);
+  });
+
+  mainWindow.on('resize', () => {
+    scheduleSaveWindowState();
+  });
+
+  mainWindow.on('move', () => {
+    scheduleSaveWindowState();
   });
 
   // En lugar de destruir la ventana al cerrar, ocultar a la bandeja si no estamos saliendo
   mainWindow.on('close', (event) => {
+    saveWindowStateImmediate();
     if (!isQuitting) {
       event.preventDefault();
       mainWindow?.hide();
@@ -705,6 +1325,12 @@ function createWindow() {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  updatePowerSaveBlocker(false);
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  updatePowerSaveBlocker(false);
 });
 
 app.whenReady().then(async () => {
@@ -712,8 +1338,11 @@ app.whenReady().then(async () => {
   setupImageOptimization();
   setupTray();
   registerWindowIpcHandlers();
+  registerOSIntegrationIpcHandlers();
   registerAuthIpcHandlers();
   registerSafeStorageIpcHandlers();
+  registerGlobalShortcuts();
+  setupPowerMonitor();
 
   createWindow();
 

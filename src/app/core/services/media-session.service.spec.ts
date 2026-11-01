@@ -3,9 +3,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MediaSessionService } from './media-session.service';
 import { PlaybackService } from './playback.service';
+import { LikesService } from './likes.service';
 import { AUDIO_FACTORY } from './audio-factory';
 import { FakeAudioElement, createFakeAudioFactory } from '../testing/fake-audio-element';
 import { QueueItem } from '../models/queue.model';
+import { MediaControlAction } from '../../../electron';
 
 type Handler = ((details: MediaSessionActionDetails) => void) | null;
 
@@ -228,5 +230,51 @@ describe('MediaSessionService', () => {
 
     const state = setPositionState.mock.calls.at(-1)?.[0] as MediaPositionState;
     expect(state.playbackRate).toBe(1.5);
+  });
+
+  it('toggles like on the active track when receiving toggle-like IPC control', () => {
+    let ipcCallback: ((action: MediaControlAction) => void) | null = null;
+    window.windowControls = {
+      minimize: vi.fn(),
+      maximize: vi.fn(),
+      close: vi.fn(),
+      isMaximized: vi.fn().mockResolvedValue(false),
+      onMaximizedChange: vi.fn().mockReturnValue(() => {}),
+      toggleMiniPlayer: vi.fn(),
+      isMiniPlayer: vi.fn().mockResolvedValue(false),
+      onMiniPlayerChange: vi.fn().mockReturnValue(() => {}),
+      onMediaControl: (cb) => {
+        ipcCallback = cb;
+        return () => {
+          ipcCallback = null;
+        };
+      },
+    };
+
+    TestBed.resetTestingModule();
+    const factory = createFakeAudioFactory();
+    TestBed.configureTestingModule({
+      providers: [
+        MediaSessionService,
+        PlaybackService,
+        LikesService,
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AUDIO_FACTORY, useValue: factory },
+      ],
+    });
+
+    const pb = TestBed.inject(PlaybackService);
+    const likes = TestBed.inject(LikesService);
+    likes.backendSyncEnabled = false;
+    TestBed.inject(MediaSessionService);
+
+    pb.playQueue([item(1)], 0);
+    expect(likes.isLiked('v1')).toBe(false);
+
+    ipcCallback!('toggle-like');
+    expect(likes.isLiked('v1')).toBe(true);
+
+    delete window.windowControls;
   });
 });

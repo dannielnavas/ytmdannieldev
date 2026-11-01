@@ -1,5 +1,6 @@
 import { DestroyRef, Service, computed, effect, inject } from '@angular/core';
 import { PlaybackService } from './playback.service';
+import { LikesService } from './likes.service';
 import { getHighResThumbnail } from './image-helper.service';
 import { MediaControlAction } from '../../../electron';
 
@@ -25,6 +26,7 @@ function isSupported(): boolean {
 @Service()
 export class MediaSessionService {
   private readonly _playback = inject(PlaybackService);
+  private readonly _likes = inject(LikesService);
   private readonly _destroyRef = inject(DestroyRef);
 
   private _lastPositionUpdate = 0;
@@ -70,6 +72,13 @@ export class MediaSessionService {
         case 'stop':
           this._playback.stop();
           break;
+        case 'toggle-like': {
+          const current = this._playback.$currentTrack();
+          if (current) {
+            this._likes.toggleLike(current);
+          }
+          break;
+        }
       }
     });
 

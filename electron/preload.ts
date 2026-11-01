@@ -1,6 +1,42 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-export type MediaControlAction = 'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop';
+export type MediaControlAction =
+  'toggle-play' | 'play' | 'pause' | 'next' | 'previous' | 'stop' | 'toggle-like';
+
+export interface OSPlaybackTrack {
+  videoId: string;
+  title: string;
+  artist: string;
+  album?: string;
+  thumbnailUrl?: string;
+}
+
+export interface OSPlaybackState {
+  track: OSPlaybackTrack | null;
+  isPlaying: boolean;
+  isLiked: boolean;
+  /** Progress between 0 and 1, or -1 when no active progress should be shown. */
+  progress: number;
+}
+
+export interface OSTrackNotification {
+  videoId: string;
+  title: string;
+  artist: string;
+  album?: string;
+  thumbnailUrl?: string;
+}
+
+export interface OSThemeInfo {
+  shouldUseDarkColors: boolean;
+  inHighContrastColors: boolean;
+  accentColor?: string;
+}
+
+export interface LoginItemConfig {
+  openAtLogin: boolean;
+  openAsHidden?: boolean;
+}
 
 export interface WindowControlsAPI {
   minimize: () => void;
@@ -13,6 +49,15 @@ export interface WindowControlsAPI {
   isMiniPlayer: () => Promise<boolean>;
   onMiniPlayerChange: (callback: (isMini: boolean) => void) => () => void;
   onMediaControl?: (callback: (action: MediaControlAction) => void) => () => void;
+  updatePlaybackState?: (state: OSPlaybackState) => void;
+  notifyTrackChange?: (notification: OSTrackNotification) => void;
+  getLoginItemSettings?: () => Promise<LoginItemConfig>;
+  setLoginItemSettings?: (config: LoginItemConfig) => Promise<LoginItemConfig>;
+  getThemeInfo?: () => Promise<OSThemeInfo>;
+  onThemeChange?: (callback: (theme: OSThemeInfo) => void) => () => void;
+  onDeepLink?: (callback: (url: string) => void) => () => void;
+  onSystemSuspend?: (callback: () => void) => () => void;
+  onSystemResume?: (callback: () => void) => () => void;
   platform?: string;
 }
 
@@ -45,6 +90,41 @@ const windowControls: WindowControlsAPI = {
     ipcRenderer.on('window-media-control', listener);
     return () => {
       ipcRenderer.removeListener('window-media-control', listener);
+    };
+  },
+  updatePlaybackState: (state: OSPlaybackState) => ipcRenderer.send('os:playback-state', state),
+  notifyTrackChange: (notification: OSTrackNotification) =>
+    ipcRenderer.send('os:track-notification', notification),
+  getLoginItemSettings: () => ipcRenderer.invoke('os:get-login-item'),
+  setLoginItemSettings: (config: LoginItemConfig) =>
+    ipcRenderer.invoke('os:set-login-item', config),
+  getThemeInfo: () => ipcRenderer.invoke('os:get-theme-info'),
+  onThemeChange: (callback: (theme: OSThemeInfo) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, theme: OSThemeInfo) => callback(theme);
+    ipcRenderer.on('os:theme-changed', listener);
+    return () => {
+      ipcRenderer.removeListener('os:theme-changed', listener);
+    };
+  },
+  onDeepLink: (callback: (url: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, url: string) => callback(url);
+    ipcRenderer.on('os:deep-link', listener);
+    return () => {
+      ipcRenderer.removeListener('os:deep-link', listener);
+    };
+  },
+  onSystemSuspend: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('os:power-suspend', listener);
+    return () => {
+      ipcRenderer.removeListener('os:power-suspend', listener);
+    };
+  },
+  onSystemResume: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('os:power-resume', listener);
+    return () => {
+      ipcRenderer.removeListener('os:power-resume', listener);
     };
   },
   platform: process.platform,
