@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PlaybackService } from '../../core/services/playback.service';
 import { LikesService } from '../../core/services/likes.service';
+import { YoutubeSyncService } from '../../core/services/youtube-sync.service';
 import { Auth } from '../../core/services/auth/auth';
 import { UserModel } from '../../core/models/user.model';
 import { of } from 'rxjs';
@@ -197,5 +198,23 @@ describe('ListLikes', () => {
     expect(component.songs().length).toBe(2);
     expect(component.totalCount()).toBe(2);
     expect(component.songs().some((s) => s.videoId === 'v3')).toBe(true);
+  });
+
+  it('should sync liked songs to YouTube Music when onSyncToYoutube is called', async () => {
+    const syncService = TestBed.inject(YoutubeSyncService);
+    const syncSpy = vi.spyOn(syncService, 'syncPlaylist').mockResolvedValue({
+      success: true,
+      playlistId: 'PL_PULSO_SYNC',
+      addedCount: 2,
+      totalSynced: 2,
+      lastSyncedAt: Date.now(),
+    });
+
+    expect(component.showSyncPanel()).toBe(false);
+    component.toggleSyncPanel();
+    expect(component.showSyncPanel()).toBe(true);
+
+    await component.onSyncToYoutube();
+    expect(syncSpy).toHaveBeenCalledWith(['v1', 'v2'], { forceNewPlaylist: false });
   });
 });

@@ -28,8 +28,8 @@ describe('ElectronMedia', () => {
   let router: Router;
   let audio: FakeAudioElement;
 
-  let updatePlaybackState: ReturnType<typeof vi.fn>;
-  let notifyTrackChange: ReturnType<typeof vi.fn>;
+  let updatePlaybackState: ReturnType<typeof vi.fn<(state: OSPlaybackState) => void>>;
+  let notifyTrackChange: ReturnType<typeof vi.fn<(notification: OSTrackNotification) => void>>;
   let deepLinkHandler: ((url: string) => void) | null;
   let suspendHandler: (() => void) | null;
 

@@ -144,7 +144,194 @@
                   <span>Radio de Likes</span>
                 }
               </button>
+
+              <!-- Botón Sincronizar en YouTube Music + Opciones -->
+              <div class="inline-flex items-center rounded-full bg-red-600/15 border border-red-500/30 p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  (click)="onSyncToYoutube()"
+                  [disabled]="$isSyncingYoutube() || total === 0"
+                  class="px-4 py-2 rounded-l-full hover:bg-red-600/25 disabled:opacity-40 disabled:cursor-not-allowed text-red-100 font-medium text-xs sm:text-sm transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  title="Crear o actualizar tu playlist de Pulso en YouTube Music"
+                >
+                  @if ($isSyncingYoutube()) {
+                    <svg lucideLoader2 class="w-4 h-4 animate-spin text-red-400"></svg>
+                    <span>Sincronizando...</span>
+                  } @else {
+                    <svg lucideRotateCw class="w-4 h-4 text-red-400"></svg>
+                    <span>Sincronizar en YouTube</span>
+                    @if ($syncState().playlistId && unsyncedCount() > 0) {
+                      <span class="px-1.5 py-0.5 rounded-full bg-red-500/30 text-[10px] font-bold text-red-200">
+                        +{{ unsyncedCount() }}
+                      </span>
+                    }
+                  }
+                </button>
+                <button
+                  type="button"
+                  (click)="toggleSyncPanel()"
+                  class="px-2.5 py-2 rounded-r-full hover:bg-red-600/25 text-red-300 hover:text-white border-l border-red-500/20 transition-colors cursor-pointer flex items-center"
+                  title="Opciones de sincronización con YouTube Music"
+                  aria-label="Opciones de sincronización con YouTube Music"
+                >
+                  <svg
+                    lucideChevronDown
+                    class="w-4 h-4 transition-transform duration-200"
+                    [class.rotate-180]="showSyncPanel()"
+                  ></svg>
+                </button>
+              </div>
             </div>
+
+            <!-- Feedback de última sincronización -->
+            @if ($lastSyncResult(); as syncResult) {
+              <div
+                class="mt-3 px-4 py-2.5 rounded-2xl text-xs flex items-center justify-between gap-3 border"
+                [class]="
+                  syncResult.success
+                    ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200'
+                    : 'bg-red-500/10 border-red-500/25 text-red-200'
+                "
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  @if (syncResult.success) {
+                    <span class="font-semibold">
+                      {{ syncResult.createdNew ? 'Playlist creada en YouTube Music:' : 'Playlist sincronizada en YouTube Music:' }}
+                    </span>
+                    <span>
+                      {{
+                        syncResult.addedCount > 0
+                          ? syncResult.addedCount + (syncResult.addedCount === 1 ? ' canción añadida' : ' canciones añadidas')
+                          : 'Todas tus canciones ya estaban al día'
+                      }}
+                      ({{ syncResult.totalSynced }} en total).
+                    </span>
+                    @if (syncResult.playlistId) {
+                      <button
+                        type="button"
+                        (click)="openSyncedPlaylist()"
+                        class="underline underline-offset-2 font-semibold text-white hover:text-emerald-300 cursor-pointer ml-1"
+                      >
+                        Abrir playlist
+                      </button>
+                    }
+                  } @else {
+                    <span class="font-semibold">Error al sincronizar:</span>
+                    <span>{{ syncResult.error }}</span>
+                  }
+                </div>
+                <button
+                  type="button"
+                  (click)="dismissSyncResult()"
+                  class="text-zinc-400 hover:text-white p-1 rounded cursor-pointer shrink-0"
+                  title="Cerrar aviso"
+                >
+                  <svg lucideX class="w-3.5 h-3.5"></svg>
+                </button>
+              </div>
+            }
+
+            <!-- Panel desplegable de configuración de sincronización en YouTube -->
+            @if (showSyncPanel()) {
+              <div class="mt-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] space-y-4 text-left max-w-2xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06] pb-3">
+                  <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                      <svg lucideListMusic class="w-4 h-4 text-red-400"></svg>
+                      Sincronización con YouTube Music
+                    </h3>
+                    <p class="text-[11px] text-zinc-400 mt-0.5">
+                      Crea y mantiene actualizada tu lista de favoritos de Pulso directamente en tu cuenta de YouTube.
+                    </p>
+                  </div>
+
+                  <!-- Switch Auto-sync -->
+                  <label class="inline-flex items-center gap-2 cursor-pointer select-none shrink-0">
+                    <input
+                      type="checkbox"
+                      [ngModel]="$syncState().autoSync"
+                      (ngModelChange)="onToggleAutoSync($event)"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all relative peer-checked:bg-red-600"
+                    ></div>
+                    <span class="text-xs font-medium text-zinc-200">Auto-sincronizar al dar like</span>
+                  </label>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div class="sm:col-span-2 space-y-1">
+                    <label class="block text-[11px] font-medium text-zinc-400">
+                      Nombre de la playlist en YouTube
+                    </label>
+                    <input
+                      type="text"
+                      [ngModel]="$syncState().playlistTitle"
+                      (ngModelChange)="onChangeSyncTitle($event)"
+                      placeholder="Pulso - Favoritos"
+                      class="w-full px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-white/20"
+                    />
+                  </div>
+
+                  <div class="space-y-1">
+                    <label class="block text-[11px] font-medium text-zinc-400">
+                      Privacidad
+                    </label>
+                    <select
+                      [ngModel]="$syncState().privacyStatus"
+                      (ngModelChange)="onChangeSyncPrivacy($event)"
+                      class="w-full px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/[0.08] text-xs text-white focus:outline-none focus:border-white/20 cursor-pointer"
+                    >
+                      <option value="PRIVATE" class="bg-zinc-900 text-white">Privada</option>
+                      <option value="UNLISTED" class="bg-zinc-900 text-white">No listada</option>
+                      <option value="PUBLIC" class="bg-zinc-900 text-white">Pública</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
+                  @if ($syncState().playlistId) {
+                    <div class="flex flex-wrap items-center gap-2 text-zinc-400">
+                      <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                      <span>
+                        Vinculada ({{ $syncState().syncedVideoIds.length }} canciones sincronizadas)
+                      </span>
+                      <button
+                        type="button"
+                        (click)="openSyncedPlaylist()"
+                        class="text-red-300 hover:text-white underline underline-offset-2 font-medium cursor-pointer"
+                      >
+                        Ver playlist en Pulso
+                      </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="onUnlinkYoutubePlaylist()"
+                        class="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-[11px] transition-colors cursor-pointer"
+                        title="Desvincular para crear una playlist nueva en la próxima sincronización"
+                      >
+                        Desvincular
+                      </button>
+                      <button
+                        type="button"
+                        (click)="onSyncToYoutube(true)"
+                        [disabled]="$isSyncingYoutube() || total === 0"
+                        class="px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 disabled:opacity-40 text-red-200 border border-red-500/30 text-[11px] font-medium transition-colors cursor-pointer"
+                      >
+                        Crear nueva copia
+                      </button>
+                    </div>
+                  } @else {
+                    <span class="text-zinc-400 text-[11px]">
+                      Aún no se ha vinculado ninguna playlist. Al sincronizar se creará automáticamente en tu cuenta de YouTube.
+                    </span>
+                  }
+                </div>
+              </div>
+            }
           </div>
         </div>
       </div>

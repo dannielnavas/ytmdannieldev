@@ -18,12 +18,18 @@ import {
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import type {
   LoginItemConfig,
   MediaControlAction,
   OSPlaybackState,
   OSThemeInfo,
   OSTrackNotification,
+  YoutubePlaylistPrivacy,
+  YoutubeSyncConfigPatch,
+  YoutubeSyncRequest,
+  YoutubeSyncResult,
+  YoutubeSyncState,
 } from './preload';
 
 app.setName('Pulso');
@@ -620,6 +626,7 @@ function registerAuthIpcHandlers() {
 
   ipcMain.handle('auth:logout', async () => {
     try {
+      cachedYtMusicContext = null;
       await session.defaultSession.clearStorageData({
         storages: ['cookies', 'localstorage'],
       });
@@ -727,6 +734,541 @@ function registerSafeStorageIpcHandlers() {
     }
     return false;
   });
+}
+
+const YOUTUBE_MUSIC_ORIGIN = 'https://music.youtube.com';
+
+interface CachedYtMusicContext {
+  context: Record<string, any>;
+  authUser: string;
+  visitorData?: string;
+  pageId?: string;
+  fetchedAt: number;
+}
+
+let cachedYtMusicContext: CachedYtMusicContext | null = null;
+
+function getYoutubeSyncStatePath(): string {
+  return path.join(app.getPath('userData'), 'youtube-sync.json');
+}
+
+function getDefaultYoutubeSyncState(): YoutubeSyncState {
+  return {
+    playlistId: null,
+    playlistTitle: 'Pulso - Favoritos',
+    playlistDescription: 'Mis canciones favoritas sincronizadas desde Pulso',
+    privacyStatus: 'PRIVATE',
+    autoSync: false,
+    lastSyncedAt: null,
+    syncedVideoIds: [],
+  };
+}
+
+function loadYoutubeSyncState(): YoutubeSyncState {
+  const defaults = getDefaultYoutubeSyncState();
+  try {
+    const filePath = getYoutubeSyncStatePath();
+    if (!fs.existsSync(filePath)) return defaults;
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Partial<YoutubeSyncState>;
+    const validPrivacies: YoutubePlaylistPrivacy[] = ['PRIVATE', 'UNLISTED', 'PUBLIC'];
+    return {
+      playlistId:
+        typeof raw.playlistId === 'string' && raw.playlistId.trim() ? raw.playlistId.trim() : null,
+      playlistTitle:
+        typeof raw.playlistTitle === 'string' && raw.playlistTitle.trim()
+          ? raw.playlistTitle.trim()
+          : defaults.playlistTitle,
+      playlistDescription:
+        typeof raw.playlistDescription === 'string'
+          ? raw.playlistDescription.trim()
+          : defaults.playlistDescription,
+      privacyStatus:
+        raw.privacyStatus && validPrivacies.includes(raw.privacyStatus)
+          ? raw.privacyStatus
+          : defaults.privacyStatus,
+      autoSync: Boolean(raw.autoSync),
+      lastSyncedAt: typeof raw.lastSyncedAt === 'number' ? raw.lastSyncedAt : null,
+      syncedVideoIds: Array.isArray(raw.syncedVideoIds)
+        ? raw.syncedVideoIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : [],
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+function saveYoutubeSyncState(state: YoutubeSyncState): YoutubeSyncState {
+  try {
+    const filePath = getYoutubeSyncStatePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    const tmpPath = `${filePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
+    fs.renameSync(tmpPath, filePath);
+  } catch (err) {
+    console.warn('[YoutubeSync] Error guardando estado de sincronización:', err);
+  }
+  return state;
+}
+
+async function getYoutubeSessionAuth(): Promise<{
+  cookieHeader: string;
+  sapisid: string;
+} | null> {
+  const [domainCookies, urlCookies] = await Promise.all([
+    session.defaultSession.cookies.get({ domain: '.youtube.com' }),
+    session.defaultSession.cookies.get({ url: YOUTUBE_MUSIC_ORIGIN }),
+  ]);
+
+  const cookieMap = new Map<string, string>();
+  for (const c of [...domainCookies, ...urlCookies]) {
+    if (c.name && c.value) {
+      cookieMap.set(c.name, c.value);
+    }
+  }
+
+  const sapisid = cookieMap.get('SAPISID') || cookieMap.get('__Secure-3PAPISID') || '';
+  if (!sapisid) {
+    return null;
+  }
+
+  const cookieHeader = Array.from(cookieMap.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+
+  return { cookieHeader, sapisid };
+}
+
+function buildSapisidAuthorizationHeader(sapisid: string): string {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const digest = crypto
+    .createHash('sha1')
+    .update(`${timestamp} ${sapisid} ${YOUTUBE_MUSIC_ORIGIN}`)
+    .digest('hex');
+  const token = `${timestamp}_${digest}`;
+  return `SAPISIDHASH ${token} SAPISID1PHASH ${token} SAPISID3PHASH ${token}`;
+}
+
+async function resolveYtMusicClientContext(cookieHeader: string): Promise<CachedYtMusicContext> {
+  const now = Date.now();
+  if (cachedYtMusicContext && now - cachedYtMusicContext.fetchedAt < 20 * 60 * 1000) {
+    return cachedYtMusicContext;
+  }
+
+  const fallback: CachedYtMusicContext = {
+    context: {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion: '1.20250115.01.00',
+        hl: 'es',
+        gl: 'US',
+      },
+    },
+    authUser: '0',
+    fetchedAt: now,
+  };
+
+  try {
+    const res = await fetch(`${YOUTUBE_MUSIC_ORIGIN}/`, {
+      method: 'GET',
+      headers: {
+        Cookie: cookieHeader,
+        Origin: YOUTUBE_MUSIC_ORIGIN,
+        Referer: `${YOUTUBE_MUSIC_ORIGIN}/`,
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      },
+    });
+    if (!res.ok) {
+      return fallback;
+    }
+
+    const html = await res.text();
+    const versionMatch = html.match(/"INNERTUBE_CLIENT_VERSION"\s*:\s*"([^"]+)"/);
+    const visitorMatch = html.match(/"VISITOR_DATA"\s*:\s*"([^"]+)"/);
+    const sessionIndexMatch = html.match(/"SESSION_INDEX"\s*:\s*"?(\d+)"?/);
+    const delegatedSessionMatch = html.match(/"DELEGATED_SESSION_ID"\s*:\s*"([^"]+)"/);
+    const hlMatch = html.match(/"HL"\s*:\s*"([^"]+)"/);
+    const glMatch = html.match(/"GL"\s*:\s*"([^"]+)"/);
+
+    const clientVersion = versionMatch?.[1] || '1.20250115.01.00';
+    const visitorData = visitorMatch?.[1];
+    const authUser = sessionIndexMatch?.[1] || '0';
+    const pageId = delegatedSessionMatch?.[1];
+
+    const context: Record<string, any> = {
+      client: {
+        clientName: 'WEB_REMIX',
+        clientVersion,
+        hl: hlMatch?.[1] || 'es',
+        gl: glMatch?.[1] || 'US',
+        ...(visitorData ? { visitorData } : {}),
+      },
+      ...(pageId ? { user: { onBehalfOfUser: pageId } } : {}),
+    };
+
+    cachedYtMusicContext = {
+      context,
+      authUser,
+      ...(visitorData ? { visitorData } : {}),
+      ...(pageId ? { pageId } : {}),
+      fetchedAt: now,
+    };
+    return cachedYtMusicContext;
+  } catch {
+    return fallback;
+  }
+}
+
+async function callYoutubeMusicInnerTube(
+  endpointPath: string,
+  payload: Record<string, any>,
+  auth: { cookieHeader: string; sapisid: string },
+  ytContext: CachedYtMusicContext,
+): Promise<any> {
+  const url = `${YOUTUBE_MUSIC_ORIGIN}/youtubei/v1/${endpointPath}?prettyPrint=false`;
+  const headers: Record<string, string> = {
+    Authorization: buildSapisidAuthorizationHeader(auth.sapisid),
+    Cookie: auth.cookieHeader,
+    'Content-Type': 'application/json',
+    Origin: YOUTUBE_MUSIC_ORIGIN,
+    Referer: `${YOUTUBE_MUSIC_ORIGIN}/`,
+    'X-Origin': YOUTUBE_MUSIC_ORIGIN,
+    'X-Goog-AuthUser': ytContext.authUser || '0',
+    'User-Agent':
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  };
+
+  if (ytContext.visitorData) {
+    headers['X-Goog-Visitor-Id'] = ytContext.visitorData;
+  }
+  if (ytContext.pageId) {
+    headers['X-Goog-PageId'] = ytContext.pageId;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      context: ytContext.context,
+      ...payload,
+    }),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.error) {
+    const message =
+      data?.error?.message || `Error HTTP ${response.status} en YouTube Music (${endpointPath})`;
+    throw new Error(message);
+  }
+  return data;
+}
+
+function collectPlaylistVideoIdsFromBrowse(node: unknown, out: Set<string>): void {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectPlaylistVideoIdsFromBrowse(item, out);
+    }
+    return;
+  }
+
+  const record = node as Record<string, any>;
+  if (
+    record['playlistItemData'] &&
+    typeof record['playlistItemData'].videoId === 'string' &&
+    record['playlistItemData'].videoId.length === 11
+  ) {
+    out.add(record['playlistItemData'].videoId);
+  }
+
+  for (const value of Object.values(record)) {
+    if (value && typeof value === 'object') {
+      collectPlaylistVideoIdsFromBrowse(value, out);
+    }
+  }
+}
+
+async function fetchRemotePlaylistVideoIds(
+  playlistId: string,
+  auth: { cookieHeader: string; sapisid: string },
+  ytContext: CachedYtMusicContext,
+): Promise<{ exists: boolean; videoIds: Set<string> }> {
+  const cleanId = playlistId.replace(/^VL/, '').trim();
+  const browseId = cleanId.startsWith('VL') ? cleanId : `VL${cleanId}`;
+  try {
+    const data = await callYoutubeMusicInnerTube('browse', { browseId }, auth, ytContext);
+    const hasHeaderOrContents = Boolean(
+      data?.contents || data?.header || data?.microformat || data?.background,
+    );
+    if (!hasHeaderOrContents) {
+      return { exists: false, videoIds: new Set() };
+    }
+    const videoIds = new Set<string>();
+    collectPlaylistVideoIdsFromBrowse(data.contents, videoIds);
+    return { exists: true, videoIds };
+  } catch {
+    return { exists: false, videoIds: new Set() };
+  }
+}
+
+async function addVideosToYoutubePlaylist(
+  playlistId: string,
+  videoIds: string[],
+  auth: { cookieHeader: string; sapisid: string },
+  ytContext: CachedYtMusicContext,
+): Promise<string[]> {
+  const cleanPlaylistId = playlistId.replace(/^VL/, '').trim();
+  const successfullyAdded: string[] = [];
+  const batchSize = 25;
+
+  for (let i = 0; i < videoIds.length; i += batchSize) {
+    const batch = videoIds.slice(i, i + batchSize);
+    const actions = batch.map((videoId) => ({
+      action: 'ACTION_ADD_VIDEO',
+      addedVideoId: videoId,
+      dedupeOption: 'DEDUPE_OPTION_SKIP',
+    }));
+
+    try {
+      await callYoutubeMusicInnerTube(
+        'browse/edit_playlist',
+        {
+          playlistId: cleanPlaylistId,
+          actions,
+        },
+        auth,
+        ytContext,
+      );
+      successfullyAdded.push(...batch);
+    } catch {
+      // Fallback individual por si una pista específica del lote está restringida
+      for (const videoId of batch) {
+        try {
+          await callYoutubeMusicInnerTube(
+            'browse/edit_playlist',
+            {
+              playlistId: cleanPlaylistId,
+              actions: [
+                {
+                  action: 'ACTION_ADD_VIDEO',
+                  addedVideoId: videoId,
+                  dedupeOption: 'DEDUPE_OPTION_SKIP',
+                },
+              ],
+            },
+            auth,
+            ytContext,
+          );
+          successfullyAdded.push(videoId);
+        } catch (singleErr) {
+          console.warn(`[YoutubeSync] No se pudo agregar el video ${videoId}:`, singleErr);
+        }
+      }
+    }
+  }
+
+  return successfullyAdded;
+}
+
+function registerYoutubeSyncIpcHandlers(): void {
+  ipcMain.handle('youtube-sync:get-state', (): YoutubeSyncState => {
+    return loadYoutubeSyncState();
+  });
+
+  ipcMain.handle(
+    'youtube-sync:update-config',
+    (_event, patch: YoutubeSyncConfigPatch): YoutubeSyncState => {
+      const current = loadYoutubeSyncState();
+      const validPrivacies: YoutubePlaylistPrivacy[] = ['PRIVATE', 'UNLISTED', 'PUBLIC'];
+      const updated: YoutubeSyncState = {
+        ...current,
+        ...(patch && typeof patch.playlistTitle === 'string' && patch.playlistTitle.trim()
+          ? { playlistTitle: patch.playlistTitle.trim().slice(0, 120) }
+          : {}),
+        ...(patch && typeof patch.playlistDescription === 'string'
+          ? { playlistDescription: patch.playlistDescription.trim().slice(0, 500) }
+          : {}),
+        ...(patch && patch.privacyStatus && validPrivacies.includes(patch.privacyStatus)
+          ? { privacyStatus: patch.privacyStatus }
+          : {}),
+        ...(patch && typeof patch.autoSync === 'boolean' ? { autoSync: patch.autoSync } : {}),
+        ...(patch && 'playlistId' in patch
+          ? {
+              playlistId:
+                typeof patch.playlistId === 'string' && patch.playlistId.trim()
+                  ? patch.playlistId.trim()
+                  : null,
+            }
+          : {}),
+      };
+      return saveYoutubeSyncState(updated);
+    },
+  );
+
+  ipcMain.handle('youtube-sync:unlink-playlist', (): YoutubeSyncState => {
+    const current = loadYoutubeSyncState();
+    return saveYoutubeSyncState({
+      ...current,
+      playlistId: null,
+      lastSyncedAt: null,
+      syncedVideoIds: [],
+    });
+  });
+
+  ipcMain.handle(
+    'youtube-sync:sync-playlist',
+    async (_event, request: YoutubeSyncRequest): Promise<YoutubeSyncResult> => {
+      try {
+        const auth = await getYoutubeSessionAuth();
+        if (!auth) {
+          return {
+            success: false,
+            playlistId: null,
+            addedCount: 0,
+            totalSynced: 0,
+            lastSyncedAt: null,
+            error:
+              'No se encontró una sesión activa de YouTube Music. Cierra sesión y vuelve a iniciar sesión con Google.',
+          };
+        }
+
+        const rawVideoIds = Array.isArray(request?.videoIds) ? request.videoIds : [];
+        const uniqueVideoIds: string[] = [];
+        const seen = new Set<string>();
+        for (const rawId of rawVideoIds) {
+          if (typeof rawId === 'string') {
+            const clean = rawId.trim();
+            if (/^[a-zA-Z0-9_-]{11}$/.test(clean) && !seen.has(clean)) {
+              seen.add(clean);
+              uniqueVideoIds.push(clean);
+            }
+          }
+        }
+
+        if (uniqueVideoIds.length === 0) {
+          return {
+            success: false,
+            playlistId: null,
+            addedCount: 0,
+            totalSynced: 0,
+            lastSyncedAt: null,
+            error: 'No hay canciones válidas para sincronizar.',
+          };
+        }
+
+        const state = loadYoutubeSyncState();
+        const validPrivacies: YoutubePlaylistPrivacy[] = ['PRIVATE', 'UNLISTED', 'PUBLIC'];
+        const title =
+          (typeof request?.title === 'string' && request.title.trim()) ||
+          state.playlistTitle ||
+          'Pulso - Favoritos';
+        const description =
+          typeof request?.description === 'string'
+            ? request.description.trim()
+            : state.playlistDescription;
+        const privacyStatus =
+          request?.privacyStatus && validPrivacies.includes(request.privacyStatus)
+            ? request.privacyStatus
+            : state.privacyStatus;
+
+        const ytContext = await resolveYtMusicClientContext(auth.cookieHeader);
+
+        let targetPlaylistId = request?.forceNewPlaylist ? null : state.playlistId;
+        let existingRemoteIds = new Set<string>(
+          request?.forceNewPlaylist ? [] : state.syncedVideoIds,
+        );
+        let createdNew = false;
+
+        if (targetPlaylistId) {
+          const remoteCheck = await fetchRemotePlaylistVideoIds(
+            targetPlaylistId,
+            auth,
+            ytContext,
+          );
+          if (!remoteCheck.exists) {
+            targetPlaylistId = null;
+            existingRemoteIds = new Set<string>();
+          } else if (remoteCheck.videoIds.size > 0) {
+            // Si la playlist tiene <=100 pistas, remoteCheck.videoIds refleja el estado exacto
+            // en YouTube (permitiendo re-agregar canciones borradas accidentalmente en YouTube).
+            if (state.syncedVideoIds.length <= 100) {
+              existingRemoteIds = remoteCheck.videoIds;
+            } else {
+              for (const id of remoteCheck.videoIds) {
+                existingRemoteIds.add(id);
+              }
+            }
+          }
+        }
+
+        if (!targetPlaylistId) {
+          const createRes = await callYoutubeMusicInnerTube(
+            'playlist/create',
+            {
+              title,
+              description,
+              privacyStatus,
+            },
+            auth,
+            ytContext,
+          );
+
+          const rawCreatedId = createRes?.playlistId;
+          if (typeof rawCreatedId !== 'string' || !rawCreatedId.trim()) {
+            throw new Error('YouTube Music no devolvió un ID de playlist al crearla.');
+          }
+          targetPlaylistId = rawCreatedId.replace(/^VL/, '').trim();
+          existingRemoteIds = new Set<string>();
+          createdNew = true;
+        }
+
+        const toAdd = uniqueVideoIds.filter((id) => !existingRemoteIds.has(id));
+        let addedIds: string[] = [];
+        if (toAdd.length > 0) {
+          addedIds = await addVideosToYoutubePlaylist(targetPlaylistId, toAdd, auth, ytContext);
+          for (const id of addedIds) {
+            existingRemoteIds.add(id);
+          }
+        }
+
+        const now = Date.now();
+        const nextState = saveYoutubeSyncState({
+          playlistId: targetPlaylistId,
+          playlistTitle: title,
+          playlistDescription: description,
+          privacyStatus,
+          autoSync: state.autoSync,
+          lastSyncedAt: now,
+          syncedVideoIds: Array.from(existingRemoteIds),
+        });
+
+        return {
+          success: true,
+          playlistId: nextState.playlistId,
+          addedCount: addedIds.length,
+          totalSynced: nextState.syncedVideoIds.length,
+          lastSyncedAt: now,
+          playlistUrl: `https://music.youtube.com/playlist?list=${encodeURIComponent(targetPlaylistId)}`,
+          createdNew,
+        };
+      } catch (err: any) {
+        console.error('[YoutubeSync] Error sincronizando playlist en YouTube Music:', err);
+        return {
+          success: false,
+          playlistId: null,
+          addedCount: 0,
+          totalSynced: 0,
+          lastSyncedAt: null,
+          error:
+            err?.message ||
+            'No se pudo sincronizar la lista con YouTube Music. Verifica tu conexión o sesión.',
+        };
+      }
+    },
+  );
 }
 
 /**
@@ -1341,6 +1883,7 @@ app.whenReady().then(async () => {
   registerOSIntegrationIpcHandlers();
   registerAuthIpcHandlers();
   registerSafeStorageIpcHandlers();
+  registerYoutubeSyncIpcHandlers();
   registerGlobalShortcuts();
   setupPowerMonitor();
 

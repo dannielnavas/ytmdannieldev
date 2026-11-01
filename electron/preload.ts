@@ -38,6 +38,45 @@ export interface LoginItemConfig {
   openAsHidden?: boolean;
 }
 
+export type YoutubePlaylistPrivacy = 'PRIVATE' | 'UNLISTED' | 'PUBLIC';
+
+export interface YoutubeSyncState {
+  playlistId: string | null;
+  playlistTitle: string;
+  playlistDescription: string;
+  privacyStatus: YoutubePlaylistPrivacy;
+  autoSync: boolean;
+  lastSyncedAt: number | null;
+  syncedVideoIds: string[];
+}
+
+export interface YoutubeSyncConfigPatch {
+  playlistId?: string | null;
+  playlistTitle?: string;
+  playlistDescription?: string;
+  privacyStatus?: YoutubePlaylistPrivacy;
+  autoSync?: boolean;
+}
+
+export interface YoutubeSyncRequest {
+  videoIds: string[];
+  title?: string;
+  description?: string;
+  privacyStatus?: YoutubePlaylistPrivacy;
+  forceNewPlaylist?: boolean;
+}
+
+export interface YoutubeSyncResult {
+  success: boolean;
+  playlistId: string | null;
+  addedCount: number;
+  totalSynced: number;
+  lastSyncedAt: number | null;
+  playlistUrl?: string;
+  createdNew?: boolean;
+  error?: string;
+}
+
 export interface WindowControlsAPI {
   minimize: () => void;
   minimizeSystem?: () => void;
@@ -165,6 +204,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loginWithGoogle: () => ipcRenderer.invoke('auth:login-google'),
   logout: () => ipcRenderer.invoke('auth:logout'),
   getUserData: () => ipcRenderer.invoke('auth:get-user-data'),
+  getYoutubeSyncState: (): Promise<YoutubeSyncState> =>
+    ipcRenderer.invoke('youtube-sync:get-state'),
+  updateYoutubeSyncConfig: (patch: YoutubeSyncConfigPatch): Promise<YoutubeSyncState> =>
+    ipcRenderer.invoke('youtube-sync:update-config', patch),
+  syncPlaylistToYoutube: (request: YoutubeSyncRequest): Promise<YoutubeSyncResult> =>
+    ipcRenderer.invoke('youtube-sync:sync-playlist', request),
+  unlinkYoutubeSyncPlaylist: (): Promise<YoutubeSyncState> =>
+    ipcRenderer.invoke('youtube-sync:unlink-playlist'),
   safeStorage: safeStorageAPI,
   windowControls,
   ...windowControls,

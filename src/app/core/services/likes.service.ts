@@ -13,6 +13,7 @@ import {
   Track,
 } from '../models/likes.model';
 import { parseDuration } from './playback.service';
+import { YoutubeSyncService } from './youtube-sync.service';
 
 export interface LikedSong {
   videoId: string;
@@ -133,6 +134,7 @@ export function toLikedSong(
 @Service()
 export class LikesService {
   private readonly _http = inject(HttpClient);
+  private readonly _youtubeSync = inject(YoutubeSyncService, { optional: true });
 
   /**
    * Estado reactivo en memoria con Signals.
@@ -485,6 +487,7 @@ export class LikesService {
   private _updateLocalState(item: LikedSong, isLiked: boolean): void {
     if (isLiked) {
       this._likedSongs.update((list) => [item, ...list.filter((s) => s.videoId !== item.videoId)]);
+      this._youtubeSync?.syncTrackIfAutoEnabled(item.videoId);
     } else {
       this._likedSongs.update((list) => list.filter((s) => s.videoId !== item.videoId));
     }

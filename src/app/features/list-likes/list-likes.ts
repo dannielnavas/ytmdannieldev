@@ -6,13 +6,16 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { tap } from 'rxjs';
 import {
   LucideArrowUpDown,
+  LucideChevronDown,
   LucideChevronLeft,
   LucideChevronRight,
   LucideClock,
   LucideHeart,
+  LucideListMusic,
   LucideLoader2,
   LucidePause,
   LucidePlay,
+  LucideRotateCw,
   LucideSearch,
   LucideShuffle,
   LucideSparkles,
@@ -20,6 +23,8 @@ import {
 } from '@lucide/angular';
 import { LikesService, LikedSong, toLikedSong } from '../../core/services/likes.service';
 import { PlaybackService, parseDuration } from '../../core/services/playback.service';
+import { YoutubeSyncService } from '../../core/services/youtube-sync.service';
+import type { YoutubePlaylistPrivacy } from '../../../electron';
 import { SourceSong } from '../../core/models/youtube';
 import { GetLikesParams, PaginatedLikesResponse } from '../../core/models/likes.model';
 import { DetailSongRow } from '../../shared/components/detail-song-row/detail-song-row';
@@ -42,9 +47,12 @@ export type LikedSortOrder = 'ASC' | 'DESC';
     LucideX,
     LucideSparkles,
     LucideArrowUpDown,
+    LucideChevronDown,
     LucideChevronLeft,
     LucideChevronRight,
+    LucideListMusic,
     LucideLoader2,
+    LucideRotateCw,
     Header,
   ],
   templateUrl: './list-likes.html',
@@ -53,8 +61,15 @@ export type LikedSortOrder = 'ASC' | 'DESC';
 export class ListLikes {
   private readonly _likesService = inject(LikesService);
   private readonly _playbackService = inject(PlaybackService);
+  private readonly _youtubeSyncService = inject(YoutubeSyncService);
   private readonly _location = inject(Location);
   private readonly _router = inject(Router);
+
+  /** Estado reactivo de sincronización con YouTube Music */
+  public readonly $syncState = this._youtubeSyncService.$state;
+  public readonly $isSyncingYoutube = this._youtubeSyncService.$isSyncing;
+  public readonly $lastSyncResult = this._youtubeSyncService.$lastResult;
+  public readonly showSyncPanel = signal(false);
 
   /** Filtro de búsqueda en tiempo real */
   public readonly searchQuery = signal('');
@@ -389,6 +404,58 @@ export class ListLikes {
 
   public goToExplore(): void {
     this._router.navigate(['/home']);
+  }
+
+  /** Cantidad de canciones actuales de Pulso pendientes por sincronizar en la playlist de YouTube */
+  public readonly unsyncedCount = computed(() => {
+    const syncedSet = this._youtubeSyncService.$syncedIdsSet();
+    if (!this.$syncState().playlistId) {
+      return this.baseLikedSongs().length;
+    }
+    return this.baseLikedSongs().filter((s) => s.videoId && !syncedSet.has(s.videoId)).length;
+  });
+
+  public toggleSyncPanel(): void {
+    this.showSyncPanel.update((v) => !v);
+  }
+
+  public async onSyncToYoutube(forceNew = false): Promise<void> {
+    const videoIds = this.baseLikedSongs()
+      .map((s) => s.videoId)
+      .filter((id): id is string => Boolean(id));
+    if (videoIds.length === 0) return;
+
+    await this._youtubeSyncService.syncPlaylist(videoIds, {
+      forceNewPlaylist: forceNew,
+    });
+  }
+
+  public async onToggleAutoSync(enabled: boolean): Promise<void> {
+    await this._youtubeSyncService.updateConfig({ autoSync: enabled });
+  }
+
+  public async onChangeSyncTitle(title: string): Promise<void> {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    await this._youtubeSyncService.updateConfig({ playlistTitle: trimmed });
+  }
+
+  public async onChangeSyncPrivacy(privacyStatus: YoutubePlaylistPrivacy): Promise<void> {
+    await this._youtubeSyncService.updateConfig({ privacyStatus });
+  }
+
+  public async onUnlinkYoutubePlaylist(): Promise<void> {
+    await this._youtubeSyncService.unlinkPlaylist();
+  }
+
+  public openSyncedPlaylist(): void {
+    const id = this.$syncState().playlistId;
+    if (!id) return;
+    this._router.navigate(['/playlist', id]);
+  }
+
+  public dismissSyncResult(): void {
+    this._youtubeSyncService.clearLastResult();
   }
 }
 

@@ -36,6 +36,45 @@ export interface LoginItemConfig {
   openAsHidden?: boolean;
 }
 
+export type YoutubePlaylistPrivacy = 'PRIVATE' | 'UNLISTED' | 'PUBLIC';
+
+export interface YoutubeSyncState {
+  playlistId: string | null;
+  playlistTitle: string;
+  playlistDescription: string;
+  privacyStatus: YoutubePlaylistPrivacy;
+  autoSync: boolean;
+  lastSyncedAt: number | null;
+  syncedVideoIds: string[];
+}
+
+export interface YoutubeSyncConfigPatch {
+  playlistId?: string | null;
+  playlistTitle?: string;
+  playlistDescription?: string;
+  privacyStatus?: YoutubePlaylistPrivacy;
+  autoSync?: boolean;
+}
+
+export interface YoutubeSyncRequest {
+  videoIds: string[];
+  title?: string;
+  description?: string;
+  privacyStatus?: YoutubePlaylistPrivacy;
+  forceNewPlaylist?: boolean;
+}
+
+export interface YoutubeSyncResult {
+  success: boolean;
+  playlistId: string | null;
+  addedCount: number;
+  totalSynced: number;
+  lastSyncedAt: number | null;
+  playlistUrl?: string;
+  createdNew?: boolean;
+  error?: string;
+}
+
 export interface WindowControlsAPI {
   minimize: () => void;
   minimizeSystem?: () => void;
@@ -92,6 +131,10 @@ declare global {
       loginWithGoogle: () => Promise<string>;
       logout?: () => Promise<boolean>;
       getUserData?: () => Promise<UserData>;
+      getYoutubeSyncState?: () => Promise<YoutubeSyncState>;
+      updateYoutubeSyncConfig?: (patch: YoutubeSyncConfigPatch) => Promise<YoutubeSyncState>;
+      syncPlaylistToYoutube?: (request: YoutubeSyncRequest) => Promise<YoutubeSyncResult>;
+      unlinkYoutubeSyncPlaylist?: () => Promise<YoutubeSyncState>;
       safeStorage?: SafeStorageAPI;
     };
   }
