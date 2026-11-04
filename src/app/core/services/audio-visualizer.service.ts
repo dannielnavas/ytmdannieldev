@@ -94,10 +94,20 @@ export class AudioVisualizerService {
 
   public constructor() {
     // Keep the loop in step with playback: running it while paused would burn
-    // a frame per second for a flat line.
+    // a frame per second for a flat line. Always resume any attached AudioContext
+    // when playback starts so audio is never muted even if no canvas is rendering.
     effect(() => {
       const playing = this._playback.$isPlaying();
-      untracked(() => (playing ? this.start() : this.stop()));
+      untracked(() => {
+        if (playing) {
+          if (this._context && this._context.state !== 'running') {
+            void this._context.resume().catch(() => undefined);
+          }
+          this.start();
+        } else {
+          this.stop();
+        }
+      });
     });
 
     this._destroyRef.onDestroy(() => this.dispose());

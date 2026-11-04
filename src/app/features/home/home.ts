@@ -14,7 +14,7 @@ import {
   LucideSparkles,
   LucideTrendingUp,
 } from '@lucide/angular';
-import { Dashboard } from '../../core/services/dashboard/dashboard';
+import { Dashboard, isVideoId } from '../../core/services/dashboard/dashboard';
 import {
   DashboardItem,
   DashboardResponse,
@@ -377,16 +377,25 @@ export class Home {
   }
 
   public playItem(item: DashboardItem, section?: RenderedSection): void {
-    if (item.type === 'ALBUM') {
-      const albumId = item.albumId || item.playlistId;
+    const rawVideoId = 'videoId' in item && typeof item.videoId === 'string' ? item.videoId : null;
+    const candidateId = item.albumId || item.playlistId || rawVideoId;
+
+    if (item.type === 'ALBUM' || (candidateId && candidateId.startsWith('MPREb'))) {
+      const albumId = item.albumId || item.playlistId || candidateId;
       if (albumId) {
         this._router.navigate(['/album', albumId]);
       }
       return;
     }
 
-    if (item.type === 'PLAYLIST') {
-      const playlistId = item.playlistId || item.albumId || item.videoId;
+    if (
+      item.type === 'PLAYLIST' ||
+      (candidateId &&
+        (candidateId.startsWith('OLAK') ||
+          candidateId.startsWith('PL') ||
+          candidateId.startsWith('RD')))
+    ) {
+      const playlistId = item.playlistId || item.albumId || candidateId;
       if (playlistId) {
         this._router.navigate(['/playlist', playlistId]);
       }
@@ -394,22 +403,25 @@ export class Home {
     }
 
     if (section?.contents.length) {
-      const index = section.contents.indexOf(item);
-      this._playbackService.playQueue(
-        this._playbackService.toQueueItems(this._asSongs(section.contents), { size: 800 }),
-        index,
-        section.title,
-      );
-      return;
+      const validSongs = this._asSongs(section.contents);
+      if (validSongs.length) {
+        const index = Math.max(0, validSongs.indexOf(item as QueueCandidate));
+        this._playbackService.playQueue(
+          this._playbackService.toQueueItems(validSongs, { size: 800 }),
+          index !== -1 ? index : 0,
+          section.title,
+        );
+        return;
+      }
     }
 
-    if (item.videoId) {
+    if (rawVideoId && isVideoId(rawVideoId)) {
       this._playbackService.playSingle({
-        videoId: item.videoId,
+        videoId: rawVideoId,
         name: item.name,
         artist: item.artist?.name || '',
         thumbnail: this.getThumbnailUrl(item),
-        ...(item.skipSegments ? { skipSegments: item.skipSegments } : {}),
+        ...('skipSegments' in item && item.skipSegments ? { skipSegments: item.skipSegments } : {}),
       });
     }
   }
@@ -670,6 +682,8 @@ export class Home {
   }
 
   private _asSongs(items: readonly DashboardItem[]): QueueCandidate[] {
-    return items.flatMap((item) => (item.type === 'SONG' ? [item] : []));
+    return items.flatMap((item) =>
+      item.type === 'SONG' && isVideoId(item.videoId) ? [item] : [],
+    );
   }
 }

@@ -55,10 +55,12 @@ describe('Album', () => {
     });
   });
 
-  it('does not attempt playback without an id', () => {
+  it('does not attempt playback without an id or with an album browse id', () => {
     const playSingleSpy = vi.spyOn(playbackService, 'playSingle');
 
     component.fallbackPlayTrack('');
+    component.fallbackPlayTrack('MPREb_999');
+    component.fallbackPlayTrack('OLAK5uy_test');
 
     expect(playSingleSpy).not.toHaveBeenCalled();
   });

@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { Location } from '@angular/common';
-import { Dashboard } from '../../../../core/services/dashboard/dashboard';
+import { Dashboard, isVideoId } from '../../../../core/services/dashboard/dashboard';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { catchError, of, tap } from 'rxjs';
 import { AlbumResponse, Song } from '../../../../core/models/album.model';
@@ -54,16 +54,15 @@ export class Album {
                 });
               });
             }
-          } else {
+          } else if (isVideoId(albumId)) {
             this.fallbackPlayTrack(albumId);
           }
         }),
         catchError((err) => {
-          console.error(
-            'El servicio de álbum falló, intentando reproducir canción con el id de la ruta:',
-            err,
-          );
-          this.fallbackPlayTrack(albumId);
+          console.warn('[Album] No se pudo obtener el álbum:', err);
+          if (isVideoId(albumId)) {
+            this.fallbackPlayTrack(albumId);
+          }
           return of({} as AlbumResponse);
         }),
       );
@@ -72,9 +71,9 @@ export class Album {
     defaultValue: {} as AlbumResponse,
   });
 
-  /** Si el backend no devuelve pistas, al menos reproduce el propio álbum. */
+  /** Si el id corresponde a un video individual de 11 caracteres y el backend falla, lo reproduce. */
   public fallbackPlayTrack(albumId: string): void {
-    if (!albumId) return;
+    if (!albumId || !isVideoId(albumId)) return;
     this._playbackService.playSingle({ videoId: albumId, name: '', artist: '', thumbnail: '' });
   }
 

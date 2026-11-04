@@ -1,7 +1,7 @@
 import { computed, DestroyRef, effect, inject, Service, signal } from '@angular/core';
 import { PersistedQueueItem, QueueItem } from '../models/queue.model';
 import { SponsorBlockSegment } from '../models/track.model';
-import { Dashboard } from './dashboard/dashboard';
+import { Dashboard, isVideoId } from './dashboard/dashboard';
 import { QueueCandidate, Thumbnail } from '../models/youtube';
 import { getHighResThumbnail } from './image-helper.service';
 import { AUDIO_FACTORY } from './audio-factory';
@@ -210,7 +210,12 @@ export class PlaybackService {
 
   public play(): void {
     this._shouldPlay = true;
-    if (!this.$stream()) return;
+    if (!this.$stream()) {
+      if (this.$currentTrack()) {
+        this.playCurrent();
+      }
+      return;
+    }
     this._invokePlay();
   }
 
@@ -330,6 +335,58 @@ export class PlaybackService {
   private _loadCurrent(): void {
     const current = this.$currentTrack();
     if (!current?.videoId) return;
+
+    const rawId = current.videoId.trim();
+    // Protección contra IDs de álbum o playlist: alcanzar el streaming con MPREb u OLAK
+    // no es soportado. Se deben resolver las canciones y reproducir el videoId real.
+    if (rawId.startsWith('MPREb') || rawId.startsWith('MP')) {
+      this._dashboard.getAlbumById(rawId).subscribe({
+        next: (res) => {
+          if (res?.songs?.length) {
+            const valid = res.songs.filter((s) => s.videoId && !s.videoId.startsWith('MPREb'));
+            if (valid.length) {
+              const items = this.toQueueItems(valid, {
+                fallbackThumbnails: res.thumbnails,
+                size: 800,
+              });
+              const idx = this._currentIndex();
+              const next = [...this._queue()];
+              next.splice(idx, 1, ...items);
+              this._queue.set(next);
+              this._originalQueue = [...next];
+              this.playIndex(idx);
+              return;
+            }
+          }
+          this.playNext();
+        },
+        error: () => this.playNext(),
+      });
+      return;
+    }
+
+    if (rawId.startsWith('OLAK') || rawId.startsWith('PL') || rawId.startsWith('RDAMPL')) {
+      this._dashboard.getPlaylist(rawId).subscribe({
+        next: (res) => {
+          if (res?.songsList?.length) {
+            const valid = res.songsList.filter((s) => s.videoId && !s.videoId.startsWith('OLAK'));
+            if (valid.length) {
+              const items = this.toQueueItems(valid, { size: 800 });
+              const idx = this._currentIndex();
+              const next = [...this._queue()];
+              next.splice(idx, 1, ...items);
+              this._queue.set(next);
+              this._originalQueue = [...next];
+              this.playIndex(idx);
+              return;
+            }
+          }
+          this.playNext();
+        },
+        error: () => this.playNext(),
+      });
+      return;
+    }
 
     this.lastSkippedUuid = null;
     this._artworkError.set(false);
@@ -527,7 +584,13 @@ export class PlaybackService {
     const { fallbackThumbnails, size = 800 } = options;
 
     return songs
-      .filter((song): song is QueueCandidate & { videoId: string } => Boolean(song?.videoId))
+      .filter(
+        (song): song is QueueCandidate & { videoId: string } =>
+          typeof song?.videoId === 'string' &&
+          song.videoId.length > 0 &&
+          !song.videoId.startsWith('MPREb') &&
+          !song.videoId.startsWith('OLAK'),
+      )
       .map((song) => {
         const own = song.thumbnails ?? [];
         const fallback = fallbackThumbnails ?? [];
@@ -553,7 +616,13 @@ export class PlaybackService {
   /** Wraps existing items (from persistence) assigning ids when missing. */
   public normalizeQueueItems(items: readonly PersistedQueueItem[]): QueueItem[] {
     return items
-      .filter((item): item is PersistedQueueItem & { videoId: string } => Boolean(item?.videoId))
+      .filter(
+        (item): item is PersistedQueueItem & { videoId: string } =>
+          typeof item?.videoId === 'string' &&
+          item.videoId.length > 0 &&
+          !item.videoId.startsWith('MPREb') &&
+          !item.videoId.startsWith('OLAK'),
+      )
       .map((item) => ({
         id: item.id || nextQueueId(),
         videoId: item.videoId,
